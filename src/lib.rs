@@ -17,6 +17,7 @@
 //! ```
 
 extern crate bytes;
+extern crate byteorder;
 
 mod frame;
 mod codec;
