@@ -36,12 +36,12 @@ pub enum Request {
 pub enum Response {
     ReadCoils(Vec<Coil>),
     ReadDiscreteInputs(Vec<Coil>),
-    WriteSingleCoil,
-    WriteMultipleCoils,
+    WriteSingleCoil(Address),
+    WriteMultipleCoils(Address, Quantity),
     ReadInputRegisters(Vec<Word>),
     ReadHoldingRegisters(Vec<Word>),
-    WriteSingleRegister,
-    WriteMultipleRegisters,
+    WriteSingleRegister(Address, Word),
+    WriteMultipleRegisters(Address, Quantity),
     ReadWriteMultipleRegisters(Vec<Word>),
     Custom(FunctionCode, Vec<u8>),
 }
@@ -61,7 +61,10 @@ pub enum Exception {
 }
 
 /// A server (slave) exception response.
-pub struct ExceptionResponse(FunctionCode, Exception);
+pub struct ExceptionResponse {
+    pub(crate) function: FunctionCode,
+    pub(crate) exception: Exception,
+}
 
 /// Represents a message from the server (slave) to the client (master).
 pub type ModbusResult = Result<Response, ExceptionResponse>;

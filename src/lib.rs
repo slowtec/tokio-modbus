@@ -16,6 +16,9 @@
 //! tokio-modbus = "*"
 //! ```
 
+extern crate bytes;
+
 mod frame;
+mod codec;
 
 pub use frame::*;

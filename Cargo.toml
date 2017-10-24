@@ -9,3 +9,4 @@ homepage = "https://github.com/slowtec/tokio-modbus"
 repository = "https://github.com/slowtec/tokio-modbus"
 
 [dependencies]
+bytes = "0.4"
