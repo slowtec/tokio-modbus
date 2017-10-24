@@ -1,0 +1,17 @@
+language: rust
+matrix:
+  include:
+  - rust: nightly
+  - rust: beta
+  - rust: stable
+
+# load travis-cargo
+before_script:
+  - |
+      pip install 'travis-cargo<0.2' --user &&
+      export PATH=$HOME/.local/bin:$PATH
+
+script:
+  - |
+      cargo build &&
+      cargo test
