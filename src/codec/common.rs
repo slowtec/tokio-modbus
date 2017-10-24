@@ -36,6 +36,7 @@ impl From<Request> for Bytes {
                 data.put_u16::<BigEndian>(address);
                 let len = words.len();
                 data.put_u16::<BigEndian>(len as u16);
+                data.put_u8((len as u8) * 2);
                 for w in words {
                     data.put_u16::<BigEndian>(w);
                 }
@@ -44,6 +45,9 @@ impl From<Request> for Bytes {
                 data.put_u16::<BigEndian>(read_address);
                 data.put_u16::<BigEndian>(quantity);
                 data.put_u16::<BigEndian>(write_address);
+                let n = words.len();
+                data.put_u16::<BigEndian>(n as u16);
+                data.put_u8(n as u8 * 2);
                 for w in words {
                     data.put_u16::<BigEndian>(w);
                 }
@@ -343,32 +347,60 @@ mod tests {
         #[test]
         fn write_multiple_registers() {
             let bytes: Bytes = Request::WriteMultipleRegisters(0x06, vec![0xABCD, 0xEF12]).into();
+
+            // function code
             assert_eq!(bytes[0], 0x10);
+
+            // write starting address
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x06);
+
+            // quantity to write
             assert_eq!(bytes[3], 0x00);
             assert_eq!(bytes[4], 0x02);
-            assert_eq!(bytes[5], 0xAB);
-            assert_eq!(bytes[6], 0xCD);
-            assert_eq!(bytes[7], 0xEF);
-            assert_eq!(bytes[8], 0x12);
+
+            // write byte count
+            assert_eq!(bytes[5], 0x04);
+
+            // values
+            assert_eq!(bytes[6], 0xAB);
+            assert_eq!(bytes[7], 0xCD);
+            assert_eq!(bytes[8], 0xEF);
+            assert_eq!(bytes[9], 0x12);
         }
 
         #[test]
         fn read_write_multiple_registers() {
             let data = vec![0xABCD, 0xEF12];
             let bytes: Bytes = Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, data).into();
+
+            // function code
             assert_eq!(bytes[0], 0x17);
+
+            // read starting address
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x05);
+
+            // quantity to read
             assert_eq!(bytes[3], 0x00);
             assert_eq!(bytes[4], 0x33);
+
+            // write starting address
             assert_eq!(bytes[5], 0x00);
             assert_eq!(bytes[6], 0x03);
-            assert_eq!(bytes[7], 0xAB);
-            assert_eq!(bytes[8], 0xCD);
-            assert_eq!(bytes[9], 0xEF);
-            assert_eq!(bytes[10], 0x12);
+
+            // quantity to write
+            assert_eq!(bytes[7], 0x00);
+            assert_eq!(bytes[8], 0x02);
+
+            // write byte count
+            assert_eq!(bytes[9], 0x04);
+
+            // values
+            assert_eq!(bytes[10], 0xAB);
+            assert_eq!(bytes[11], 0xCD);
+            assert_eq!(bytes[12], 0xEF);
+            assert_eq!(bytes[13], 0x12);
         }
 
         #[test]
