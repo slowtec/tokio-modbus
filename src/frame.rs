@@ -19,7 +19,7 @@ pub type Word = u16;
 pub type Quantity = u16;
 
 /// A request represents a message from the client (master) to the server (slave).
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Request {
     ReadCoils(Address, Quantity),
     ReadDiscreteInputs(Address, Quantity),
@@ -34,7 +34,7 @@ pub enum Request {
 }
 
 /// The data of a successfull request.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Response {
     ReadCoils(Vec<Coil>),
     ReadDiscreteInputs(Vec<Coil>),
@@ -49,7 +49,7 @@ pub enum Response {
 }
 
 /// A server (slave) exception.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Exception {
     IllegalFunction = 0x01,
     IllegalDataAddress = 0x02,
@@ -63,7 +63,7 @@ pub enum Exception {
 }
 
 /// A server (slave) exception response.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ExceptionResponse {
     pub(crate) function: FunctionCode,
     pub(crate) exception: Exception,
@@ -73,7 +73,7 @@ pub struct ExceptionResponse {
 pub type ModbusResult = Result<Response, ExceptionResponse>;
 
 /// A modbus [PDU](https://en.wikipedia.org/wiki/Protocol_data_unit)
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Pdu {
     Request(Request),
     Result(ModbusResult),
