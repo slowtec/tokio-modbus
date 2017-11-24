@@ -12,6 +12,7 @@ repository = "https://github.com/slowtec/tokio-modbus"
 bytes = "0.4"
 byteorder = "1.1"
 tokio-io = "0.1"
+tokio-proto = "0.1"
 
 [badges]
 travis-ci = { repository = "slowtec/tokio-modbus" }

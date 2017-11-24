@@ -19,8 +19,10 @@
 extern crate bytes;
 extern crate byteorder;
 extern crate tokio_io;
+extern crate tokio_proto;
 
 mod frame;
 mod codec;
+mod proto;
 
 pub use frame::*;
