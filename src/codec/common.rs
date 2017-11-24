@@ -135,7 +135,7 @@ impl From<Pdu> for Bytes {
 // As long as `TryFrom` is only available in stable rust,
 // we just use our own trait.
 // This should be fine since we just use it internally.
-trait TryFrom<T>: Sized {
+pub(crate) trait TryFrom<T>: Sized {
     type Error;
     fn try_from(value: T) -> Result<Self, Self::Error>;
 }

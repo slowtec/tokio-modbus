@@ -18,6 +18,7 @@
 
 extern crate bytes;
 extern crate byteorder;
+extern crate tokio_io;
 
 mod frame;
 mod codec;
