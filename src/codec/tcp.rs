@@ -44,14 +44,13 @@ impl Decoder for ClientCodec {
         let protocol_id = BigEndian::read_u16(&header_data[2..4]);
         let unit_id = header_data[4];
 
-        if transaction_id != self.transaction_id {
+        if transaction_id.wrapping_add(1) != self.transaction_id {
             return Err(Error::new(ErrorKind::InvalidData, "Invalid transaction ID"));
         }
 
         if protocol_id != PROTOCOL_ID {
             return Err(Error::new(ErrorKind::InvalidData, "Invalid protocol ID"));
         }
-
 
         let res = if data[0] > 0x80 {
             Err(ExceptionResponse::try_from(data)?)
@@ -117,6 +116,7 @@ mod tests {
         #[test]
         fn decode_exception_message() {
             let mut codec = ClientCodec::new();
+            codec.transaction_id = 1; // incremented on send
             let mut buf = BytesMut::from(vec![
                 0x00,
                 0x00,
@@ -144,6 +144,7 @@ mod tests {
         #[test]
         fn decode_with_invalid_protocol_id() {
             let mut codec = ClientCodec::new();
+            codec.transaction_id = 1; // incremented after send
             let mut buf = BytesMut::from(vec![
                                          0x00,
                                          0x00,
