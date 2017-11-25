@@ -21,7 +21,6 @@ pub mod tcp {
             addr: &SocketAddr,
             handle: &Handle,
         ) -> Box<Future<Item = Client, Error = io::Error>> {
-            println!("connect...");
             let ret = TcpClient::new(Proto).connect(addr, handle).map(
                 |client_service| Client { service: client_service },
             );
@@ -31,9 +30,9 @@ pub mod tcp {
 
     impl Service for Client {
         type Request = Request;
-        type Response = ModbusResult;
+        type Response = Response;
         type Error = io::Error;
-        type Future = Box<Future<Item = ModbusResult, Error = io::Error>>;
+        type Future = Box<Future<Item = Response, Error = io::Error>>;
 
         fn call(&self, req: Request) -> Self::Future {
             Box::new(self.service.call(req))

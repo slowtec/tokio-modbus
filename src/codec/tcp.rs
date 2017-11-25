@@ -23,10 +23,10 @@ impl ClientCodec {
 }
 
 impl Decoder for ClientCodec {
-    type Item = ModbusResult;
+    type Item = Response;
     type Error = Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ModbusResult>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Response>> {
         if buf.len() < HEADER_SIZE {
             return Ok(None);
         }
@@ -53,13 +53,14 @@ impl Decoder for ClientCodec {
             return Err(Error::new(ErrorKind::InvalidData, "Invalid protocol ID"));
         }
 
-        let res = if data[0] > 0x80 {
-            Err(ExceptionResponse::try_from(data)?)
-        } else {
-            Ok(Response::try_from(data)?)
-        };
+        if data[0] > 0x80 {
+            return Err(Error::new(
+                ErrorKind::Other,
+                ExceptionResponse::try_from(data)?,
+            ));
+        }
 
-        Ok(Some(res))
+        Ok(Some(Response::try_from(data)?))
     }
 }
 
@@ -130,16 +131,14 @@ mod tests {
                 0x03,
                 0x00,
             ]);
-            let res = codec.decode(&mut buf).unwrap().unwrap();
 
-            assert_eq!(buf.len(), 1);
+            let err = codec.decode(&mut buf).err().unwrap();
+            assert_eq!(err.kind(), ErrorKind::Other);
             assert_eq!(
-                res,
-                Err(ExceptionResponse {
-                    function: 0x02,
-                    exception: Exception::IllegalDataValue,
-                })
+                format!("{}", err.into_inner().unwrap()),
+                "Modbus function 2: Illegal data value"
             );
+            assert_eq!(buf.len(), 1);
         }
 
         #[test]

@@ -115,6 +115,18 @@ impl error::Error for Exception {
     }
 }
 
+impl fmt::Display for ExceptionResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Modbus function {}: {}", self.function, self.exception)
+    }
+}
+
+impl error::Error for ExceptionResponse {
+    fn description(&self) -> &str {
+        self.exception.description()
+    }
+}
+
 impl From<Request> for Pdu {
     fn from(req: Request) -> Pdu {
         Pdu::Request(req)
