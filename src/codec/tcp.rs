@@ -31,14 +31,15 @@ impl Decoder for ClientCodec {
             return Ok(None);
         }
 
+        // len = bytes of PDU + one byte (unit ID)
         let len = BigEndian::read_u16(&buf[4..6]) as usize;
 
-        if buf.len() < HEADER_SIZE + len {
+        if buf.len() < HEADER_SIZE + len - 1 {
             return Ok(None);
         }
 
         let header_data = buf.split_to(HEADER_SIZE);
-        let data = buf.split_to(len).freeze();
+        let data = buf.split_to(len-1).freeze();
 
         let transaction_id = BigEndian::read_u16(&header_data[0..2]);
         let protocol_id = BigEndian::read_u16(&header_data[2..4]);
@@ -70,7 +71,7 @@ impl Encoder for ClientCodec {
         let pdu: Bytes = req.into();
         buf.put_u16::<BigEndian>(self.transaction_id);
         buf.put_u16::<BigEndian>(PROTOCOL_ID);
-        buf.put_u16::<BigEndian>(pdu.len() as u16);
+        buf.put_u16::<BigEndian>((pdu.len() +1) as u16);
         buf.put_u8(self.unit_id);
         buf.extend_from_slice(&*pdu);
         self.transaction_id = self.transaction_id.wrapping_add(1);
@@ -89,10 +90,10 @@ mod tests {
         #[test]
         fn decode_header_fragment() {
             let mut codec = ClientCodec::new();
-            let mut buf = BytesMut::from(vec![0x00, 0x11, 0x00, 0x00, 0x00]);
+            let mut buf = BytesMut::from(vec![0x00, 0x11, 0x00, 0x00, 0x00, 0x00]);
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
-            assert_eq!(buf.len(), 5);
+            assert_eq!(buf.len(), 6);
         }
 
         #[test]
@@ -123,7 +124,7 @@ mod tests {
                 0x00,
                 0x00,
                 0x00,
-                0x02,
+                0x03,
                 0x66,
                 0x82, // exception = 0x80 + 0x02
                 0x03,
@@ -149,7 +150,10 @@ mod tests {
                                          0x00,
                                          0x00,
                                          0x33, // protocol id HI
-                                         0x12  // protocol id LO
+                                         0x12, // protocol id LO
+                                         0x00, // length HI
+                                         0x03, // length LO
+                                         0x66  // unit id
             ]);
             buf.extend_from_slice(&[0x00, 0x02, 0x66, 0x82, 0x03, 0x00]);
             let err = codec.decode(&mut buf).err().unwrap();
@@ -179,7 +183,7 @@ mod tests {
             assert_eq!(buf[2], 0x0);
             assert_eq!(buf[3], 0x0);
             assert_eq!(buf[4], 0x0);
-            assert_eq!(buf[5], 0x5);
+            assert_eq!(buf[5], 0x6);
             assert_eq!(buf[6], 0x0);
 
             buf.split_to(7);
