@@ -12,7 +12,7 @@ impl codec::Encoder for Encoder {
 
     fn encode(&mut self, adu: Adu, buf: &mut BytesMut) -> Result<()> {
         match adu {
-            Adu::Tcp(header, pdu) => {
+            Adu::Tcp(TcpAdu { header, pdu }) => {
                 let pdu: Bytes = pdu.into();
                 buf.put_u16::<BigEndian>(header.transaction_id);
                 buf.put_u16::<BigEndian>(TCP_PROTOCOL_ID);

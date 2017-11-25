@@ -1,6 +1,6 @@
 pub mod tcp {
 
-    use frame::{Request, Response};
+    use frame::TcpAdu;
     use tokio_io::{AsyncRead, AsyncWrite};
     use std::io::Error;
     use tokio_io::codec::Framed;
@@ -10,8 +10,8 @@ pub mod tcp {
     pub struct Proto;
 
     impl<T: AsyncRead + AsyncWrite + 'static> ClientProto<T> for Proto {
-        type Request = Request;
-        type Response = Response;
+        type Request = TcpAdu;
+        type Response = TcpAdu;
         type Transport = Framed<T, ClientCodec>;
         type BindTransport = Result<Self::Transport, Error>;
 

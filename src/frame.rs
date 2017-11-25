@@ -85,10 +85,16 @@ pub struct TcpHeader {
     pub unit_id: u8,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct TcpAdu {
+    pub header: TcpHeader,
+    pub pdu: Pdu,
+}
+
 /// A modbus ADU (Application Data Unit)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Adu {
-    Tcp(TcpHeader, Pdu),
+    Tcp(TcpAdu),
 }
 
 impl fmt::Display for Exception {
