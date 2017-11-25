@@ -39,7 +39,7 @@ impl Decoder for ClientCodec {
         }
 
         let header_data = buf.split_to(HEADER_SIZE);
-        let data = buf.split_to(len-1).freeze();
+        let data = buf.split_to(len - 1).freeze();
 
         let transaction_id = BigEndian::read_u16(&header_data[0..2]);
         let protocol_id = BigEndian::read_u16(&header_data[2..4]);
@@ -71,7 +71,7 @@ impl Encoder for ClientCodec {
         let pdu: Bytes = req.into();
         buf.put_u16::<BigEndian>(self.transaction_id);
         buf.put_u16::<BigEndian>(PROTOCOL_ID);
-        buf.put_u16::<BigEndian>((pdu.len() +1) as u16);
+        buf.put_u16::<BigEndian>((pdu.len() + 1) as u16);
         buf.put_u8(self.unit_id);
         buf.extend_from_slice(&*pdu);
         self.transaction_id = self.transaction_id.wrapping_add(1);

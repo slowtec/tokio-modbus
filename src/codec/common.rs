@@ -225,7 +225,7 @@ impl TryFrom<Bytes> for Response {
             0x02 => {
                 let byte_count = rdr.read_u8()?;
                 let x = &bytes[2..];
-                // Here we have not information about the exact requested quantity so we just
+                // Here we have no information about the exact requested quantity so we just
                 // unpack the whole byte.
                 let quantity = u16::from(byte_count * 8);
                 ReadDiscreteInputs(unpack_coils(x, quantity))
