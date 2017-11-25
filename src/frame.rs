@@ -79,6 +79,18 @@ pub enum Pdu {
     Result(ModbusResult),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct TcpHeader {
+    pub transaction_id: u16,
+    pub unit_id: u8,
+}
+
+/// A modbus ADU (Application Data Unit)
+#[derive(Debug, Clone, PartialEq)]
+pub enum Adu {
+    Tcp(TcpHeader, Pdu),
+}
+
 impl fmt::Display for Exception {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Exception::*;

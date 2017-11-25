@@ -1,14 +1,16 @@
 use frame::*;
 use std::io::{Error, ErrorKind, Result};
 use tokio_io::codec::{Decoder, Encoder};
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
+use bytes::{BigEndian, BytesMut};
 use byteorder::ByteOrder;
 use super::common::*;
+use super::encoder::Encoder as AduEncoder;
 
 const HEADER_SIZE: usize = 7;
 const PROTOCOL_ID: u16 = 0x0;
 
 pub struct ClientCodec {
+    encoder: AduEncoder,
     transaction_id: u16,
     unit_id: u8,
 }
@@ -16,6 +18,7 @@ pub struct ClientCodec {
 impl ClientCodec {
     pub fn new() -> ClientCodec {
         ClientCodec {
+            encoder: AduEncoder,
             transaction_id: 0,
             unit_id: 0,
         }
@@ -69,20 +72,22 @@ impl Encoder for ClientCodec {
     type Error = Error;
 
     fn encode(&mut self, req: Request, buf: &mut BytesMut) -> Result<()> {
-        let pdu: Bytes = req.into();
-        buf.put_u16::<BigEndian>(self.transaction_id);
-        buf.put_u16::<BigEndian>(PROTOCOL_ID);
-        buf.put_u16::<BigEndian>((pdu.len() + 1) as u16);
-        buf.put_u8(self.unit_id);
-        buf.extend_from_slice(&*pdu);
+        let header = TcpHeader {
+            transaction_id: self.transaction_id,
+            unit_id: self.unit_id,
+        };
         self.transaction_id = self.transaction_id.wrapping_add(1);
-        Ok(())
+        self.encoder.encode(
+            Adu::Tcp(header, Pdu::Request(req)),
+            buf,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::Bytes;
 
     mod client {
 
