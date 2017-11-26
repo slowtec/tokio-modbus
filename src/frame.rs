@@ -50,7 +50,7 @@ pub enum Response {
 
 /// A server (slave) exception.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Exception {
+pub(crate) enum Exception {
     IllegalFunction = 0x01,
     IllegalDataAddress = 0x02,
     IllegalDataValue = 0x03,
@@ -64,37 +64,31 @@ pub enum Exception {
 
 /// A server (slave) exception response.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ExceptionResponse {
+pub(crate) struct ExceptionResponse {
     pub(crate) function: FunctionCode,
     pub(crate) exception: Exception,
 }
 
 /// Represents a message from the server (slave) to the client (master).
-pub type ModbusResult = Result<Response, ExceptionResponse>;
+pub(crate) type ModbusResult = Result<Response, ExceptionResponse>;
 
 /// A modbus [PDU](https://en.wikipedia.org/wiki/Protocol_data_unit)
 #[derive(Debug, Clone, PartialEq)]
-pub enum Pdu {
+pub(crate) enum Pdu {
     Request(Request),
     Result(ModbusResult),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TcpHeader {
+pub(crate) struct TcpHeader {
     pub transaction_id: u16,
     pub unit_id: u8,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TcpAdu {
+pub(crate) struct TcpAdu {
     pub header: TcpHeader,
     pub pdu: Pdu,
-}
-
-/// A modbus ADU (Application Data Unit)
-#[derive(Debug, Clone, PartialEq)]
-pub enum Adu {
-    Tcp(TcpAdu),
 }
 
 impl fmt::Display for Exception {

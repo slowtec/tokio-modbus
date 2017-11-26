@@ -13,7 +13,7 @@ enum CodecType {
     Server,
 }
 
-pub struct Codec {
+pub(crate) struct Codec {
     decoder: TcpDecoder,
     codec_type: CodecType,
 }

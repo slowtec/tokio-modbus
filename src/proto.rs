@@ -7,7 +7,7 @@ pub mod tcp {
     use tokio_proto::pipeline::{ClientProto, ServerProto};
     use codec::tcp::Codec;
 
-    pub struct Proto;
+    pub(crate) struct Proto;
 
     impl<T: AsyncRead + AsyncWrite + 'static> ClientProto<T> for Proto {
         type Request = TcpAdu;
