@@ -1,29 +1,45 @@
 use frame::*;
 use std::io::{Error, ErrorKind, Result};
 use tokio_io::codec::{Decoder, Encoder};
-use bytes::{BigEndian, BytesMut};
+use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use byteorder::ByteOrder;
 use super::common::*;
-use super::encoder::Encoder as AduEncoder;
 
 const HEADER_SIZE: usize = 7;
 const PROTOCOL_ID: u16 = 0x0;
 
-pub struct ClientCodec {
-    encoder: AduEncoder,
+enum CodecType {
+    Client,
+    Server,
 }
 
-impl ClientCodec {
-    pub fn new() -> ClientCodec {
-        ClientCodec { encoder: AduEncoder }
+pub struct Codec {
+    decoder: TcpDecoder,
+    codec_type: CodecType,
+}
+
+impl Codec {
+    pub fn client() -> Codec {
+        Codec {
+            decoder: TcpDecoder,
+            codec_type: CodecType::Client,
+        }
+    }
+    pub fn server() -> Codec {
+        Codec {
+            decoder: TcpDecoder,
+            codec_type: CodecType::Server,
+        }
     }
 }
 
-impl Decoder for ClientCodec {
-    type Item = TcpAdu;
+struct TcpDecoder;
+
+impl Decoder for TcpDecoder {
+    type Item = (TcpHeader, Bytes);
     type Error = Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<TcpAdu>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(TcpHeader, Bytes)>> {
         if buf.len() < HEADER_SIZE {
             return Ok(None);
         }
@@ -50,25 +66,56 @@ impl Decoder for ClientCodec {
             transaction_id,
             unit_id,
         };
-
-        let res = if data[0] > 0x80 {
-            Err(ExceptionResponse::try_from(data)?)
-        } else {
-            Ok(Response::try_from(data)?)
-        };
-
-        let pdu = Pdu::Result(res);
-
-        Ok(Some(TcpAdu { header, pdu }))
+        Ok(Some((header, data)))
     }
 }
 
-impl Encoder for ClientCodec {
+impl Decoder for Codec {
+    type Item = TcpAdu;
+    type Error = Error;
+
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<TcpAdu>> {
+        if let Some((header, data)) = self.decoder.decode(buf)? {
+            let pdu = match self.codec_type {
+                CodecType::Client => {
+                    let res = if data[0] > 0x80 {
+                        Err(ExceptionResponse::try_from(data)?)
+                    } else {
+                        Ok(Response::try_from(data)?)
+                    };
+                    Pdu::Result(res)
+                }
+                CodecType::Server => {
+                    if data[0] > 0x80 {
+                        return Err(Error::new(
+                            ErrorKind::Other,
+                            "A request must not a exception response",
+                        ));
+                    }
+                    let req = Request::try_from(data)?;
+                    Pdu::Request(req)
+                }
+            };
+            Ok(Some(TcpAdu { header, pdu }))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl Encoder for Codec {
     type Item = TcpAdu;
     type Error = Error;
 
     fn encode(&mut self, adu: TcpAdu, buf: &mut BytesMut) -> Result<()> {
-        self.encoder.encode(Adu::Tcp(adu), buf)
+        let TcpAdu { header, pdu } = adu;
+        let pdu: Bytes = pdu.into();
+        buf.put_u16::<BigEndian>(header.transaction_id);
+        buf.put_u16::<BigEndian>(PROTOCOL_ID);
+        buf.put_u16::<BigEndian>((pdu.len() + 1) as u16);
+        buf.put_u8(header.unit_id);
+        buf.extend_from_slice(&*pdu);
+        Ok(())
     }
 }
 
@@ -83,7 +130,7 @@ mod tests {
 
         #[test]
         fn decode_header_fragment() {
-            let mut codec = ClientCodec::new();
+            let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![0x00, 0x11, 0x00, 0x00, 0x00, 0x00]);
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
@@ -92,7 +139,7 @@ mod tests {
 
         #[test]
         fn decode_partly_received_message() {
-            let mut codec = ClientCodec::new();
+            let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
                 0x00, // transaction id HI
                 0x11, // transaction id LO
@@ -110,7 +157,7 @@ mod tests {
 
         #[test]
         fn decode_exception_message() {
-            let mut codec = ClientCodec::new();
+            let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
                 0x00,
                 0x00,
@@ -138,7 +185,7 @@ mod tests {
 
         #[test]
         fn decode_with_invalid_protocol_id() {
-            let mut codec = ClientCodec::new();
+            let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
                                          0x00,
                                          0x00,
@@ -157,7 +204,7 @@ mod tests {
 
         #[test]
         fn encode_read_request() {
-            let mut codec = ClientCodec::new();
+            let mut codec = Codec::client();
             let mut buf = BytesMut::new();
             let req = Request::ReadInputRegisters(0x23, 5);
             let pdu = Pdu::Request(req.clone());
@@ -183,7 +230,7 @@ mod tests {
 
         #[test]
         fn encode_transaction_id() {
-            let mut codec = ClientCodec::new();
+            let mut codec = Codec::client();
             let pdu = Pdu::Request(Request::ReadInputRegisters(0x00, 1));
             let header = TcpHeader {
                 transaction_id: 0xab,
