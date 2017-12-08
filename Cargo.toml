@@ -19,3 +19,5 @@ tokio-service = "0.1"
 
 [badges]
 travis-ci = { repository = "slowtec/tokio-modbus" }
+is-it-maintained-issue-resolution = { repository = "slowtec/tokio-modbus" }
+is-it-maintained-open-issues = { repository = "slowtec/tokio-modbus" }

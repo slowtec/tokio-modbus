@@ -2,6 +2,11 @@
 
 A [tokio](https://tokio.rs)-based modbus library.
 
+[![Crates.io version](https://img.shields.io/crates/v/tokio-modbus.svg)](https://crates.io/crates/tokio-modbus)
+[![Build Status](https://travis-ci.org/slowtec/tokio-modbus.svg?branch=master)](https://travis-ci.org/slowtec/tokio-modbus)
+[![Percentage of issues still open](http://isitmaintained.com/badge/open/slowtec/tokio-modbus.svg)](http://isitmaintained.com/project/slowtec/tokio-modbus "Percentage of issues still open")
+[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/slowtec/tokio-modbus.svg)](http://isitmaintained.com/project/slowtec/tokio-modbus "Average time to resolve an issue")
+
 ## Protocol-Specification
 
 - [MODBUS Application Protocol Specification v1.1b3 (PDF)](http://modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf)
