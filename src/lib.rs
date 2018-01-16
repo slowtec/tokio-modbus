@@ -32,3 +32,4 @@ mod client;
 
 pub use frame::*;
 pub use service::tcp::Client as TcpClient;
+pub use client::Client;
