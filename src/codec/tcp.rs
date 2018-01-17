@@ -8,10 +8,7 @@ use super::common::*;
 const HEADER_SIZE: usize = 7;
 const PROTOCOL_ID: u16 = 0x0;
 
-enum CodecType {
-    Client,
-    Server,
-}
+struct TcpDecoder;
 
 pub(crate) struct Codec {
     decoder: TcpDecoder,
@@ -32,8 +29,6 @@ impl Codec {
         }
     }
 }
-
-struct TcpDecoder;
 
 impl Decoder for TcpDecoder {
     type Item = (TcpHeader, Bytes);

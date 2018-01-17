@@ -3,6 +3,11 @@ use std::io::{self, Cursor, Error, ErrorKind};
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use byteorder::ReadBytesExt;
 
+pub enum CodecType {
+    Client,
+    Server,
+}
+
 impl From<Request> for Bytes {
     fn from(req: Request) -> Bytes {
         let mut data = BytesMut::new();
@@ -498,6 +503,14 @@ mod tests {
 
         assert_eq!(ex_pdu[0], 0x83);
         assert_eq!(ex_pdu[1], 0x04);
+
+        let req_pdu: Bytes = Pdu::Request(Request::ReadHoldingRegisters(0x082B, 2)).into();
+        assert_eq!(req_pdu.len(), 5);
+        assert_eq!(req_pdu[0], 0x03);
+        assert_eq!(req_pdu[1], 0x08);
+        assert_eq!(req_pdu[2], 0x2B);
+        assert_eq!(req_pdu[3], 0x00);
+        assert_eq!(req_pdu[4], 0x02);
     }
 
     mod serialize_requests {

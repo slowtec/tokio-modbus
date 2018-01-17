@@ -91,6 +91,12 @@ pub(crate) struct TcpAdu {
     pub pdu: Pdu,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct RtuAdu {
+    pub address: u8,
+    pub pdu: Pdu,
+}
+
 impl fmt::Display for Exception {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Exception::*;
