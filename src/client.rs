@@ -1,6 +1,5 @@
 use futures::prelude::*;
 use std::io::{Error, ErrorKind};
-use service;
 use frame::*;
 use tokio_service::Service;
 
@@ -35,7 +34,14 @@ pub trait Client {
     ) -> Box<Future<Item = Vec<Word>, Error = Error>>;
 }
 
-impl Client for service::tcp::Client {
+impl<T> Client for T
+where T: Service<
+    Request = Request,
+    Response = Response,
+    Error = Error,
+    Future = Box<Future<Item = Response, Error = Error>>
+>
+{
     fn read_coils(
         &self,
         addr: Address,

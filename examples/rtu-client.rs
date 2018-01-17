@@ -6,9 +6,8 @@ extern crate tokio_service;
 
 use tokio_core::reactor::Core;
 use tokio_serial::{Serial, SerialPortSettings, BaudRate};
-use tokio_modbus::{RtuClient,Request, Response};
+use tokio_modbus::{Client, RtuClient};
 use futures::future::Future;
-use tokio_service::Service;
 
 pub fn main() {
 
@@ -25,16 +24,9 @@ pub fn main() {
     let task = RtuClient::connect(port, 0x01, &handle).and_then(|client| {
         println!("Reading a sensor value");
         client
-            .call(Request::ReadHoldingRegisters(0x082B, 2))
-            .and_then(move |response| {
-                match response {
-                    Response::ReadHoldingRegisters(res) => {
-                        println!("Sensor value is: {:?}",res);
-                    }
-                    _ => {
-                        println!("Unexpected response: {:?}", response);
-                    }
-                };
+            .read_holding_registers(0x082B, 2)
+            .and_then(move |res| {
+                println!("Sensor value is: {:?}",res);
                 Ok(())
             })
     });
