@@ -4,6 +4,7 @@ use service;
 use frame::*;
 use tokio_service::Service;
 
+/// A transport independent client trait.
 pub trait Client {
     fn read_coils(&self, Address, Quantity) -> Box<Future<Item = Vec<Coil>, Error = Error>>;
     fn read_discrete_inputs(

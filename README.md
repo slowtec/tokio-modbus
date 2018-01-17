@@ -8,6 +8,53 @@ A [tokio](https://tokio.rs)-based modbus library.
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/slowtec/tokio-modbus.svg)](http://isitmaintained.com/project/slowtec/tokio-modbus "Percentage of issues still open")
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/slowtec/tokio-modbus.svg)](http://isitmaintained.com/project/slowtec/tokio-modbus "Average time to resolve an issue")
 
+## Features
+
+- pure Rust library
+- async (non-blocking)
+- Modbus TCP
+- Modbus RTU
+
+## Installation
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+tokio-modbus = "*"
+```
+
+## TCP client example
+
+```rust
+extern crate futures;
+extern crate tokio_core;
+extern crate tokio_modbus;
+
+use tokio_core::reactor::Core;
+use futures::future::Future;
+use tokio_modbus::{Client, TcpClient};
+
+pub fn main() {
+    let mut core = Core::new().unwrap();
+    let handle = core.handle();
+    let addr = "192.168.0.222:502".parse().unwrap();
+
+    let task = TcpClient::connect(&addr, &handle).and_then(|client| {
+        println!("Fetching the coupler ID");
+        client
+            .read_input_registers(0x1000, 7)
+            .and_then(move |buff| {
+                println!("Response is '{:?}'", buff);
+                Ok(())
+            })
+    });
+
+    core.run(task).unwrap();
+}
+```
+More examples can be found in the [examples](https://github.com/slowtec/tokio-modbus/tree/master/examples) folder.
+
 ## Protocol-Specification
 
 - [MODBUS Application Protocol Specification v1.1b3 (PDF)](http://modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf)
