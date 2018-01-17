@@ -31,3 +31,37 @@ pub mod tcp {
         }
     }
 }
+
+pub mod rtu {
+
+    use frame::RtuAdu;
+    use tokio_io::{AsyncRead, AsyncWrite};
+    use std::io::Error;
+    use tokio_io::codec::Framed;
+    use tokio_proto::pipeline::{ClientProto, ServerProto};
+    use codec::rtu::Codec;
+
+    pub(crate) struct Proto;
+
+    impl<T: AsyncRead + AsyncWrite + 'static> ClientProto<T> for Proto {
+        type Request = RtuAdu;
+        type Response = RtuAdu;
+        type Transport = Framed<T, Codec>;
+        type BindTransport = Result<Self::Transport, Error>;
+
+        fn bind_transport(&self, io: T) -> Self::BindTransport {
+            Ok(io.framed(Codec::client()))
+        }
+    }
+
+    impl<T: AsyncRead + AsyncWrite + 'static> ServerProto<T> for Proto {
+        type Request = RtuAdu;
+        type Response = RtuAdu;
+        type Transport = Framed<T, Codec>;
+        type BindTransport = Result<Self::Transport, Error>;
+
+        fn bind_transport(&self, io: T) -> Self::BindTransport {
+            Ok(io.framed(Codec::server()))
+        }
+    }
+}
