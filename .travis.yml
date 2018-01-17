@@ -5,6 +5,11 @@ matrix:
   - rust: beta
   - rust: stable
 
+addons:
+  apt:
+    packages:
+      - libudev-dev
+
 # load travis-cargo
 before_script:
   - |

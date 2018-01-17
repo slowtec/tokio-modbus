@@ -23,6 +23,8 @@ extern crate tokio_io;
 extern crate tokio_core;
 extern crate tokio_proto;
 extern crate tokio_service;
+#[cfg(feature = "rtu")]
+extern crate tokio_serial;
 
 mod frame;
 mod codec;
@@ -31,5 +33,6 @@ mod service;
 mod client;
 
 pub use frame::*;
-pub use service::tcp::Client as TcpClient;
 pub use client::Client;
+pub use service::tcp::Client as TcpClient;
+pub use service::rtu::Client as RtuClient;
