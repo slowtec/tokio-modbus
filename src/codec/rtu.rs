@@ -67,8 +67,8 @@ fn get_response_payload_len(buf: &BytesMut) -> Result<usize> {
 
 fn calc_crc(buf: &[u8]) -> u16 {
     let mut crc = 0xFFFF;
-    for i in 0..buf.len() {
-        crc ^= buf[i] as u16;
+    for x in buf {
+        crc ^= u16::from(*x);
         for _ in 0..8 {
             if (crc & 0x0001) != 0 {
                 crc >>= 1;
@@ -161,7 +161,7 @@ impl Encoder for Codec {
         let pdu: Bytes = pdu.into();
         buf.put_u8(address);
         buf.extend_from_slice(&*pdu);
-        let crc = calc_crc(&buf);
+        let crc = calc_crc(buf);
         buf.put_u16::<BigEndian>(crc);
         Ok(())
     }
