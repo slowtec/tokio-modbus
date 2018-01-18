@@ -24,15 +24,13 @@ pub mod tcp {
             addr: &SocketAddr,
             handle: &Handle,
         ) -> Box<Future<Item = Client, Error = Error>> {
-            let client = TcpClient::new(Proto).connect(addr, handle).map(
-                |client_service| {
-                    Client {
-                        service: client_service,
-                        transaction_id: Cell::new(0),
-                        unit_id: 1,
-                    }
-                },
-            );
+            let client = TcpClient::new(Proto)
+                .connect(addr, handle)
+                .map(|client_service| Client {
+                    service: client_service,
+                    transaction_id: Cell::new(0),
+                    unit_id: 1,
+                });
             Box::new(client)
         }
     }
@@ -54,22 +52,20 @@ pub mod tcp {
 
             let pdu = Pdu::Request(req);
 
-            let result = self.service.call(TcpAdu { header, pdu }).and_then(
-                move |adu| {
+            let result = self.service
+                .call(TcpAdu { header, pdu })
+                .and_then(move |adu| {
                     if adu.header.transaction_id != t_id {
                         return Err(Error::new(ErrorKind::InvalidData, "Invalid transaction ID"));
                     }
                     match adu.pdu {
-                        Pdu::Result(res) => {
-                            match res {
-                                Ok(pdu) => Ok(pdu),
-                                Err(err) => Err(Error::new(ErrorKind::Other, err)),
-                            }
-                        }
+                        Pdu::Result(res) => match res {
+                            Ok(pdu) => Ok(pdu),
+                            Err(err) => Err(Error::new(ErrorKind::Other, err)),
+                        },
                         _ => unreachable!(),
                     }
-                },
-            );
+                });
 
             Box::new(result)
         }
@@ -122,12 +118,10 @@ pub mod rtu {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid server ID"));
                 }
                 match resp.pdu {
-                    Pdu::Result(res) => {
-                        match res {
-                            Ok(pdu) => Ok(pdu),
-                            Err(err) => Err(Error::new(ErrorKind::Other, err)),
-                        }
-                    }
+                    Pdu::Result(res) => match res {
+                        Ok(pdu) => Ok(pdu),
+                        Err(err) => Err(Error::new(ErrorKind::Other, err)),
+                    },
                     _ => unreachable!(),
                 }
             });

@@ -5,12 +5,11 @@ extern crate tokio_serial;
 extern crate tokio_service;
 
 use tokio_core::reactor::Core;
-use tokio_serial::{Serial, SerialPortSettings, BaudRate};
+use tokio_serial::{BaudRate, Serial, SerialPortSettings};
 use tokio_modbus::{Client, RtuClient};
 use futures::future::Future;
 
 pub fn main() {
-
     let mut core = Core::new().unwrap();
     let handle = core.handle();
     let tty_path = "/dev/ttyUSB0";
@@ -19,14 +18,15 @@ pub fn main() {
     settings.baud_rate = BaudRate::Baud19200;
     let mut port = Serial::from_path(tty_path, &settings, &handle)
         .expect(&format!("Unable to open serial device '{}'", tty_path));
-    port.set_exclusive(false).expect("Unable to set serial port exlusive");
+    port.set_exclusive(false)
+        .expect("Unable to set serial port exlusive");
 
     let task = RtuClient::connect(port, 0x01, &handle).and_then(|client| {
         println!("Reading a sensor value");
         client
             .read_holding_registers(0x082B, 2)
             .and_then(move |res| {
-                println!("Sensor value is: {:?}",res);
+                println!("Sensor value is: {:?}", res);
                 Ok(())
             })
     });

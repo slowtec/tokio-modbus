@@ -35,12 +35,13 @@ pub trait Client {
 }
 
 impl<T> Client for T
-where T: Service<
-    Request = Request,
-    Response = Response,
-    Error = Error,
-    Future = Box<Future<Item = Response, Error = Error>>
->
+where
+    T: Service<
+        Request = Request,
+        Response = Response,
+        Error = Error,
+        Future = Box<Future<Item = Response, Error = Error>>,
+    >,
 {
     fn read_coils(
         &self,

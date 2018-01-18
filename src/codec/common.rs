@@ -14,10 +14,10 @@ impl From<Request> for Bytes {
         use Request::*;
         data.put_u8(req_to_fn_code(&req));
         match req {
-            ReadCoils(address, quantity) |
-            ReadDiscreteInputs(address, quantity) |
-            ReadInputRegisters(address, quantity) |
-            ReadHoldingRegisters(address, quantity) => {
+            ReadCoils(address, quantity)
+            | ReadDiscreteInputs(address, quantity)
+            | ReadInputRegisters(address, quantity)
+            | ReadHoldingRegisters(address, quantity) => {
                 data.put_u16::<BigEndian>(address);
                 data.put_u16::<BigEndian>(quantity);
             }
@@ -59,11 +59,9 @@ impl From<Request> for Bytes {
                     data.put_u16::<BigEndian>(w);
                 }
             }
-            Custom(_, custom_data) => {
-                for d in custom_data {
-                    data.put_u8(d);
-                }
-            }
+            Custom(_, custom_data) => for d in custom_data {
+                data.put_u8(d);
+            },
         }
         data.freeze()
     }
@@ -75,17 +73,16 @@ impl From<Response> for Bytes {
         use Response::*;
         data.put_u8(res_to_fn_code(&res));
         match res {
-            ReadCoils(coils) |
-            ReadDiscreteInputs(coils) => {
+            ReadCoils(coils) | ReadDiscreteInputs(coils) => {
                 let packed_coils = pack_coils(&coils);
                 data.put_u8(packed_coils.len() as u8);
                 for b in packed_coils {
                     data.put_u8(b);
                 }
             }
-            ReadInputRegisters(registers) |
-            ReadHoldingRegisters(registers) |
-            ReadWriteMultipleRegisters(registers) => {
+            ReadInputRegisters(registers)
+            | ReadHoldingRegisters(registers)
+            | ReadWriteMultipleRegisters(registers) => {
                 data.put_u8((registers.len() * 2) as u8);
                 for r in registers {
                     data.put_u16::<BigEndian>(r);
@@ -94,8 +91,7 @@ impl From<Response> for Bytes {
             WriteSingleCoil(address) => {
                 data.put_u16::<BigEndian>(address);
             }
-            WriteMultipleCoils(address, quantity) |
-            WriteMultipleRegisters(address, quantity) => {
+            WriteMultipleCoils(address, quantity) | WriteMultipleRegisters(address, quantity) => {
                 data.put_u16::<BigEndian>(address);
                 data.put_u16::<BigEndian>(quantity);
             }
@@ -103,11 +99,9 @@ impl From<Response> for Bytes {
                 data.put_u16::<BigEndian>(address);
                 data.put_u16::<BigEndian>(word);
             }
-            Custom(_, custom_data) => {
-                for d in custom_data {
-                    data.put_u8(d);
-                }
-            }
+            Custom(_, custom_data) => for d in custom_data {
+                data.put_u8(d);
+            },
         }
         data.freeze()
     }
@@ -127,12 +121,10 @@ impl From<Pdu> for Bytes {
         use Pdu::*;
         match pdu {
             Request(req) => req.into(),
-            Result(res) => {
-                match res {
-                    Ok(res) => res.into(),
-                    Err(ex) => ex.into(),
-                }
-            }
+            Result(res) => match res {
+                Ok(res) => res.into(),
+                Err(ex) => ex.into(),
+            },
         }
     }
 }
@@ -155,12 +147,10 @@ impl TryFrom<Bytes> for Request {
         let req = match fn_code {
             0x01 => ReadCoils(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
             0x02 => ReadDiscreteInputs(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x05 => {
-                WriteSingleCoil(
-                    rdr.read_u16::<BigEndian>()?,
-                    coil_to_bool(rdr.read_u16::<BigEndian>()?)?,
-                )
-            }
+            0x05 => WriteSingleCoil(
+                rdr.read_u16::<BigEndian>()?,
+                coil_to_bool(rdr.read_u16::<BigEndian>()?)?,
+            ),
             0x0F => {
                 let address = rdr.read_u16::<BigEndian>()?;
                 let quantity = rdr.read_u16::<BigEndian>()?;
@@ -320,7 +310,11 @@ impl TryFrom<u8> for Exception {
 }
 
 fn bool_to_coil(state: bool) -> u16 {
-    if state { 0xFF00 } else { 0x0000 }
+    if state {
+        0xFF00
+    } else {
+        0x0000
+    }
 }
 
 fn coil_to_bool(coil: u16) -> io::Result<bool> {
@@ -469,7 +463,6 @@ mod tests {
 
     #[test]
     fn exception_response_from_bytes() {
-
         assert!(ExceptionResponse::try_from(Bytes::from(vec![0x79, 0x02])).is_err());
 
         let bytes = Bytes::from(vec![0x83, 0x02]);
@@ -696,9 +689,16 @@ mod tests {
         #[test]
         fn write_multiple_coils() {
             assert!(
-                Request::try_from(Bytes::from(
-                    vec![0x0F, 0x33, 0x11, 0x00, 0x04, 0x02, 0b_0000_1101],
-                )).is_err()
+                Request::try_from(Bytes::from(vec![
+                    0x0F,
+                    0x33,
+                    0x11,
+                    0x00,
+                    0x04,
+                    0x02,
+                    0b_0000_1101,
+                ],))
+                    .is_err()
             );
 
             let bytes = Bytes::from(vec![0x0F, 0x33, 0x11, 0x00, 0x04, 0x01, 0b_0000_1101]);
@@ -734,30 +734,12 @@ mod tests {
         fn write_multiple_registers() {
             assert!(
                 Request::try_from(Bytes::from(vec![
-                    0x10,
-                    0x00,
-                    0x06,
-                    0x00,
-                    0x02,
-                    0x05,
-                    0xAB,
-                    0xCD,
-                    0xEF,
-                    0x12,
+                    0x10, 0x00, 0x06, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12
                 ])).is_err()
             );
 
             let bytes = Bytes::from(vec![
-                0x10,
-                0x00,
-                0x06,
-                0x00,
-                0x02,
-                0x04,
-                0xAB,
-                0xCD,
-                0xEF,
-                0x12,
+                0x10, 0x00, 0x06, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12
             ]);
             let req = Request::try_from(bytes).unwrap();
             assert_eq!(
@@ -770,37 +752,12 @@ mod tests {
         fn read_write_multiple_registers() {
             assert!(
                 Request::try_from(Bytes::from(vec![
-                    0x17,
-                    0x00,
-                    0x05,
-                    0x00,
-                    0x33,
-                    0x00,
-                    0x03,
-                    0x00,
-                    0x02,
-                    0x05,
-                    0xAB,
-                    0xCD,
-                    0xEF,
+                    0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF,
                     0x12,
                 ])).is_err()
             );
             let bytes = Bytes::from(vec![
-                0x17,
-                0x00,
-                0x05,
-                0x00,
-                0x33,
-                0x00,
-                0x03,
-                0x00,
-                0x02,
-                0x04,
-                0xAB,
-                0xCD,
-                0xEF,
-                0x12,
+                0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12
             ]);
             let req = Request::try_from(bytes).unwrap();
             let data = vec![0xABCD, 0xEF12];
@@ -817,7 +774,6 @@ mod tests {
             assert_eq!(req, Request::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF]));
         }
     }
-
 
     mod serialize_responses {
 
@@ -941,9 +897,9 @@ mod tests {
             let res = Response::try_from(bytes).unwrap();
             assert_eq!(
                 res,
-                Response::ReadDiscreteInputs(
-                    vec![true, false, false, true, false, false, false, false],
-                )
+                Response::ReadDiscreteInputs(vec![
+                    true, false, false, true, false, false, false, false
+                ],)
             );
         }
 

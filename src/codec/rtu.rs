@@ -19,13 +19,17 @@ const MIN_ADU_LEN: usize = 1 + 1 + 2; // addr + function + crc
 impl Codec {
     pub fn client() -> Codec {
         Codec {
-            decoder: RtuDecoder { codec_type: CodecType::Client },
+            decoder: RtuDecoder {
+                codec_type: CodecType::Client,
+            },
             codec_type: CodecType::Client,
         }
     }
     pub fn server() -> Codec {
         Codec {
-            decoder: RtuDecoder { codec_type: CodecType::Server },
+            decoder: RtuDecoder {
+                codec_type: CodecType::Server,
+            },
             codec_type: CodecType::Server,
         }
     }
@@ -105,11 +109,7 @@ impl Decoder for RtuDecoder {
         if expected_crc != crc {
             return Err(Error::new(
                 ErrorKind::InvalidData,
-                format!(
-                    "CRC is not correct: {} instead of {}",
-                    crc,
-                    expected_crc
-                ),
+                format!("CRC is not correct: {} instead of {}", crc, expected_crc),
             ));
         }
         let address = adu.split_to(1)[0];
@@ -183,7 +183,6 @@ mod tests {
 
     #[test]
     fn test_get_request_payload_len() {
-
         let mut buf = BytesMut::new();
 
         buf.extend_from_slice(&[0x66, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -248,7 +247,6 @@ mod tests {
 
     #[test]
     fn test_get_response_payload_len() {
-
         let mut buf = BytesMut::new();
 
         buf.extend_from_slice(&[0x66, 0x00, 99, 0x00]);
@@ -353,11 +351,11 @@ mod tests {
             ]);
             let RtuAdu { address, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
-            assert_eq!(address,0x01);
+            assert_eq!(address, 0x01);
             if let Pdu::Result(res) = pdu {
                 if let Response::ReadHoldingRegisters(data) = res.unwrap() {
-                    assert_eq!(data.len(),2);
-                    assert_eq!(data,vec![0x8902,0x42C7]);
+                    assert_eq!(data.len(), 2);
+                    assert_eq!(data, vec![0x8902, 0x42C7]);
                 } else {
                     panic!("unexpected response")
                 }

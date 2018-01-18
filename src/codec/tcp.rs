@@ -196,7 +196,6 @@ mod tests {
             assert_eq!(format!("{}", err), "Invalid protocol ID");
         }
 
-
         #[test]
         fn encode_read_request() {
             let mut codec = Codec::client();
