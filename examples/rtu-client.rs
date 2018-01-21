@@ -15,6 +15,7 @@ pub fn main() {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
     let tty_path = "/dev/ttyUSB0";
+    let server_addr = 0x01;
 
     let mut settings = SerialPortSettings::default();
     settings.baud_rate = BaudRate::Baud19200;
@@ -23,7 +24,7 @@ pub fn main() {
     port.set_exclusive(false)
         .expect("Unable to set serial port exlusive");
 
-    let task = RtuClient::connect(port, 0x01, &handle).and_then(|client| {
+    let task = RtuClient::connect(port, server_addr, &handle).and_then(|client| {
         println!("Reading a sensor value");
         client
             .read_holding_registers(0x082B, 2)
