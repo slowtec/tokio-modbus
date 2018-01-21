@@ -168,3 +168,60 @@ impl From<ModbusResult> for Pdu {
         Pdu::Result(res)
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn pdu_from_request() {
+        let request = Request::ReadCoils(0x0, 5);
+        if let Pdu::Request(Request::ReadCoils(addr, cnt)) = Pdu::from(request) {
+            assert_eq!(addr, 0);
+            assert_eq!(cnt, 5);
+        } else {
+            panic!("unexpected result");
+        }
+    }
+
+    #[test]
+    fn pdu_from_response() {
+        let response = Response::ReadCoils(vec![true, false]);
+        if let Pdu::Result(Ok(Response::ReadCoils(res))) = Pdu::from(response) {
+            assert_eq!(res, vec![true, false]);
+        } else {
+            panic!("unexpected result");
+        }
+    }
+
+    #[test]
+    fn pdu_from_exception_response() {
+        let response = ExceptionResponse {
+            function: 0x03,
+            exception: Exception::IllegalDataValue,
+        };
+        let mb_result = Err(response);
+        if let Pdu::Result(Err(ExceptionResponse {
+            function,
+            exception,
+        })) = Pdu::from(mb_result)
+        {
+            assert_eq!(function, 0x03);
+            assert_eq!(exception, Exception::IllegalDataValue);
+        } else {
+            panic!("unexpected result");
+        }
+    }
+
+    #[test]
+    fn pdu_from_modbus_result() {
+        let response = Response::ReadCoils(vec![true, false]);
+        let mb_result = Ok(response);
+        if let Pdu::Result(Ok(Response::ReadCoils(res))) = Pdu::from(mb_result) {
+            assert_eq!(res, vec![true, false]);
+        } else {
+            panic!("unexpected result");
+        }
+    }
+}
