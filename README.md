@@ -24,6 +24,19 @@ Add this to your `Cargo.toml`:
 [dependencies]
 tokio-modbus = "*"
 ```
+If you like to use Modbus TCP only:
+
+```toml
+[dependencies]
+tokio-modbus = { version = "*", default-features = false, features = ["tcp"] }
+```
+
+If you like to use Modbus RTU only:
+
+```toml
+[dependencies]
+tokio-modbus = { version = "*", default-features = false, features = ["rtu"] }
+```
 
 ## TCP client example
 

@@ -1,15 +1,17 @@
 extern crate futures;
 extern crate tokio_core;
 extern crate tokio_modbus;
+#[cfg(feature = "rtu")]
 extern crate tokio_serial;
 extern crate tokio_service;
 
-use tokio_core::reactor::Core;
-use tokio_serial::{BaudRate, Serial, SerialPortSettings};
-use tokio_modbus::{Client, RtuClient};
-use futures::future::Future;
-
+#[cfg(feature = "rtu")]
 pub fn main() {
+    use tokio_core::reactor::Core;
+    use tokio_modbus::{Client, RtuClient};
+    use futures::future::Future;
+    use tokio_serial::{BaudRate, Serial, SerialPortSettings};
+
     let mut core = Core::new().unwrap();
     let handle = core.handle();
     let tty_path = "/dev/ttyUSB0";
@@ -32,4 +34,10 @@ pub fn main() {
     });
 
     core.run(task).unwrap();
+}
+
+#[cfg(not(feature = "rtu"))]
+pub fn main() {
+    println!("feature `rtu` is required to run this example");
+    ::std::process::exit(1);
 }

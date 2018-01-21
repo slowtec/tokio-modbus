@@ -1,3 +1,4 @@
+#[cfg(feature = "tcp")]
 pub mod tcp {
 
     use frame::TcpAdu;
@@ -50,6 +51,7 @@ pub mod tcp {
     }
 }
 
+#[cfg(feature = "rtu")]
 pub mod rtu {
 
     use frame::RtuAdu;

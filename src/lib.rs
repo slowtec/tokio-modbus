@@ -22,6 +22,20 @@
 //! [dependencies]
 //! tokio-modbus = "*"
 //! ```
+//! If you like to use Modbus TCP only:
+//!
+//! ```toml
+//! [dependencies]
+//! tokio-modbus = { version = "*", default-features = false, features = ["tcp"] }
+//! ```
+//!
+//! If you like to use Modbus RTU only:
+//!
+//! ```toml
+//! [dependencies]
+//! tokio-modbus = { version = "*", default-features = false, features = ["rtu"] }
+//! ```
+//!
 //! # TCP client example
 //!
 //! ```rust,no_run
@@ -77,5 +91,7 @@ mod client;
 
 pub use frame::*;
 pub use client::Client;
+#[cfg(feature = "tcp")]
 pub use service::tcp::Client as TcpClient;
+#[cfg(feature = "rtu")]
 pub use service::rtu::Client as RtuClient;

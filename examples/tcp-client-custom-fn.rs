@@ -3,12 +3,13 @@ extern crate tokio_core;
 extern crate tokio_modbus;
 extern crate tokio_service;
 
-use tokio_core::reactor::Core;
-use futures::future::Future;
-use tokio_service::Service;
-use tokio_modbus::{Request, Response, TcpClient};
-
+#[cfg(feature = "tcp")]
 pub fn main() {
+    use tokio_core::reactor::Core;
+    use futures::future::Future;
+    use tokio_service::Service;
+    use tokio_modbus::{Request, Response, TcpClient};
+
     let mut core = Core::new().unwrap();
     let handle = core.handle();
     let addr = "192.168.0.222:502".parse().unwrap();
@@ -31,4 +32,10 @@ pub fn main() {
     });
 
     core.run(task).unwrap();
+}
+
+#[cfg(not(feature = "tcp"))]
+pub fn main() {
+    println!("feature `tcp` is required to run this example");
+    ::std::process::exit(1);
 }
