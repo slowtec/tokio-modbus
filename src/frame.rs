@@ -1,22 +1,22 @@
 use std::{error, fmt};
 
 /// A Modbus function code is represented by an unsigned 8 bit integer.
-pub type FunctionCode = u8;
+pub(crate) type FunctionCode = u8;
 
 /// A Modbus address is represented by 16 bit (from `0` to `65535`).
-pub type Address = u16;
+pub(crate) type Address = u16;
 
 /// A Coil represents a single bit.
 ///
 /// - `true` is equivalent to `ON`, `1` and `0xFF00`.
 /// - `false` is equivalent to `OFF`, `0` and `0x0000`.
-pub type Coil = bool;
+pub(crate) type Coil = bool;
 
 /// Modbus uses 16 bit for its data items (big-endian representation).
-pub type Word = u16;
+pub(crate) type Word = u16;
 
 /// Number of items to process (`0` - `65535`).
-pub type Quantity = u16;
+pub(crate) type Quantity = u16;
 
 /// A request represents a message from the client (master) to the server (slave).
 #[derive(Debug, Clone, PartialEq)]
