@@ -4,7 +4,7 @@ description = "Tokio-based modbus library"
 version = "0.1.0"
 authors = ["Markus Kohlhase <markus.kohlhase@slowtec.de>"]
 license = "MIT/Apache-2.0"
-keywords = ["fieldbus","modbus"]
+keywords = ["fieldbus","modbus","hardware","automation"]
 homepage = "https://github.com/slowtec/tokio-modbus"
 repository = "https://github.com/slowtec/tokio-modbus"
 
