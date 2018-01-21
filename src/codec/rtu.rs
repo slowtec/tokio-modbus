@@ -5,12 +5,13 @@ use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use byteorder::ReadBytesExt;
 use super::common::*;
 
+#[derive(Debug, PartialEq)]
 pub(crate) struct Codec {
-    decoder: RtuDecoder,
-    codec_type: CodecType,
+    pub(crate) decoder: RtuDecoder,
 }
 
-struct RtuDecoder {
+#[derive(Debug, PartialEq)]
+pub(crate) struct RtuDecoder {
     codec_type: CodecType,
 }
 
@@ -22,7 +23,6 @@ impl Codec {
             decoder: RtuDecoder {
                 codec_type: CodecType::Client,
             },
-            codec_type: CodecType::Client,
         }
     }
     pub fn server() -> Codec {
@@ -30,7 +30,6 @@ impl Codec {
             decoder: RtuDecoder {
                 codec_type: CodecType::Server,
             },
-            codec_type: CodecType::Server,
         }
     }
 }
@@ -125,7 +124,7 @@ impl Decoder for Codec {
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RtuAdu>> {
         if let Some((address, data)) = self.decoder.decode(buf)? {
-            let pdu = match self.codec_type {
+            let pdu = match self.decoder.codec_type {
                 CodecType::Client => {
                     let res = if data[0] > 0x80 {
                         Err(ExceptionResponse::try_from(data)?)

@@ -8,11 +8,13 @@ use super::common::*;
 const HEADER_SIZE: usize = 7;
 const PROTOCOL_ID: u16 = 0x0;
 
-struct TcpDecoder;
+#[derive(Debug, PartialEq)]
+pub(crate) struct TcpDecoder;
 
+#[derive(Debug, PartialEq)]
 pub(crate) struct Codec {
-    decoder: TcpDecoder,
-    codec_type: CodecType,
+    pub(crate) decoder: TcpDecoder,
+    pub(crate) codec_type: CodecType,
 }
 
 impl Codec {

@@ -3,6 +3,7 @@ use std::io::{self, Cursor, Error, ErrorKind};
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use byteorder::ReadBytesExt;
 
+#[derive(Debug, PartialEq)]
 pub enum CodecType {
     Client,
     Server,
