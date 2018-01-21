@@ -1,3 +1,4 @@
+sudo: required
 language: rust
 matrix:
   include:
@@ -9,14 +10,24 @@ addons:
   apt:
     packages:
       - libudev-dev
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - binutils-dev
+      - cmake
+    sources:
+      - kalakris-cmake
 
 # load travis-cargo
 before_script:
   - |
-      pip install 'travis-cargo<0.2' --user &&
-      export PATH=$HOME/.local/bin:$PATH
+      export PATH=$HOME/.local/bin:$PATH &&
+      cargo install cargo-travis
 
 script:
   - |
       cargo build &&
       cargo test
+
+after_success:
+  - cargo coveralls
