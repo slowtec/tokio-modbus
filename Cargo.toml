@@ -21,9 +21,10 @@ tokio-service = "0.1"
 tokio-serial = { version = "0.6", optional = true }
 
 [features]
-default = ["tcp", "rtu"]
+default = ["tcp","rtu","sync"]
 rtu = ["tokio-serial"]
 tcp = []
+sync = []
 
 [badges]
 travis-ci = { repository = "slowtec/tokio-modbus" }
