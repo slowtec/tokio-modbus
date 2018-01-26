@@ -4,11 +4,11 @@ extern crate tokio_modbus;
 #[cfg(feature = "rtu")]
 extern crate tokio_serial;
 extern crate tokio_service;
+use tokio_modbus::*;
 
 #[cfg(feature = "rtu")]
 pub fn main() {
     use tokio_core::reactor::Core;
-    use tokio_modbus::*;
     use futures::future::Future;
     use tokio_serial::{BaudRate, Serial, SerialPortSettings};
 
