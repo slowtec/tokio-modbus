@@ -62,13 +62,26 @@ pub fn main() {
     let task = TcpClient::connect(&addr, &handle).and_then(|client| {
         client
             .read_input_registers(0x1000, 7)
-            .and_then(move |buff| {
-                println!("Response is '{:?}'", buff);
+            .and_then(move |data| {
+                println!("Response is '{:?}'", data);
                 Ok(())
             })
     });
-
     core.run(task).unwrap();
+}
+```
+
+### Sync TCP client
+
+```rust
+extern crate tokio_modbus;
+use tokio_modbus::*;
+
+pub fn main() {
+    let addr = "192.168.0.222:502".parse().unwrap();
+    let client = SyncClient::connect_tcp(&addr).unwrap();
+    let buff = client.read_input_registers(0x1000, 7).unwrap();
+    println!("Response is '{:?}'", buff);
 }
 ```
 
@@ -107,21 +120,6 @@ pub fn main() {
     });
 
     core.run(task).unwrap();
-}
-```
-
-### Sync TCP client
-
-```rust
-extern crate tokio_modbus;
-
-use tokio_modbus::*;
-
-pub fn main() {
-    let addr = "192.168.0.222:502".parse().unwrap();
-    let client = SyncClient::connect_tcp(&addr).unwrap();
-    let buff = client.read_input_registers(0x1000, 7).unwrap();
-    println!("Response is '{:?}'", buff);
 }
 ```
 

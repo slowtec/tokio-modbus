@@ -59,19 +59,32 @@
 //!     let task = Client::connect_tcp(&addr, &handle).and_then(|client| {
 //!         client
 //!             .read_input_registers(0x1000, 7)
-//!             .and_then(move |buff| {
-//!                 println!("Response is '{:?}'", buff);
+//!             .and_then(move |data| {
+//!                 println!("Response is '{:?}'", data);
 //!                 Ok(())
 //!             })
 //!     });
-//!
 //!     core.run(task).unwrap();
+//! }
+//! ```
+//!
+//! ## Sync TCP client
+//!
+//! ```rust,no_run
+//! extern crate tokio_modbus;
+//! use tokio_modbus::*;
+//!
+//! pub fn main() {
+//!     let addr = "192.168.0.222:502".parse().unwrap();
+//!     let mut client = SyncClient::connect_tcp(&addr).unwrap();
+//!     let data = client.read_input_registers(0x1000, 7).unwrap();
+//!     println!("Response is '{:?}'", data);
 //! }
 //! ```
 //!
 //! ## RTU client
 //!
-//! ```rust
+//! ```rust,no_run
 //! extern crate futures;
 //! extern crate tokio_core;
 //! extern crate tokio_modbus;
@@ -104,20 +117,6 @@
 //!     });
 //!
 //!     core.run(task).unwrap();
-//! }
-//! ```
-//!
-//! ## Sync TCP client
-//!
-//! ```rust
-//! extern crate tokio_modbus;
-//! use tokio_modbus::*;
-//!
-//! pub fn main() {
-//!     let addr = "192.168.0.222:502".parse().unwrap();
-//!     let client = SyncClient::connect_tcp(&addr).unwrap();
-//!     let buff = client.read_input_registers(0x1000, 7).unwrap();
-//!     println!("Response is '{:?}'", buff);
 //! }
 //! ```
 //!
