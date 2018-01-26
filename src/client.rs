@@ -4,7 +4,7 @@ use frame::*;
 use tokio_service::Service;
 use service;
 use std::net::SocketAddr;
-use tokio_core::reactor::Handle;
+use tokio_core::reactor::{Core, Handle};
 use tokio_serial::Serial;
 
 /// A transport independent asynchronous client trait.
@@ -58,7 +58,7 @@ pub trait SyncModbusClient {
     ) -> Result<Vec<Word>>;
 }
 
-/// A modbus client implementation.
+/// A async modbus client implementation.
 pub struct Client {
     transport: Box<
         Service<
@@ -68,6 +68,13 @@ pub struct Client {
             Future = Box<Future<Item = Response, Error = Error>>,
         >,
     >,
+}
+
+/// A sync modbus client implementation.
+#[cfg(feature = "sync")]
+pub struct SyncClient {
+    client: Client,
+    core: Core,
 }
 
 impl Client {
@@ -93,6 +100,26 @@ impl Client {
 
     pub fn call(&self, req: Request) -> Box<Future<Item = Response, Error = Error>> {
         self.transport.call(req)
+    }
+}
+
+#[cfg(feature = "sync")]
+impl SyncClient {
+    pub fn connect_tcp(addr: &SocketAddr) -> Result<SyncClient> {
+        let mut core = Core::new()?;
+        let handle = core.handle();
+        let client = core.run(Client::connect_tcp(addr, &handle))?;
+        Ok(SyncClient { client, core })
+    }
+    pub fn connect_rtu(serial: Serial, address: u8) -> Result<SyncClient> {
+        let mut core = Core::new()?;
+        let handle = core.handle();
+        let client = core.run(Client::connect_rtu(serial, address, &handle))?;
+        Ok(SyncClient { client, core })
+    }
+
+    pub fn call(&mut self, req: Request) -> Result<Response> {
+        self.core.run(self.client.call(req))
     }
 }
 
@@ -272,5 +299,48 @@ impl ModbusClient for Client {
                 Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
             }
         }))
+    }
+}
+
+#[cfg(feature = "sync")]
+impl SyncModbusClient for SyncClient {
+    fn read_coils(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>> {
+        self.core.run(self.client.read_coils(addr, cnt))
+    }
+    fn read_discrete_inputs(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>> {
+        self.core.run(self.client.read_discrete_inputs(addr, cnt))
+    }
+    fn write_single_coil(&mut self, addr: Address, coil: Coil) -> Result<()> {
+        self.core.run(self.client.write_single_coil(addr, coil))
+    }
+    fn write_multiple_coils(&mut self, addr: Address, coils: &[Coil]) -> Result<()> {
+        self.core.run(self.client.write_multiple_coils(addr, coils))
+    }
+    fn read_input_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>> {
+        self.core.run(self.client.read_input_registers(addr, cnt))
+    }
+    fn read_holding_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>> {
+        self.core.run(self.client.read_holding_registers(addr, cnt))
+    }
+    fn write_single_register(&mut self, addr: Address, data: Word) -> Result<()> {
+        self.core.run(self.client.write_single_register(addr, data))
+    }
+    fn write_multiple_registers(&mut self, addr: Address, data: &[Word]) -> Result<()> {
+        self.core
+            .run(self.client.write_multiple_registers(addr, data))
+    }
+    fn read_write_multiple_registers(
+        &mut self,
+        read_addr: Address,
+        read_cnt: Quantity,
+        write_addr: Address,
+        write_data: &[Word],
+    ) -> Result<Vec<Word>> {
+        self.core.run(self.client.read_write_multiple_registers(
+            read_addr,
+            read_cnt,
+            write_addr,
+            write_data,
+        ))
     }
 }
