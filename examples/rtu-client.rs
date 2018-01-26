@@ -8,7 +8,7 @@ extern crate tokio_service;
 #[cfg(feature = "rtu")]
 pub fn main() {
     use tokio_core::reactor::Core;
-    use tokio_modbus::{Client, RtuClient};
+    use tokio_modbus::*;
     use futures::future::Future;
     use tokio_serial::{BaudRate, Serial, SerialPortSettings};
 
@@ -24,7 +24,7 @@ pub fn main() {
     port.set_exclusive(false)
         .expect("Unable to set serial port exlusive");
 
-    let task = RtuClient::connect(port, server_addr, &handle).and_then(|client| {
+    let task = Client::connect_rtu(port, server_addr, &handle).and_then(|client| {
         println!("Reading a sensor value");
         client
             .read_holding_registers(0x082B, 2)

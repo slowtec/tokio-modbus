@@ -2,9 +2,50 @@ use futures::prelude::*;
 use std::io::{Error, ErrorKind};
 use frame::*;
 use tokio_service::Service;
+use service;
+use std::net::SocketAddr;
+use tokio_core::reactor::Handle;
+use tokio_serial::Serial;
+
+pub struct Client {
+    transport: Box<
+        Service<
+            Request = Request,
+            Response = Response,
+            Error = Error,
+            Future = Box<Future<Item = Response, Error = Error>>,
+        >,
+    >,
+}
+
+impl Client {
+    pub fn connect_tcp(
+        addr: &SocketAddr,
+        handle: &Handle,
+    ) -> Box<Future<Item = Client, Error = Error>> {
+        let t = service::tcp::Client::connect(addr, handle).map(|c| Client {
+            transport: Box::new(c),
+        });
+        Box::new(t)
+    }
+    pub fn connect_rtu(
+        serial: Serial,
+        address: u8,
+        handle: &Handle,
+    ) -> Box<Future<Item = Client, Error = Error>> {
+        let t = service::rtu::Client::connect(serial, address, handle).map(|c| Client {
+            transport: Box::new(c),
+        });
+        Box::new(t)
+    }
+
+    pub fn call(&self, req: Request) -> Box<Future<Item = Response, Error = Error>> {
+        self.transport.call(req)
+    }
+}
 
 /// A transport independent client trait.
-pub trait Client {
+pub trait ModbusClient {
     fn read_coils(&self, Address, Quantity) -> Box<Future<Item = Vec<Coil>, Error = Error>>;
     fn read_discrete_inputs(
         &self,
@@ -34,15 +75,7 @@ pub trait Client {
     ) -> Box<Future<Item = Vec<Word>, Error = Error>>;
 }
 
-impl<T> Client for T
-where
-    T: Service<
-        Request = Request,
-        Response = Response,
-        Error = Error,
-        Future = Box<Future<Item = Response, Error = Error>>,
-    >,
-{
+impl ModbusClient for Client {
     fn read_coils(
         &self,
         addr: Address,

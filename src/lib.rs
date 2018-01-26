@@ -45,14 +45,14 @@
 //!
 //! use tokio_core::reactor::Core;
 //! use futures::future::Future;
-//! use tokio_modbus::{Client, TcpClient};
+//! use tokio_modbus::*;
 //!
 //! pub fn main() {
 //!     let mut core = Core::new().unwrap();
 //!     let handle = core.handle();
 //!     let addr = "192.168.0.222:502".parse().unwrap();
 //!
-//!     let task = TcpClient::connect(&addr, &handle).and_then(|client| {
+//!     let task = Client::connect_tcp(&addr, &handle).and_then(|client| {
 //!         println!("Fetching the coupler ID");
 //!         client
 //!             .read_input_registers(0x1000, 7)
@@ -90,8 +90,4 @@ mod service;
 mod client;
 
 pub use frame::*;
-pub use client::Client;
-#[cfg(feature = "tcp")]
-pub use service::tcp::Client as TcpClient;
-#[cfg(feature = "rtu")]
-pub use service::rtu::Client as RtuClient;
+pub use client::*;
