@@ -11,8 +11,10 @@
 //!
 //! - pure Rust library
 //! - async (non-blocking)
+//! - sync (blocking)
 //! - Modbus TCP
 //! - Modbus RTU
+//! - Open Source (MIT/Apache-2.0)
 //!
 //! # Installation
 //!
@@ -36,7 +38,9 @@
 //! tokio-modbus = { version = "*", default-features = false, features = ["rtu"] }
 //! ```
 //!
-//! # TCP client example
+//! # Examples
+//!
+//! ## TCP client
 //!
 //! ```rust,no_run
 //! extern crate futures;
@@ -53,7 +57,6 @@
 //!     let addr = "192.168.0.222:502".parse().unwrap();
 //!
 //!     let task = Client::connect_tcp(&addr, &handle).and_then(|client| {
-//!         println!("Fetching the coupler ID");
 //!         client
 //!             .read_input_registers(0x1000, 7)
 //!             .and_then(move |buff| {
@@ -65,6 +68,59 @@
 //!     core.run(task).unwrap();
 //! }
 //! ```
+//!
+//! ## RTU client
+//!
+//! ```rust
+//! extern crate futures;
+//! extern crate tokio_core;
+//! extern crate tokio_modbus;
+//! extern crate tokio_serial;
+//!
+//! use tokio_core::reactor::Core;
+//! use futures::future::Future;
+//! use tokio_serial::{BaudRate, Serial, SerialPortSettings};
+//! use tokio_modbus::*;
+//!
+//! pub fn main() {
+//!     let mut core = Core::new().unwrap();
+//!     let handle = core.handle();
+//!     let tty_path = "/dev/ttyUSB0";
+//!     let server_addr = 0x01;
+//!
+//!     let mut settings = SerialPortSettings::default();
+//!     settings.baud_rate = BaudRate::Baud19200;
+//!     let mut port = Serial::from_path(tty_path, &settings, &handle).unwrap();
+//!     port.set_exclusive(false).unwrap();
+//!
+//!     let task = Client::connect_rtu(port, server_addr, &handle).and_then(|client| {
+//!         println!("Reading a sensor value");
+//!         client
+//!             .read_holding_registers(0x082B, 2)
+//!             .and_then(move |res| {
+//!                 println!("Sensor value is: {:?}", res);
+//!                 Ok(())
+//!             })
+//!     });
+//!
+//!     core.run(task).unwrap();
+//! }
+//! ```
+//!
+//! ## Sync TCP client
+//!
+//! ```rust
+//! extern crate tokio_modbus;
+//! use tokio_modbus::*;
+//!
+//! pub fn main() {
+//!     let addr = "192.168.0.222:502".parse().unwrap();
+//!     let client = SyncClient::connect_tcp(&addr).unwrap();
+//!     let buff = client.read_input_registers(0x1000, 7).unwrap();
+//!     println!("Response is '{:?}'", buff);
+//! }
+//! ```
+//!
 //! More examples can be found in the [examples](https://github.com/slowtec/tokio-modbus/tree/master/examples) folder.
 //!
 //! # Protocol-Specification
