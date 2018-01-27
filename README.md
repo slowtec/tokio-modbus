@@ -16,6 +16,7 @@ A [tokio](https://tokio.rs)-based modbus library.
 - sync (blocking)
 - Modbus TCP
 - Modbus RTU
+- Client & Server
 - Open Source (MIT/Apache-2.0)
 
 ## Installation

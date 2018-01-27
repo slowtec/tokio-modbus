@@ -14,6 +14,7 @@
 //! - sync (blocking)
 //! - Modbus TCP
 //! - Modbus RTU
+//! - Client & Server
 //! - Open Source (MIT/Apache-2.0)
 //!
 //! # Installation
@@ -143,6 +144,8 @@ mod codec;
 mod proto;
 mod service;
 mod client;
+mod server;
 
 pub use frame::*;
 pub use client::*;
+pub use server::*;
