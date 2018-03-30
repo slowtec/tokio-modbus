@@ -134,4 +134,6 @@ More examples can be found in the [examples](https://github.com/slowtec/tokio-mo
 
 ## License
 
+Copyright 2018 [slowtec GmbH](https://www.slowtec.de)
+
 MIT/Apache-2.0
