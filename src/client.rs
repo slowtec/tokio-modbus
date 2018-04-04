@@ -6,7 +6,7 @@ use service;
 use std::net::SocketAddr;
 use tokio_core::reactor::{Core, Handle};
 #[cfg(feature = "rtu")]
-use tokio_serial::{Serial,SerialPortSettings};
+use tokio_serial::{Serial, SerialPortSettings};
 
 /// A transport independent asynchronous client trait.
 pub trait ModbusClient {
@@ -116,7 +116,11 @@ impl SyncClient {
         Ok(SyncClient { client, core })
     }
     #[cfg(feature = "rtu")]
-    pub fn connect_rtu(tty_path: &str, settings: &SerialPortSettings, address: u8) -> Result<SyncClient> {
+    pub fn connect_rtu(
+        tty_path: &str,
+        settings: &SerialPortSettings,
+        address: u8,
+    ) -> Result<SyncClient> {
         let mut core = Core::new()?;
         let handle = core.handle();
         let serial = Serial::from_path(tty_path, settings, &handle)?;
