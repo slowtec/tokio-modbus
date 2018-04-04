@@ -158,8 +158,9 @@ impl Encoder for Codec {
     fn encode(&mut self, adu: RtuAdu, buf: &mut BytesMut) -> Result<()> {
         let RtuAdu { address, pdu } = adu;
         let pdu: Bytes = pdu.into();
+        buf.reserve(pdu.len() + 3);
         buf.put_u8(address);
-        buf.extend_from_slice(&*pdu);
+        buf.put_slice(&*pdu);
         let crc = calc_crc(buf);
         buf.put_u16::<BigEndian>(crc);
         Ok(())
@@ -398,6 +399,20 @@ mod tests {
                 buf,
                 Bytes::from_static(&[0x01, 0x03, 0x08, 0x2B, 0x00, 0x02, 0xB6, 0x63])
             );
+        }
+
+        #[test]
+        fn encode_with_limited_buf_capacity() {
+            let mut codec = Codec::client();
+            let req = Request::ReadHoldingRegisters(0x082b, 2);
+            let pdu = Pdu::Request(req.clone());
+            let address = 0x01;
+            let adu = RtuAdu { address, pdu };
+            let mut buf = BytesMut::with_capacity(40);
+            unsafe {
+                buf.set_len(33);
+            }
+            assert!(codec.encode(adu, &mut buf).is_ok());
         }
     }
 }

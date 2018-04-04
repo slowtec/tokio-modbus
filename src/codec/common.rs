@@ -11,7 +11,8 @@ pub enum CodecType {
 
 impl From<Request> for Bytes {
     fn from(req: Request) -> Bytes {
-        let mut data = BytesMut::new();
+        let cnt = request_byte_count(&req);
+        let mut data = BytesMut::with_capacity(cnt);
         use Request::*;
         data.put_u8(req_to_fn_code(&req));
         match req {
@@ -70,7 +71,8 @@ impl From<Request> for Bytes {
 
 impl From<Response> for Bytes {
     fn from(res: Response) -> Bytes {
-        let mut data = BytesMut::new();
+        let cnt = response_byte_count(&res);
+        let mut data = BytesMut::with_capacity(cnt);
         use Response::*;
         data.put_u8(res_to_fn_code(&res));
         match res {
@@ -110,7 +112,7 @@ impl From<Response> for Bytes {
 
 impl From<ExceptionResponse> for Bytes {
     fn from(ex: ExceptionResponse) -> Bytes {
-        let mut data = BytesMut::new();
+        let mut data = BytesMut::with_capacity(2);
         data.put_u8(ex.function + 0x80);
         data.put_u8(ex.exception as u8);
         data.freeze()
@@ -326,9 +328,12 @@ fn coil_to_bool(coil: u16) -> io::Result<bool> {
     }
 }
 
+fn packed_coils_len(bitcount: usize) -> usize {
+    bitcount / 8 + if bitcount % 8 > 0 { 1 } else { 0 }
+}
+
 fn pack_coils(coils: &[Coil]) -> Vec<u8> {
-    let bitcount = coils.len();
-    let packed_size = bitcount / 8 + if bitcount % 8 > 0 { 1 } else { 0 };
+    let packed_size = packed_coils_len(coils.len());
     let mut res = vec![0; packed_size];
     for (i, b) in coils.iter().enumerate() {
         let v = if *b { 0b1 } else { 0b0 };
@@ -374,6 +379,35 @@ fn res_to_fn_code(res: &Response) -> u8 {
         WriteMultipleRegisters(_, _) => 0x10,
         ReadWriteMultipleRegisters(_) => 0x17,
         Custom(code, _) => code,
+    }
+}
+
+fn request_byte_count(req: &Request) -> usize {
+    use Request::*;
+    match *req {
+        ReadCoils(_, _)
+        | ReadDiscreteInputs(_, _)
+        | ReadInputRegisters(_, _)
+        | ReadHoldingRegisters(_, _)
+        | WriteSingleRegister(_, _)
+        | WriteSingleCoil(_, _) => 5,
+        WriteMultipleCoils(_, ref coils) => 6 + packed_coils_len(coils.len()),
+        WriteMultipleRegisters(_, ref data) => 6 + data.len() * 2,
+        ReadWriteMultipleRegisters(_, _, _, ref data) => 10 + data.len() * 2,
+        Custom(_, ref data) => 1 + data.len(),
+    }
+}
+
+fn response_byte_count(res: &Response) -> usize {
+    use Response::*;
+    match *res {
+        ReadCoils(ref coils) | ReadDiscreteInputs(ref coils) => 2 + packed_coils_len(coils.len()),
+        WriteSingleCoil(_) => 3,
+        WriteMultipleCoils(_, _) | WriteMultipleRegisters(_, _) | WriteSingleRegister(_, _) => 5,
+        ReadInputRegisters(ref data)
+        | ReadHoldingRegisters(ref data)
+        | ReadWriteMultipleRegisters(ref data) => 2 + data.len() * 2,
+        Custom(_, ref data) => 1 + data.len(),
     }
 }
 
@@ -505,6 +539,13 @@ mod tests {
         assert_eq!(req_pdu[2], 0x2B);
         assert_eq!(req_pdu[3], 0x00);
         assert_eq!(req_pdu[4], 0x02);
+    }
+
+    #[test]
+    fn pdu_with_a_lot_of_data_into_bytes() {
+        let _req_pdu: Bytes =
+            Pdu::Request(Request::WriteMultipleRegisters(0x01, vec![0; 80])).into();
+        let _res_pdu: Bytes = Pdu::Result(Ok(Response::ReadInputRegisters(vec![0; 80]))).into();
     }
 
     mod serialize_requests {

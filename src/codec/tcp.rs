@@ -107,11 +107,12 @@ impl Encoder for Codec {
     fn encode(&mut self, adu: TcpAdu, buf: &mut BytesMut) -> Result<()> {
         let TcpAdu { header, pdu } = adu;
         let pdu: Bytes = pdu.into();
+        buf.reserve(pdu.len() + 7);
         buf.put_u16::<BigEndian>(header.transaction_id);
         buf.put_u16::<BigEndian>(PROTOCOL_ID);
         buf.put_u16::<BigEndian>((pdu.len() + 1) as u16);
         buf.put_u8(header.unit_id);
-        buf.extend_from_slice(&*pdu);
+        buf.put_slice(&*pdu);
         Ok(())
     }
 }
@@ -237,6 +238,23 @@ mod tests {
             let mut buf = BytesMut::new();
             codec.encode(adu.clone(), &mut buf).unwrap();
             assert_eq!(buf[1], 0xab);
+        }
+
+        #[test]
+        fn encode_with_limited_buf_capacity() {
+            let mut codec = Codec::client();
+            let req = Request::ReadInputRegisters(0x23, 5);
+            let pdu = Pdu::Request(req);
+            let header = TcpHeader {
+                transaction_id: 0,
+                unit_id: 0,
+            };
+            let adu = TcpAdu { header, pdu };
+            let mut buf = BytesMut::with_capacity(40);
+            unsafe {
+                buf.set_len(29);
+            }
+            assert!(codec.encode(adu.clone(), &mut buf).is_ok());
         }
     }
 }
