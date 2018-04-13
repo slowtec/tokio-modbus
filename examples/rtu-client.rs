@@ -8,8 +8,8 @@ use tokio_modbus::*;
 
 #[cfg(feature = "rtu")]
 pub fn main() {
-    use tokio_core::reactor::Core;
     use futures::future::Future;
+    use tokio_core::reactor::Core;
     use tokio_serial::{BaudRate, Serial, SerialPortSettings};
 
     let mut core = Core::new().unwrap();

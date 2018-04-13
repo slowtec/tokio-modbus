@@ -1,9 +1,9 @@
+use super::common::*;
+use byteorder::ByteOrder;
+use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use frame::*;
 use std::io::{Error, ErrorKind, Result};
 use tokio_io::codec::{Decoder, Encoder};
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use byteorder::ByteOrder;
-use super::common::*;
 
 const HEADER_SIZE: usize = 7;
 const PROTOCOL_ID: u16 = 0x0;
@@ -185,13 +185,13 @@ mod tests {
         fn decode_with_invalid_protocol_id() {
             let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
-                                         0x00,
-                                         0x00,
-                                         0x33, // protocol id HI
-                                         0x12, // protocol id LO
-                                         0x00, // length HI
-                                         0x03, // length LO
-                                         0x66  // unit id
+                0x00,
+                0x00,
+                0x33, // protocol id HI
+                0x12, // protocol id LO
+                0x00, // length HI
+                0x03, // length LO
+                0x66, // unit id
             ]);
             buf.extend_from_slice(&[0x00, 0x02, 0x66, 0x82, 0x03, 0x00]);
             let err = codec.decode(&mut buf).err().unwrap();

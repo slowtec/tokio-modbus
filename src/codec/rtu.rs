@@ -1,9 +1,9 @@
+use super::common::*;
+use byteorder::ReadBytesExt;
+use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use frame::*;
 use std::io::{Cursor, Error, ErrorKind, Result};
 use tokio_io::codec::{Decoder, Encoder};
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use byteorder::ReadBytesExt;
-use super::common::*;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Codec {
@@ -327,7 +327,7 @@ mod tests {
                 0x00, // data
                 0x00, // data
                 0x00, // CRC first byte
-                // missing crc second byte
+                      // missing crc second byte
             ]);
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());

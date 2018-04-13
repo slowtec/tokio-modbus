@@ -1,10 +1,10 @@
 use frame::*;
-use proto::rtu::Proto;
-use tokio_serial::Serial;
-use std::io::{Error, ErrorKind};
 use futures::{future, Future};
+use proto::rtu::Proto;
+use std::io::{Error, ErrorKind};
 use tokio_core::reactor::Handle;
 use tokio_proto::pipeline::ClientService;
+use tokio_serial::Serial;
 use tokio_service::Service;
 
 /// Modbus RTU client

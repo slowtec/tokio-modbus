@@ -1,10 +1,10 @@
 use frame::*;
+use futures::prelude::*;
+use proto;
 use std::io::Error;
 use std::net::SocketAddr;
-use futures::prelude::*;
-use tokio_service::{NewService, Service};
 use tokio_proto::TcpServer;
-use proto;
+use tokio_service::{NewService, Service};
 
 /// A multithreaded Modbus server.
 pub struct Server {

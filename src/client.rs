@@ -1,12 +1,12 @@
-use futures::prelude::*;
-use std::io::{Error, ErrorKind, Result};
 use frame::*;
-use tokio_service::Service;
+use futures::prelude::*;
 use service;
+use std::io::{Error, ErrorKind, Result};
 use std::net::SocketAddr;
 use tokio_core::reactor::{Core, Handle};
 #[cfg(feature = "rtu")]
 use tokio_serial::{Serial, SerialPortSettings};
+use tokio_service::Service;
 
 /// A transport independent asynchronous client trait.
 pub trait ModbusClient {
@@ -346,11 +346,9 @@ impl SyncModbusClient for SyncClient {
         write_addr: Address,
         write_data: &[Word],
     ) -> Result<Vec<Word>> {
-        self.core.run(self.client.read_write_multiple_registers(
-            read_addr,
-            read_cnt,
-            write_addr,
-            write_data,
-        ))
+        self.core.run(
+            self.client
+                .read_write_multiple_registers(read_addr, read_cnt, write_addr, write_data),
+        )
     }
 }

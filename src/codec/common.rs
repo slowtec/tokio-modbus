@@ -1,7 +1,7 @@
+use byteorder::ReadBytesExt;
+use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use frame::*;
 use std::io::{self, Cursor, Error, ErrorKind};
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use byteorder::ReadBytesExt;
 
 #[derive(Debug, PartialEq)]
 pub enum CodecType {
@@ -739,8 +739,7 @@ mod tests {
                     0x04,
                     0x02,
                     0b_0000_1101,
-                ],))
-                    .is_err()
+                ])).is_err()
             );
 
             let bytes = Bytes::from(vec![0x0F, 0x33, 0x11, 0x00, 0x04, 0x01, 0b_0000_1101]);
@@ -776,12 +775,12 @@ mod tests {
         fn write_multiple_registers() {
             assert!(
                 Request::try_from(Bytes::from(vec![
-                    0x10, 0x00, 0x06, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12
+                    0x10, 0x00, 0x06, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12,
                 ])).is_err()
             );
 
             let bytes = Bytes::from(vec![
-                0x10, 0x00, 0x06, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12
+                0x10, 0x00, 0x06, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12,
             ]);
             let req = Request::try_from(bytes).unwrap();
             assert_eq!(
@@ -799,7 +798,7 @@ mod tests {
                 ])).is_err()
             );
             let bytes = Bytes::from(vec![
-                0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12
+                0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12,
             ]);
             let req = Request::try_from(bytes).unwrap();
             let data = vec![0xABCD, 0xEF12];
@@ -940,7 +939,7 @@ mod tests {
             assert_eq!(
                 res,
                 Response::ReadDiscreteInputs(vec![
-                    true, false, false, true, false, false, false, false
+                    true, false, false, true, false, false, false, false,
                 ],)
             );
         }

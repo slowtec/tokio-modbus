@@ -1,7 +1,7 @@
-#[cfg(feature = "tcp")]
-pub mod tcp;
 #[cfg(feature = "rtu")]
 pub mod rtu;
+#[cfg(feature = "tcp")]
+pub mod tcp;
 
 /// An synchronous function from Request to a Response
 #[cfg(feature = "sync")]

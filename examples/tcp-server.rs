@@ -4,12 +4,12 @@ extern crate tokio_modbus;
 extern crate tokio_proto;
 extern crate tokio_service;
 
-use tokio_service::Service;
 use futures::future::FutureResult;
 use futures::future::{self, Future};
-use tokio_modbus::*;
 use std::thread;
 use tokio_core::reactor::Core;
+use tokio_modbus::*;
+use tokio_service::Service;
 
 struct MbServer;
 

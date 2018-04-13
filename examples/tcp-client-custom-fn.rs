@@ -4,8 +4,8 @@ extern crate tokio_modbus;
 
 #[cfg(feature = "tcp")]
 pub fn main() {
-    use tokio_core::reactor::Core;
     use futures::future::Future;
+    use tokio_core::reactor::Core;
     use tokio_modbus::*;
 
     let mut core = Core::new().unwrap();
