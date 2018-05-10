@@ -123,7 +123,7 @@ impl SyncClient {
     ) -> Result<SyncClient> {
         let mut core = Core::new()?;
         let handle = core.handle();
-        let serial = Serial::from_path(tty_path, settings, &handle)?;
+        let serial = Serial::from_path_with_handle(tty_path, settings, &handle.new_tokio_handle())?;
         let client = core.run(Client::connect_rtu(serial, address, &handle))?;
         Ok(SyncClient { client, core })
     }
