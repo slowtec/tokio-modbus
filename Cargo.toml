@@ -29,5 +29,3 @@ sync = []
 [badges]
 travis-ci = { repository = "slowtec/tokio-modbus" }
 coveralls = { repository = "slowtec/tokio-modbus", branch = "master", service = "github" }
-is-it-maintained-issue-resolution = { repository = "slowtec/tokio-modbus" }
-is-it-maintained-open-issues = { repository = "slowtec/tokio-modbus" }
