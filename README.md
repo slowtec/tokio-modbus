@@ -6,8 +6,6 @@ A [tokio](https://tokio.rs)-based modbus library.
 [![Docs](https://docs.rs/tokio-modbus/badge.svg)](https://docs.rs/tokio-modbus/)
 [![Build Status](https://travis-ci.org/slowtec/tokio-modbus.svg?branch=master)](https://travis-ci.org/slowtec/tokio-modbus)
 [![Coverage Status](https://coveralls.io/repos/github/slowtec/tokio-modbus/badge.svg?branch=master)](https://coveralls.io/github/slowtec/tokio-modbus?branch=master)
-[![Percentage of issues still open](http://isitmaintained.com/badge/open/slowtec/tokio-modbus.svg)](http://isitmaintained.com/project/slowtec/tokio-modbus "Percentage of issues still open")
-[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/slowtec/tokio-modbus.svg)](http://isitmaintained.com/project/slowtec/tokio-modbus "Average time to resolve an issue")
 
 ## Features
 
