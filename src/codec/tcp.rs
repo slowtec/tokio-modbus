@@ -1,6 +1,6 @@
 use frame::*;
 use std::io::{Error, ErrorKind, Result};
-use tokio_io::codec::{Decoder, Encoder};
+use tokio_codec::{Decoder, Encoder};
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use byteorder::ByteOrder;
 use super::common::*;

@@ -132,6 +132,7 @@
 extern crate byteorder;
 extern crate bytes;
 extern crate futures;
+extern crate tokio_codec;
 extern crate tokio_core;
 extern crate tokio_io;
 extern crate tokio_proto;

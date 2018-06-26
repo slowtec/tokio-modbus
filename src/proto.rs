@@ -4,7 +4,7 @@ pub mod tcp {
     use frame::TcpAdu;
     use tokio_io::{AsyncRead, AsyncWrite};
     use std::io::Error;
-    use tokio_io::codec::Framed;
+    use tokio_codec::{Decoder, Framed};
     use tokio_proto::pipeline::{ClientProto, ServerProto};
     use codec::tcp::Codec;
 
@@ -17,7 +17,7 @@ pub mod tcp {
         type BindTransport = Result<Self::Transport, Error>;
 
         fn bind_transport(&self, io: T) -> Self::BindTransport {
-            Ok(io.framed(Codec::client()))
+            Ok(Codec::client().framed(io))
         }
     }
 
@@ -28,7 +28,7 @@ pub mod tcp {
         type BindTransport = Result<Self::Transport, Error>;
 
         fn bind_transport(&self, io: T) -> Self::BindTransport {
-            Ok(io.framed(Codec::server()))
+            Ok(Codec::server().framed(io))
         }
     }
 
@@ -44,9 +44,9 @@ pub mod tcp {
             use tokio_proto::pipeline::ClientProto;
             let proto = Proto;
             let io = DummyIo;
-            let (_, codec) = proto.bind_transport(io).unwrap().into_parts_and_codec();
-            assert_eq!(codec.codec_type, CodecType::Client);
-            assert_eq!(codec, Codec::client());
+            let parts = proto.bind_transport(io).unwrap().into_parts();
+            assert_eq!(parts.codec.codec_type, CodecType::Client);
+            assert_eq!(parts.codec, Codec::client());
         }
     }
 }
@@ -57,7 +57,7 @@ pub mod rtu {
     use frame::RtuAdu;
     use tokio_io::{AsyncRead, AsyncWrite};
     use std::io::Error;
-    use tokio_io::codec::Framed;
+    use tokio_codec::{Decoder, Framed};
     use tokio_proto::pipeline::{ClientProto, ServerProto};
     use codec::rtu::Codec;
 
@@ -70,7 +70,7 @@ pub mod rtu {
         type BindTransport = Result<Self::Transport, Error>;
 
         fn bind_transport(&self, io: T) -> Self::BindTransport {
-            Ok(io.framed(Codec::client()))
+            Ok(Codec::client().framed(io))
         }
     }
 
@@ -81,7 +81,7 @@ pub mod rtu {
         type BindTransport = Result<Self::Transport, Error>;
 
         fn bind_transport(&self, io: T) -> Self::BindTransport {
-            Ok(io.framed(Codec::server()))
+            Ok(Codec::server().framed(io))
         }
     }
 
@@ -96,8 +96,8 @@ pub mod rtu {
             use tokio_proto::pipeline::ClientProto;
             let proto = Proto;
             let io = DummyIo;
-            let (_, codec) = proto.bind_transport(io).unwrap().into_parts_and_codec();
-            assert_eq!(codec, Codec::client());
+            let parts = proto.bind_transport(io).unwrap().into_parts();
+            assert_eq!(parts.codec, Codec::client());
         }
     }
 }
