@@ -162,7 +162,7 @@ impl Encoder for Codec {
         buf.put_u8(address);
         buf.put_slice(&*pdu);
         let crc = calc_crc(buf);
-        buf.put_u16::<BigEndian>(crc);
+        buf.put_u16_be(crc);
         Ok(())
     }
 }

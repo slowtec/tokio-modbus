@@ -20,17 +20,17 @@ impl From<Request> for Bytes {
             | ReadDiscreteInputs(address, quantity)
             | ReadInputRegisters(address, quantity)
             | ReadHoldingRegisters(address, quantity) => {
-                data.put_u16::<BigEndian>(address);
-                data.put_u16::<BigEndian>(quantity);
+                data.put_u16_be(address);
+                data.put_u16_be(quantity);
             }
             WriteSingleCoil(address, state) => {
-                data.put_u16::<BigEndian>(address);
-                data.put_u16::<BigEndian>(bool_to_coil(state));
+                data.put_u16_be(address);
+                data.put_u16_be(bool_to_coil(state));
             }
             WriteMultipleCoils(address, coils) => {
-                data.put_u16::<BigEndian>(address);
+                data.put_u16_be(address);
                 let len = coils.len();
-                data.put_u16::<BigEndian>(len as u16);
+                data.put_u16_be(len as u16);
                 let packed_coils = pack_coils(&coils);
                 data.put_u8(packed_coils.len() as u8);
                 for b in packed_coils {
@@ -38,27 +38,27 @@ impl From<Request> for Bytes {
                 }
             }
             WriteSingleRegister(address, word) => {
-                data.put_u16::<BigEndian>(address);
-                data.put_u16::<BigEndian>(word);
+                data.put_u16_be(address);
+                data.put_u16_be(word);
             }
             WriteMultipleRegisters(address, words) => {
-                data.put_u16::<BigEndian>(address);
+                data.put_u16_be(address);
                 let len = words.len();
-                data.put_u16::<BigEndian>(len as u16);
+                data.put_u16_be(len as u16);
                 data.put_u8((len as u8) * 2);
                 for w in words {
-                    data.put_u16::<BigEndian>(w);
+                    data.put_u16_be(w);
                 }
             }
             ReadWriteMultipleRegisters(read_address, quantity, write_address, words) => {
-                data.put_u16::<BigEndian>(read_address);
-                data.put_u16::<BigEndian>(quantity);
-                data.put_u16::<BigEndian>(write_address);
+                data.put_u16_be(read_address);
+                data.put_u16_be(quantity);
+                data.put_u16_be(write_address);
                 let n = words.len();
-                data.put_u16::<BigEndian>(n as u16);
+                data.put_u16_be(n as u16);
                 data.put_u8(n as u8 * 2);
                 for w in words {
-                    data.put_u16::<BigEndian>(w);
+                    data.put_u16_be(w);
                 }
             }
             Custom(_, custom_data) => for d in custom_data {
@@ -88,19 +88,19 @@ impl From<Response> for Bytes {
             | ReadWriteMultipleRegisters(registers) => {
                 data.put_u8((registers.len() * 2) as u8);
                 for r in registers {
-                    data.put_u16::<BigEndian>(r);
+                    data.put_u16_be(r);
                 }
             }
             WriteSingleCoil(address) => {
-                data.put_u16::<BigEndian>(address);
+                data.put_u16_be(address);
             }
             WriteMultipleCoils(address, quantity) | WriteMultipleRegisters(address, quantity) => {
-                data.put_u16::<BigEndian>(address);
-                data.put_u16::<BigEndian>(quantity);
+                data.put_u16_be(address);
+                data.put_u16_be(quantity);
             }
             WriteSingleRegister(address, word) => {
-                data.put_u16::<BigEndian>(address);
-                data.put_u16::<BigEndian>(word);
+                data.put_u16_be(address);
+                data.put_u16_be(word);
             }
             Custom(_, custom_data) => for d in custom_data {
                 data.put_u8(d);

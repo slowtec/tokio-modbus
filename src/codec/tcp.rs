@@ -108,9 +108,9 @@ impl Encoder for Codec {
         let TcpAdu { header, pdu } = adu;
         let pdu: Bytes = pdu.into();
         buf.reserve(pdu.len() + 7);
-        buf.put_u16::<BigEndian>(header.transaction_id);
-        buf.put_u16::<BigEndian>(PROTOCOL_ID);
-        buf.put_u16::<BigEndian>((pdu.len() + 1) as u16);
+        buf.put_u16_be(header.transaction_id);
+        buf.put_u16_be(PROTOCOL_ID);
+        buf.put_u16_be((pdu.len() + 1) as u16);
         buf.put_u8(header.unit_id);
         buf.put_slice(&*pdu);
         Ok(())
