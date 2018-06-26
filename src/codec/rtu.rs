@@ -3,7 +3,7 @@ use byteorder::ReadBytesExt;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use frame::*;
 use std::io::{Cursor, Error, ErrorKind, Result};
-use tokio_io::codec::{Decoder, Encoder};
+use tokio_codec::{Decoder, Encoder};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Codec {

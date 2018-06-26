@@ -3,7 +3,7 @@ use byteorder::ByteOrder;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use frame::*;
 use std::io::{Error, ErrorKind, Result};
-use tokio_io::codec::{Decoder, Encoder};
+use tokio_codec::{Decoder, Encoder};
 
 const HEADER_SIZE: usize = 7;
 const PROTOCOL_ID: u16 = 0x0;
