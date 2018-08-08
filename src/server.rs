@@ -62,6 +62,7 @@ impl Server {
         }
     }
 
+    #[cfg(feature = "tcp")]
     pub fn serve<S>(&self, service: S)
     where
         S: NewService + Send + Sync + 'static,
