@@ -19,7 +19,7 @@ tokio-codec = "0.1"
 tokio-proto = "0.1"
 tokio-service = "0.1"
 
-tokio-serial = { version = "0.8", optional = true }
+tokio-serial = { version = "3.0", optional = true }
 
 [features]
 default = ["tcp","rtu","sync"]

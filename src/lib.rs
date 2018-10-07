@@ -93,7 +93,7 @@
 //!
 //! use tokio_core::reactor::Core;
 //! use futures::future::Future;
-//! use tokio_serial::{BaudRate, Serial, SerialPortSettings};
+//! use tokio_serial::{Serial, SerialPortSettings};
 //! use tokio_modbus::*;
 //!
 //! pub fn main() {
@@ -103,7 +103,7 @@
 //!     let server_addr = 0x01;
 //!
 //!     let mut settings = SerialPortSettings::default();
-//!     settings.baud_rate = BaudRate::Baud19200;
+//!     settings.baud_rate = 19200;
 //!     let mut port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle()).unwrap();
 //!     port.set_exclusive(false).unwrap();
 //!

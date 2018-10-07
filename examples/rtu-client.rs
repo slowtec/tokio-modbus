@@ -10,7 +10,7 @@ use tokio_modbus::*;
 pub fn main() {
     use futures::future::Future;
     use tokio_core::reactor::Core;
-    use tokio_serial::{BaudRate, Serial, SerialPortSettings};
+    use tokio_serial::{Serial, SerialPortSettings};
 
     let mut core = Core::new().unwrap();
     let handle = core.handle();
@@ -18,7 +18,7 @@ pub fn main() {
     let server_addr = 0x01;
 
     let mut settings = SerialPortSettings::default();
-    settings.baud_rate = BaudRate::Baud19200;
+    settings.baud_rate = 19200;
     let mut port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle())
         .expect(&format!("Unable to open serial device '{}'", tty_path));
     port.set_exclusive(false)
