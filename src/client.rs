@@ -1,6 +1,6 @@
-use frame::*;
+use crate::frame::*;
 use futures::prelude::*;
-use service;
+use crate::service;
 use std::io::{Error, ErrorKind, Result};
 use std::net::SocketAddr;
 use tokio_core::reactor::{Core, Handle};
@@ -10,52 +10,52 @@ use tokio_service::Service;
 
 /// A transport independent asynchronous client trait.
 pub trait ModbusClient {
-    fn read_coils(&self, Address, Quantity) -> Box<Future<Item = Vec<Coil>, Error = Error>>;
+    fn read_coils(&self, _: Address, _: Quantity) -> Box<Future<Item = Vec<Coil>, Error = Error>>;
     fn read_discrete_inputs(
         &self,
-        Address,
-        Quantity,
+        _: Address,
+        _: Quantity,
     ) -> Box<Future<Item = Vec<Coil>, Error = Error>>;
-    fn write_single_coil(&self, Address, Coil) -> Box<Future<Item = (), Error = Error>>;
-    fn write_multiple_coils(&self, Address, &[Coil]) -> Box<Future<Item = (), Error = Error>>;
+    fn write_single_coil(&self, _: Address, _: Coil) -> Box<Future<Item = (), Error = Error>>;
+    fn write_multiple_coils(&self, _: Address, _: &[Coil]) -> Box<Future<Item = (), Error = Error>>;
     fn read_input_registers(
         &self,
-        Address,
-        Quantity,
+        _: Address,
+        _: Quantity,
     ) -> Box<Future<Item = Vec<Word>, Error = Error>>;
     fn read_holding_registers(
         &self,
-        Address,
-        Quantity,
+        _: Address,
+        _: Quantity,
     ) -> Box<Future<Item = Vec<Word>, Error = Error>>;
-    fn write_single_register(&self, Address, Word) -> Box<Future<Item = (), Error = Error>>;
-    fn write_multiple_registers(&self, Address, &[Word]) -> Box<Future<Item = (), Error = Error>>;
+    fn write_single_register(&self, _: Address, _: Word) -> Box<Future<Item = (), Error = Error>>;
+    fn write_multiple_registers(&self, _: Address, _: &[Word]) -> Box<Future<Item = (), Error = Error>>;
     fn read_write_multiple_registers(
         &self,
-        Address,
-        Quantity,
-        Address,
-        &[Word],
+        _: Address,
+        _: Quantity,
+        _: Address,
+        _: &[Word],
     ) -> Box<Future<Item = Vec<Word>, Error = Error>>;
 }
 
 /// A transport independent synchronous client trait.
 #[cfg(feature = "sync")]
 pub trait SyncModbusClient {
-    fn read_coils(&mut self, Address, Quantity) -> Result<Vec<Coil>>;
-    fn read_discrete_inputs(&mut self, Address, Quantity) -> Result<Vec<Coil>>;
-    fn write_single_coil(&mut self, Address, Coil) -> Result<()>;
-    fn write_multiple_coils(&mut self, Address, &[Coil]) -> Result<()>;
-    fn read_input_registers(&mut self, Address, Quantity) -> Result<Vec<Word>>;
-    fn read_holding_registers(&mut self, Address, Quantity) -> Result<Vec<Word>>;
-    fn write_single_register(&mut self, Address, Word) -> Result<()>;
-    fn write_multiple_registers(&mut self, Address, &[Word]) -> Result<()>;
+    fn read_coils(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>>;
+    fn read_discrete_inputs(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>>;
+    fn write_single_coil(&mut self, _: Address, _: Coil) -> Result<()>;
+    fn write_multiple_coils(&mut self, _: Address, _: &[Coil]) -> Result<()>;
+    fn read_input_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>>;
+    fn read_holding_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>>;
+    fn write_single_register(&mut self, _: Address, _: Word) -> Result<()>;
+    fn write_multiple_registers(&mut self, _: Address, _: &[Word]) -> Result<()>;
     fn read_write_multiple_registers(
         &mut self,
-        Address,
-        Quantity,
-        Address,
-        &[Word],
+        _: Address,
+        _: Quantity,
+        _: Address,
+        _: &[Word],
     ) -> Result<Vec<Word>>;
 }
 

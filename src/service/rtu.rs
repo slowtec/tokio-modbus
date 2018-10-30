@@ -1,6 +1,6 @@
-use frame::*;
+use crate::frame::*;
 use futures::{future, Future};
-use proto::rtu::Proto;
+use crate::proto::rtu::Proto;
 use std::io::{Error, ErrorKind};
 use tokio_core::reactor::Handle;
 use tokio_proto::pipeline::ClientService;
