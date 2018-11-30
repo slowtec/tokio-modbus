@@ -34,8 +34,8 @@ impl<T: AsyncRead + AsyncWrite + 'static> ServerProto<T> for Proto {
 mod tests {
     use super::super::dummy_io::DummyIo;
     use super::Proto;
-    use crate::codec::common::CodecType;
     use crate::codec::tcp::Codec;
+    use crate::codec::CodecType;
 
     #[test]
     fn bind_transport() {

@@ -1,7 +1,9 @@
-use super::common::*;
+use super::*;
+
+use crate::frame::*;
+
 use byteorder::ByteOrder;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use crate::frame::*;
 use std::io::{Error, ErrorKind, Result};
 use tokio_codec::{Decoder, Encoder};
 
