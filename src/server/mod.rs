@@ -1,19 +1,11 @@
+#[cfg(feature = "tcp")]
+pub mod tcp;
+
 use crate::frame::*;
-use crate::proto;
+
 use futures::prelude::*;
 use std::io::Error;
-use std::net::SocketAddr;
-use tokio_proto::TcpServer;
-use tokio_service::{NewService, Service};
-
-/// A multithreaded Modbus server.
-pub struct Server {
-    server_type: ServerType,
-}
-
-enum ServerType {
-    Tcp(SocketAddr),
-}
+use tokio_service::Service;
 
 struct ServiceWrapper<S> {
     service: S,
@@ -49,33 +41,6 @@ where
             }))
         } else {
             panic!("Received response instead of a request");
-        }
-    }
-}
-
-impl Server {
-    /// Create a new Modbus TCP server instance.
-    #[cfg(feature = "tcp")]
-    pub fn new_tcp(addr: SocketAddr) -> Server {
-        Server {
-            server_type: ServerType::Tcp(addr),
-        }
-    }
-
-    #[cfg(feature = "tcp")]
-    pub fn serve<S>(&self, service: S)
-    where
-        S: NewService + Send + Sync + 'static,
-        S::Request: From<Request>,
-        S::Response: Into<Response>,
-        S::Error: Into<Error>,
-        S::Instance: Send + Sync + 'static,
-    {
-        match self.server_type {
-            ServerType::Tcp(addr) => {
-                TcpServer::new(proto::tcp::Proto, addr)
-                    .serve(move || Ok(ServiceWrapper::new(service.new_service()?)));
-            }
         }
     }
 }

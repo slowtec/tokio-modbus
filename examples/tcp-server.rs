@@ -36,7 +36,7 @@ impl Service for MbServer {
 fn main() {
     let _server = thread::spawn(|| {
         let addr = "127.0.0.1:5502".parse().unwrap();
-        let server = Server::new_tcp(addr);
+        let server = tcp::Server::new(addr);
         server.serve(|| Ok(MbServer));
     });
 

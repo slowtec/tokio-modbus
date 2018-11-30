@@ -136,9 +136,10 @@ extern crate tokio_codec;
 extern crate tokio_core;
 extern crate tokio_io;
 extern crate tokio_proto;
+extern crate tokio_service;
+
 #[cfg(feature = "rtu")]
 extern crate tokio_serial;
-extern crate tokio_service;
 
 mod client;
 mod codec;
@@ -150,3 +151,6 @@ mod service;
 pub use crate::client::*;
 pub use crate::frame::*;
 pub use crate::server::*;
+
+#[cfg(feature = "tcp")]
+pub use crate::server::tcp;
