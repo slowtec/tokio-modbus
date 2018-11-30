@@ -51,7 +51,7 @@ extern crate tokio_modbus;
 
 use tokio_core::reactor::Core;
 use futures::future::Future;
-use tokio_modbus::{Client, TcpClient};
+use tokio_modbus::prelude::*;
 
 pub fn main() {
     let mut core = Core::new().unwrap();
@@ -74,11 +74,12 @@ pub fn main() {
 
 ```rust
 extern crate tokio_modbus;
-use tokio_modbus::*;
+
+use tokio_modbus::prelude::*;
 
 pub fn main() {
-    let addr = "192.168.0.222:502".parse().unwrap();
-    let client = SyncClient::connect_tcp(&addr).unwrap();
+    let socket_addr = "192.168.0.222:502".parse().unwrap();
+    let client = SyncClient::connect_tcp(&socket_addr).unwrap();
     let buff = client.read_input_registers(0x1000, 7).unwrap();
     println!("Response is '{:?}'", buff);
 }
@@ -90,14 +91,16 @@ pub fn main() {
 extern crate futures;
 extern crate tokio_core;
 extern crate tokio_modbus;
+extern crate tokio_service;
+
 extern crate tokio_serial;
 
-use tokio_core::reactor::Core;
-use futures::future::Future;
-use tokio_serial::{Serial, SerialPortSettings};
-use tokio_modbus::*;
-
 pub fn main() {
+    use futures::future::Future;
+    use tokio_core::reactor::Core;
+    use tokio_modbus::prelude::*;
+    use tokio_serial::{Serial, SerialPortSettings};
+
     let mut core = Core::new().unwrap();
     let handle = core.handle();
     let tty_path = "/dev/ttyUSB0";
@@ -105,8 +108,10 @@ pub fn main() {
 
     let mut settings = SerialPortSettings::default();
     settings.baud_rate = 19200;
-    let mut port = Serial::from_path(tty_path, &settings, &handle).unwrap();
-    port.set_exclusive(false).unwrap();
+    let mut port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle())
+        .expect(&format!("Unable to open serial device '{}'", tty_path));
+    port.set_exclusive(false)
+        .expect("Unable to set serial port exlusive");
 
     let task = Client::connect_rtu(port, server_addr, &handle).and_then(|client| {
         println!("Reading a sensor value");

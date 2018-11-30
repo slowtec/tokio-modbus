@@ -6,7 +6,7 @@ extern crate tokio_modbus;
 pub fn main() {
     use futures::future::Future;
     use tokio_core::reactor::Core;
-    use tokio_modbus::*;
+    use tokio_modbus::prelude::*;
 
     let mut core = Core::new().unwrap();
     let handle = core.handle();

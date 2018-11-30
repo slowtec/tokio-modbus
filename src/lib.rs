@@ -50,7 +50,7 @@
 //!
 //! use tokio_core::reactor::Core;
 //! use futures::future::Future;
-//! use tokio_modbus::*;
+//! use tokio_modbus::prelude::*;
 //!
 //! pub fn main() {
 //!     let mut core = Core::new().unwrap();
@@ -73,7 +73,7 @@
 //!
 //! ```rust,no_run
 //! extern crate tokio_modbus;
-//! use tokio_modbus::*;
+//! use tokio_modbus::prelude::*;
 //!
 //! pub fn main() {
 //!     let addr = "192.168.0.222:502".parse().unwrap();
@@ -94,7 +94,7 @@
 //! use tokio_core::reactor::Core;
 //! use futures::future::Future;
 //! use tokio_serial::{Serial, SerialPortSettings};
-//! use tokio_modbus::*;
+//! use tokio_modbus::prelude::*;
 //!
 //! pub fn main() {
 //!     let mut core = Core::new().unwrap();
@@ -148,9 +148,11 @@ mod proto;
 mod server;
 mod service;
 
-pub use crate::client::*;
-pub use crate::frame::*;
-pub use crate::server::*;
+pub mod prelude {
+    pub use crate::client::*;
+    pub use crate::frame::*;
+    pub use crate::server::*;
 
-#[cfg(feature = "tcp")]
-pub use crate::server::tcp;
+    #[cfg(feature = "tcp")]
+    pub use crate::server::tcp;
+}

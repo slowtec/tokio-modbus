@@ -8,7 +8,7 @@ use futures::future::FutureResult;
 use futures::future::{self, Future};
 use std::thread;
 use tokio_core::reactor::Core;
-use tokio_modbus::*;
+use tokio_modbus::prelude::*;
 use tokio_service::Service;
 
 struct MbServer;
@@ -35,17 +35,17 @@ impl Service for MbServer {
 #[cfg(feature = "tcp")]
 fn main() {
     let _server = thread::spawn(|| {
-        let addr = "127.0.0.1:5502".parse().unwrap();
-        let server = tcp::Server::new(addr);
+        let socket_addr = "127.0.0.1:5502".parse().unwrap();
+        let server = tcp::Server::new(socket_addr);
         server.serve(|| Ok(MbServer));
     });
 
     let client = thread::spawn(|| {
         let mut core = Core::new().unwrap();
         let handle = core.handle();
-        let addr = "127.0.0.1:5502".parse().unwrap();
+        let socket_addr = "127.0.0.1:5502".parse().unwrap();
 
-        let task = Client::connect_tcp(&addr, &handle).and_then(|client| {
+        let task = Client::connect_tcp(&socket_addr, &handle).and_then(|client| {
             client.read_input_registers(0x0, 7).and_then(move |res| {
                 println!("The result is '{:?}'", res);
                 Ok(())

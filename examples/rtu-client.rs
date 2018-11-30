@@ -1,15 +1,16 @@
 extern crate futures;
 extern crate tokio_core;
 extern crate tokio_modbus;
+extern crate tokio_service;
+
 #[cfg(feature = "rtu")]
 extern crate tokio_serial;
-extern crate tokio_service;
-use tokio_modbus::*;
 
 #[cfg(feature = "rtu")]
 pub fn main() {
     use futures::future::Future;
     use tokio_core::reactor::Core;
+    use tokio_modbus::prelude::*;
     use tokio_serial::{Serial, SerialPortSettings};
 
     let mut core = Core::new().unwrap();
