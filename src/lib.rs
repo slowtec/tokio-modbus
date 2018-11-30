@@ -55,9 +55,9 @@
 //! pub fn main() {
 //!     let mut core = Core::new().unwrap();
 //!     let handle = core.handle();
-//!     let addr = "192.168.0.222:502".parse().unwrap();
+//!     let socket_addr = "192.168.0.222:502".parse().unwrap();
 //!
-//!     let task = Client::connect_tcp(&addr, &handle).and_then(|client| {
+//!     let task = Client::connect_tcp(&socket_addr, &handle).and_then(|client| {
 //!         client
 //!             .read_input_registers(0x1000, 7)
 //!             .and_then(move |data| {
@@ -76,8 +76,8 @@
 //! use tokio_modbus::prelude::*;
 //!
 //! pub fn main() {
-//!     let addr = "192.168.0.222:502".parse().unwrap();
-//!     let mut client = SyncClient::connect_tcp(&addr).unwrap();
+//!     let socket_addr = "192.168.0.222:502".parse().unwrap();
+//!     let mut client = SyncClient::connect_tcp(&socket_addr).unwrap();
 //!     let data = client.read_input_registers(0x1000, 7).unwrap();
 //!     println!("Response is '{:?}'", data);
 //! }
