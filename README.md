@@ -129,6 +129,13 @@ pub fn main() {
 
 More examples can be found in the [examples](https://github.com/slowtec/tokio-modbus/tree/master/examples) folder.
 
+## Migration
+
+### From 0.2.x to 0.3.0
+
+- Replace `use tokio_modbus::*` with `use tokio_modbus::prelude::*`
+- Replace `Server::new_tcp(socket_addr)` with `tcp::Server::new(socket_addr)`
+
 ## Protocol-Specification
 
 - [MODBUS Application Protocol Specification v1.1b3 (PDF)](http://modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf)
