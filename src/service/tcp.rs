@@ -1,6 +1,6 @@
 use crate::frame::*;
-use futures::Future;
 use crate::proto::tcp::Proto;
+use futures::Future;
 use std::cell::Cell;
 use std::io::{Error, ErrorKind};
 use std::net::SocketAddr;
