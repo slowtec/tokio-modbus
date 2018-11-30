@@ -1,7 +1,9 @@
-use super::common::*;
+use super::*;
+
+use crate::frame::*;
+
 use byteorder::ByteOrder;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use crate::frame::*;
 use std::io::{Error, ErrorKind, Result};
 use tokio_codec::{Decoder, Encoder};
 
@@ -157,16 +159,8 @@ mod tests {
         fn decode_exception_message() {
             let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x03,
-                0x66,
-                0x82, // exception = 0x80 + 0x02
-                0x03,
-                0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x66, 0x82, // exception = 0x80 + 0x02
+                0x03, 0x00,
             ]);
 
             let TcpAdu { header, pdu } = codec.decode(&mut buf).unwrap().unwrap();
@@ -185,9 +179,7 @@ mod tests {
         fn decode_with_invalid_protocol_id() {
             let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
-                0x00,
-                0x00,
-                0x33, // protocol id HI
+                0x00, 0x00, 0x33, // protocol id HI
                 0x12, // protocol id LO
                 0x00, // length HI
                 0x03, // length LO

@@ -1,7 +1,9 @@
-use super::common::*;
+use super::*;
+
+use crate::frame::*;
+
 use byteorder::ReadBytesExt;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use crate::frame::*;
 use std::io::{Cursor, Error, ErrorKind, Result};
 use tokio_codec::{Decoder, Encoder};
 
@@ -341,11 +343,7 @@ mod tests {
                 0x01, // device address
                 0x03, // function code
                 0x04, // byte count
-                0x89,
-                0x02,
-                0x42,
-                0xC7,
-                0x00, // crc
+                0x89, 0x02, 0x42, 0xC7, 0x00, // crc
                 0x9D, // crc
                 0x00,
             ]);
@@ -368,10 +366,8 @@ mod tests {
         fn decode_exception_message() {
             let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
-                0x66,
-                0x82, // exception = 0x80 + 0x02
-                0x03,
-                0xB1, // crc
+                0x66, 0x82, // exception = 0x80 + 0x02
+                0x03, 0xB1, // crc
                 0x7E, // crc
             ]);
 
