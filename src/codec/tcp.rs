@@ -1,118 +1,156 @@
-use super::common::*;
+use super::*;
+
+use crate::frame::tcp::*;
+
 use byteorder::ByteOrder;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use crate::frame::*;
 use std::io::{Error, ErrorKind, Result};
 use tokio_codec::{Decoder, Encoder};
 
-const HEADER_SIZE: usize = 7;
-const PROTOCOL_ID: u16 = 0x0;
+const HEADER_LEN: usize = 7;
+const PROTOCOL_ID: u16 = 0x0000; // TCP
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct TcpDecoder;
+pub(crate) struct AduDecoder;
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct Codec {
-    pub(crate) decoder: TcpDecoder,
-    pub(crate) codec_type: CodecType,
+pub(crate) struct ClientCodec {
+    pub(crate) decoder: AduDecoder,
 }
 
-impl Codec {
-    pub fn client() -> Codec {
-        Codec {
-            decoder: TcpDecoder,
-            codec_type: CodecType::Client,
-        }
-    }
-    pub fn server() -> Codec {
-        Codec {
-            decoder: TcpDecoder,
-            codec_type: CodecType::Server,
+impl Default for ClientCodec {
+    fn default() -> Self {
+        Self {
+            decoder: AduDecoder,
         }
     }
 }
 
-impl Decoder for TcpDecoder {
-    type Item = (TcpHeader, Bytes);
+#[derive(Debug, PartialEq)]
+pub(crate) struct ServerCodec {
+    pub(crate) decoder: AduDecoder,
+}
+
+impl Default for ServerCodec {
+    fn default() -> Self {
+        Self {
+            decoder: AduDecoder,
+        }
+    }
+}
+
+impl Decoder for AduDecoder {
+    type Item = (Header, Bytes);
     type Error = Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(TcpHeader, Bytes)>> {
-        if buf.len() < HEADER_SIZE {
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(Header, Bytes)>> {
+        if buf.len() < HEADER_LEN {
             return Ok(None);
         }
 
-        // len = bytes of PDU + one byte (unit ID)
+        debug_assert!(HEADER_LEN >= 6);
         let len = BigEndian::read_u16(&buf[4..6]) as usize;
-
-        if buf.len() < HEADER_SIZE + len - 1 {
+        let pdu_len = if len > 0 {
+            // len = bytes of PDU + one byte (unit ID)
+            len - 1
+        } else {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("Invalid data length: {}", len),
+            ));
+        };
+        if buf.len() < HEADER_LEN + pdu_len {
             return Ok(None);
         }
 
-        let header_data = buf.split_to(HEADER_SIZE);
-        let data = buf.split_to(len - 1).freeze();
+        let header_data = buf.split_to(HEADER_LEN);
 
-        let transaction_id = BigEndian::read_u16(&header_data[0..2]);
+        debug_assert!(HEADER_LEN >= 4);
         let protocol_id = BigEndian::read_u16(&header_data[2..4]);
+        if protocol_id != PROTOCOL_ID {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!(
+                    "Invalid protocol identifier: expected = {}, actual = {}",
+                    PROTOCOL_ID, protocol_id
+                ),
+            ));
+        }
+
+        debug_assert!(HEADER_LEN >= 2);
+        let transaction_id = BigEndian::read_u16(&header_data[0..2]);
+
         let unit_id = header_data[4];
 
-        if protocol_id != PROTOCOL_ID {
-            return Err(Error::new(ErrorKind::InvalidData, "Invalid protocol ID"));
-        }
-
-        let header = TcpHeader {
+        let header = Header {
             transaction_id,
             unit_id,
         };
-        Ok(Some((header, data)))
+
+        let pdu_data = buf.split_to(pdu_len).freeze();
+
+        Ok(Some((header, pdu_data)))
     }
 }
 
-impl Decoder for Codec {
-    type Item = TcpAdu;
+impl Decoder for ClientCodec {
+    type Item = ResponseAdu;
     type Error = Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<TcpAdu>> {
-        if let Some((header, data)) = self.decoder.decode(buf)? {
-            let pdu = match self.codec_type {
-                CodecType::Client => {
-                    let res = if data[0] > 0x80 {
-                        Err(ExceptionResponse::try_from(data)?)
-                    } else {
-                        Ok(Response::try_from(data)?)
-                    };
-                    Pdu::Result(res)
-                }
-                CodecType::Server => {
-                    if data[0] > 0x80 {
-                        return Err(Error::new(
-                            ErrorKind::Other,
-                            "A request must not a exception response",
-                        ));
-                    }
-                    let req = Request::try_from(data)?;
-                    Pdu::Request(req)
-                }
-            };
-            Ok(Some(TcpAdu { header, pdu }))
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
+        if let Some((hdr, pdu_data)) = self.decoder.decode(buf)? {
+            let pdu = ResponsePdu::try_from(pdu_data)?;
+            Ok(Some(ResponseAdu { hdr, pdu }))
         } else {
             Ok(None)
         }
     }
 }
 
-impl Encoder for Codec {
-    type Item = TcpAdu;
+impl Decoder for ServerCodec {
+    type Item = RequestAdu;
     type Error = Error;
 
-    fn encode(&mut self, adu: TcpAdu, buf: &mut BytesMut) -> Result<()> {
-        let TcpAdu { header, pdu } = adu;
-        let pdu: Bytes = pdu.into();
-        buf.reserve(pdu.len() + 7);
-        buf.put_u16_be(header.transaction_id);
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu>> {
+        if let Some((hdr, pdu_data)) = self.decoder.decode(buf)? {
+            let pdu = RequestPdu::try_from(pdu_data)?;
+            Ok(Some(RequestAdu { hdr, pdu }))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl Encoder for ClientCodec {
+    type Item = RequestAdu;
+    type Error = Error;
+
+    fn encode(&mut self, adu: RequestAdu, buf: &mut BytesMut) -> Result<()> {
+        let RequestAdu { hdr, pdu } = adu;
+        let pdu_data: Bytes = pdu.into();
+        buf.reserve(pdu_data.len() + 7);
+        buf.put_u16_be(hdr.transaction_id);
         buf.put_u16_be(PROTOCOL_ID);
-        buf.put_u16_be((pdu.len() + 1) as u16);
-        buf.put_u8(header.unit_id);
-        buf.put_slice(&*pdu);
+        buf.put_u16_be((pdu_data.len() + 1) as u16);
+        buf.put_u8(hdr.unit_id);
+        buf.put_slice(&*pdu_data);
+        Ok(())
+    }
+}
+
+impl Encoder for ServerCodec {
+    type Item = ResponseAdu;
+    type Error = Error;
+
+    fn encode(&mut self, adu: ResponseAdu, buf: &mut BytesMut) -> Result<()> {
+        let ResponseAdu { hdr, pdu } = adu;
+        let pdu_data: Bytes = pdu.into();
+        buf.reserve(pdu_data.len() + 7);
+        buf.put_u16_be(hdr.transaction_id);
+        buf.put_u16_be(PROTOCOL_ID);
+        buf.put_u16_be((pdu_data.len() + 1) as u16);
+        buf.put_u8(hdr.unit_id);
+        buf.put_slice(&*pdu_data);
         Ok(())
     }
 }
@@ -128,7 +166,7 @@ mod tests {
 
         #[test]
         fn decode_header_fragment() {
-            let mut codec = Codec::client();
+            let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![0x00, 0x11, 0x00, 0x00, 0x00, 0x00]);
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
@@ -137,7 +175,7 @@ mod tests {
 
         #[test]
         fn decode_partly_received_message() {
-            let mut codec = Codec::client();
+            let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
                 0x00, // transaction id HI
                 0x11, // transaction id LO
@@ -155,7 +193,7 @@ mod tests {
 
         #[test]
         fn decode_exception_message() {
-            let mut codec = Codec::client();
+            let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
                 0x00, //
                 0x00, //
@@ -169,21 +207,19 @@ mod tests {
                 0x00, //
             ]);
 
-            let TcpAdu { header, pdu } = codec.decode(&mut buf).unwrap().unwrap();
-            assert_eq!(header.transaction_id, 0);
-            match pdu {
-                Pdu::Result(res) => {
-                    let err = res.err().unwrap();
-                    assert_eq!(format!("{}", err), "Modbus function 2: Illegal data value");
-                }
-                _ => panic!("wrong pdu type"),
+            let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(hdr.transaction_id, 0);
+            if let ResponsePdu(Err(err)) = pdu {
+                assert_eq!(format!("{}", err), "Modbus function 2: Illegal data value");
+                assert_eq!(buf.len(), 1);
+            } else {
+                panic!("unexpected response")
             }
-            assert_eq!(buf.len(), 1);
         }
 
         #[test]
         fn decode_with_invalid_protocol_id() {
-            let mut codec = Codec::client();
+            let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
                 0x00, //
                 0x00, //
@@ -196,20 +232,20 @@ mod tests {
             buf.extend_from_slice(&[0x00, 0x02, 0x66, 0x82, 0x03, 0x00]);
             let err = codec.decode(&mut buf).err().unwrap();
             assert_eq!(err.kind(), ErrorKind::InvalidData);
-            assert_eq!(format!("{}", err), "Invalid protocol ID");
+            assert!(format!("{}", err).contains("Invalid protocol identifier"));
         }
 
         #[test]
         fn encode_read_request() {
-            let mut codec = Codec::client();
+            let mut codec = ClientCodec::default();
             let mut buf = BytesMut::new();
             let req = Request::ReadInputRegisters(0x23, 5);
-            let pdu = Pdu::Request(req.clone());
-            let header = TcpHeader {
+            let pdu = req.clone().into();
+            let hdr = Header {
                 transaction_id: 0,
                 unit_id: 0,
             };
-            let adu = TcpAdu { header, pdu };
+            let adu = RequestAdu { hdr, pdu };
             codec.encode(adu.clone(), &mut buf).unwrap();
             // header
             assert_eq!(buf[0], 0x0);
@@ -227,13 +263,13 @@ mod tests {
 
         #[test]
         fn encode_transaction_id() {
-            let mut codec = Codec::client();
-            let pdu = Pdu::Request(Request::ReadInputRegisters(0x00, 1));
-            let header = TcpHeader {
+            let mut codec = ClientCodec::default();
+            let pdu = Request::ReadInputRegisters(0x00, 1).into();
+            let hdr = Header {
                 transaction_id: 0xab,
                 unit_id: 0,
             };
-            let adu = TcpAdu { header, pdu };
+            let adu = RequestAdu { hdr, pdu };
 
             let mut buf = BytesMut::new();
             codec.encode(adu.clone(), &mut buf).unwrap();
@@ -242,14 +278,13 @@ mod tests {
 
         #[test]
         fn encode_with_limited_buf_capacity() {
-            let mut codec = Codec::client();
-            let req = Request::ReadInputRegisters(0x23, 5);
-            let pdu = Pdu::Request(req);
-            let header = TcpHeader {
+            let mut codec = ClientCodec::default();
+            let pdu = Request::ReadInputRegisters(0x23, 5).into();
+            let hdr = Header {
                 transaction_id: 0,
                 unit_id: 0,
             };
-            let adu = TcpAdu { header, pdu };
+            let adu = RequestAdu { hdr, pdu };
             let mut buf = BytesMut::with_capacity(40);
             unsafe {
                 buf.set_len(29);

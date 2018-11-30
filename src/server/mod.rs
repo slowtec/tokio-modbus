@@ -1,6 +1,7 @@
-use crate::frame::*;
-use futures::prelude::*;
+use crate::frame::{tcp::*, *};
 use crate::proto;
+
+use futures::prelude::*;
 use std::io::Error;
 use std::net::SocketAddr;
 use tokio_proto::TcpServer;
@@ -20,8 +21,8 @@ struct ServiceWrapper<S> {
 }
 
 impl<S> ServiceWrapper<S> {
-    fn new(service: S) -> ServiceWrapper<S> {
-        ServiceWrapper { service }
+    fn new(service: S) -> Self {
+        Self { service }
     }
 }
 
@@ -32,24 +33,22 @@ where
     S::Response: Into<Response>,
     S::Error: Into<Error>,
 {
-    type Request = TcpAdu;
-    type Response = TcpAdu;
+    type Request = RequestAdu;
+    type Response = ResponseAdu;
     type Error = Error;
-    type Future = Box<Future<Item = Self::Request, Error = Self::Error>>;
+    type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
 
-    fn call(&self, req: Self::Request) -> Self::Future {
-        let TcpAdu { header, pdu } = req;
-        if let Pdu::Request(req) = pdu {
-            Box::new(self.service.call(req.into()).then(|res| match res {
-                Ok(res) => {
-                    let pdu = Pdu::Result(Ok(res.into()));
-                    Ok(TcpAdu { header, pdu })
-                }
-                Err(e) => Err(e.into()),
-            }))
-        } else {
-            panic!("Received response instead of a request");
-        }
+    fn call(&self, adu: Self::Request) -> Self::Future {
+        let Self::Request { hdr, pdu } = adu;
+        let req: Request = pdu.into();
+        Box::new(self.service.call(req.into()).then(move |res| match res {
+            Ok(res) => {
+                let res: Response = res.into();
+                let pdu = res.into();
+                Ok(Self::Response { hdr, pdu })
+            }
+            Err(e) => Err(e.into()),
+        }))
     }
 }
 
@@ -82,7 +81,6 @@ impl Server {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use futures::future;
 
@@ -97,7 +95,7 @@ mod tests {
             type Request = Request;
             type Response = Response;
             type Error = Error;
-            type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
+            type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
                 Box::new(future::ok(self.response.clone()))
@@ -108,20 +106,22 @@ mod tests {
             response: Response::ReadInputRegisters(vec![0x33]),
         };
         let service = ServiceWrapper::new(s.clone());
-        let pdu = Pdu::Request(Request::ReadInputRegisters(0, 1));
-        let header = TcpHeader {
+
+        let hdr = Header {
             transaction_id: 9,
             unit_id: 7,
         };
-        let adu = TcpAdu { header, pdu };
-        let res = service.call(adu).wait().unwrap();
+        let pdu = Request::ReadInputRegisters(0, 1).into();
+        let req_adu = RequestAdu { hdr, pdu };
+        let res_adu = service.call(req_adu).wait().unwrap();
+
         assert_eq!(
-            res.header,
-            TcpHeader {
+            res_adu.hdr,
+            Header {
                 transaction_id: 9,
                 unit_id: 7,
             }
         );
-        assert_eq!(res.pdu, Pdu::Result(Ok(s.response)));
+        assert_eq!(res_adu.pdu, s.response.into());
     }
 }
