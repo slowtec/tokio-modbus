@@ -1,12 +1,22 @@
 use crate::frame::*;
+use crate::service::*;
+
 use futures::prelude::*;
-use crate::service;
-use std::io::{Error, ErrorKind, Result};
-use std::net::SocketAddr;
-use tokio_core::reactor::{Core, Handle};
+use std::io::{Error, ErrorKind};
+use tokio_core::reactor::Handle;
+use tokio_service::Service;
+
+#[cfg(feature = "rtu")]
+use std::io::Result;
+
 #[cfg(feature = "rtu")]
 use tokio_serial::{Serial, SerialPortSettings};
-use tokio_service::Service;
+
+#[cfg(feature = "rtu")]
+use tokio_core::reactor::Core;
+
+#[cfg(feature = "tcp")]
+use std::net::SocketAddr;
 
 /// A transport independent asynchronous client trait.
 pub trait ModbusClient {
@@ -17,7 +27,8 @@ pub trait ModbusClient {
         _: Quantity,
     ) -> Box<Future<Item = Vec<Coil>, Error = Error>>;
     fn write_single_coil(&self, _: Address, _: Coil) -> Box<Future<Item = (), Error = Error>>;
-    fn write_multiple_coils(&self, _: Address, _: &[Coil]) -> Box<Future<Item = (), Error = Error>>;
+    fn write_multiple_coils(&self, _: Address, _: &[Coil])
+        -> Box<Future<Item = (), Error = Error>>;
     fn read_input_registers(
         &self,
         _: Address,
@@ -29,7 +40,11 @@ pub trait ModbusClient {
         _: Quantity,
     ) -> Box<Future<Item = Vec<Word>, Error = Error>>;
     fn write_single_register(&self, _: Address, _: Word) -> Box<Future<Item = (), Error = Error>>;
-    fn write_multiple_registers(&self, _: Address, _: &[Word]) -> Box<Future<Item = (), Error = Error>>;
+    fn write_multiple_registers(
+        &self,
+        _: Address,
+        _: &[Word],
+    ) -> Box<Future<Item = (), Error = Error>>;
     fn read_write_multiple_registers(
         &self,
         _: Address,
@@ -84,7 +99,7 @@ impl Client {
         addr: &SocketAddr,
         handle: &Handle,
     ) -> Box<Future<Item = Client, Error = Error>> {
-        let t = service::tcp::Client::connect(addr, handle).map(|c| Client {
+        let t = tcp::Client::connect(addr, handle).map(|c| Client {
             transport: Box::new(c),
         });
         Box::new(t)
@@ -95,7 +110,7 @@ impl Client {
         address: u8,
         handle: &Handle,
     ) -> Box<Future<Item = Client, Error = Error>> {
-        let t = service::rtu::Client::connect(serial, address, handle).map(|c| Client {
+        let t = rtu::Client::connect(serial, address, handle).map(|c| Client {
             transport: Box::new(c),
         });
         Box::new(t)
@@ -294,21 +309,23 @@ impl ModbusClient for Client {
         write_addr: Address,
         write_data: &[Word],
     ) -> Box<Future<Item = Vec<Word>, Error = Error>> {
-        Box::new(self.call(Request::ReadWriteMultipleRegisters(
-            read_addr,
-            read_cnt,
-            write_addr,
-            write_data.to_vec(),
-        )).and_then(move |res| {
-            if let Response::ReadWriteMultipleRegisters(res) = res {
-                if res.len() != read_cnt as usize {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+        Box::new(
+            self.call(Request::ReadWriteMultipleRegisters(
+                read_addr,
+                read_cnt,
+                write_addr,
+                write_data.to_vec(),
+            )).and_then(move |res| {
+                if let Response::ReadWriteMultipleRegisters(res) = res {
+                    if res.len() != read_cnt as usize {
+                        return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                    }
+                    Ok(res)
+                } else {
+                    Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
                 }
-                Ok(res)
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-            }
-        }))
+            }),
+        )
     }
 }
 
