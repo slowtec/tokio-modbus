@@ -19,7 +19,7 @@ pub(crate) type Word = u16;
 pub(crate) type Quantity = u16;
 
 /// A request represents a message from the client (master) to the server (slave).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
     ReadCoils(Address, Quantity),
     ReadDiscreteInputs(Address, Quantity),
@@ -34,7 +34,7 @@ pub enum Request {
 }
 
 /// The data of a successfull request.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Response {
     ReadCoils(Vec<Coil>),
     ReadDiscreteInputs(Vec<Coil>),
@@ -49,7 +49,7 @@ pub enum Response {
 }
 
 /// A server (slave) exception.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Exception {
     IllegalFunction = 0x01,
     IllegalDataAddress = 0x02,
