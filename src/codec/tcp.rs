@@ -1,7 +1,7 @@
 use super::common::*;
 use byteorder::ByteOrder;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use frame::*;
+use crate::frame::*;
 use std::io::{Error, ErrorKind, Result};
 use tokio_codec::{Decoder, Encoder};
 

@@ -13,5 +13,5 @@ pub trait SyncService {
     /// Errors produced by the service.
     type Error;
     /// Process the request and return the response synchronously.
-    fn call(&mut self, Self::Request) -> Result<Self::Response, Self::Error>;
+    fn call(&mut self, _: Self::Request) -> Result<Self::Response, Self::Error>;
 }

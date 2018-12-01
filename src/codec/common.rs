@@ -1,6 +1,6 @@
 use byteorder::ReadBytesExt;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use frame::*;
+use crate::frame::*;
 use std::io::{self, Cursor, Error, ErrorKind};
 
 #[derive(Debug, PartialEq)]
@@ -13,7 +13,7 @@ impl From<Request> for Bytes {
     fn from(req: Request) -> Bytes {
         let cnt = request_byte_count(&req);
         let mut data = BytesMut::with_capacity(cnt);
-        use Request::*;
+        use crate::Request::*;
         data.put_u8(req_to_fn_code(&req));
         match req {
             ReadCoils(address, quantity)
@@ -75,7 +75,7 @@ impl From<Response> for Bytes {
     fn from(res: Response) -> Bytes {
         let cnt = response_byte_count(&res);
         let mut data = BytesMut::with_capacity(cnt);
-        use Response::*;
+        use crate::Response::*;
         data.put_u8(res_to_fn_code(&res));
         match res {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
@@ -125,7 +125,7 @@ impl From<ExceptionResponse> for Bytes {
 
 impl From<Pdu> for Bytes {
     fn from(pdu: Pdu) -> Bytes {
-        use Pdu::*;
+        use crate::Pdu::*;
         match pdu {
             Request(req) => req.into(),
             Result(res) => match res {
@@ -148,7 +148,7 @@ impl TryFrom<Bytes> for Request {
     type Error = Error;
 
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        use Request::*;
+        use crate::Request::*;
         let mut rdr = Cursor::new(&bytes);
         let fn_code = rdr.read_u8()?;
         let req = match fn_code {
@@ -212,7 +212,7 @@ impl TryFrom<Bytes> for Response {
     type Error = Error;
 
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        use Response::*;
+        use crate::Response::*;
         let mut rdr = Cursor::new(&bytes);
         let fn_code = rdr.read_u8()?;
         let res = match fn_code {
@@ -297,7 +297,7 @@ impl TryFrom<u8> for Exception {
     type Error = Error;
 
     fn try_from(code: u8) -> Result<Self, Self::Error> {
-        use Exception::*;
+        use crate::Exception::*;
         let ex = match code {
             0x01 => IllegalFunction,
             0x02 => IllegalDataAddress,
@@ -355,7 +355,7 @@ fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
 }
 
 fn req_to_fn_code(req: &Request) -> u8 {
-    use Request::*;
+    use crate::Request::*;
     match *req {
         ReadCoils(_, _) => 0x01,
         ReadDiscreteInputs(_, _) => 0x02,
@@ -371,7 +371,7 @@ fn req_to_fn_code(req: &Request) -> u8 {
 }
 
 fn res_to_fn_code(res: &Response) -> u8 {
-    use Response::*;
+    use crate::Response::*;
     match *res {
         ReadCoils(_) => 0x01,
         ReadDiscreteInputs(_) => 0x02,
@@ -387,7 +387,7 @@ fn res_to_fn_code(res: &Response) -> u8 {
 }
 
 fn request_byte_count(req: &Request) -> usize {
-    use Request::*;
+    use crate::Request::*;
     match *req {
         ReadCoils(_, _)
         | ReadDiscreteInputs(_, _)
@@ -403,7 +403,7 @@ fn request_byte_count(req: &Request) -> usize {
 }
 
 fn response_byte_count(res: &Response) -> usize {
-    use Response::*;
+    use crate::Response::*;
     match *res {
         ReadCoils(ref coils) | ReadDiscreteInputs(ref coils) => 2 + packed_coils_len(coils.len()),
         WriteSingleCoil(_) => 3,
@@ -459,7 +459,7 @@ mod tests {
 
     #[test]
     fn function_code_from_request() {
-        use Request::*;
+        use crate::Request::*;
         assert_eq!(req_to_fn_code(&ReadCoils(0, 0)), 1);
         assert_eq!(req_to_fn_code(&ReadDiscreteInputs(0, 0)), 2);
         assert_eq!(req_to_fn_code(&WriteSingleCoil(0, true)), 5);
@@ -477,7 +477,7 @@ mod tests {
 
     #[test]
     fn function_code_from_response() {
-        use Response::*;
+        use crate::Response::*;
         assert_eq!(res_to_fn_code(&ReadCoils(vec![])), 1);
         assert_eq!(res_to_fn_code(&ReadDiscreteInputs(vec![])), 2);
         assert_eq!(res_to_fn_code(&WriteSingleCoil(0x0)), 5);

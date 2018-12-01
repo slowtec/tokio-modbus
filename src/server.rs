@@ -1,6 +1,6 @@
-use frame::*;
+use crate::frame::*;
 use futures::prelude::*;
-use proto;
+use crate::proto;
 use std::io::Error;
 use std::net::SocketAddr;
 use tokio_proto::TcpServer;

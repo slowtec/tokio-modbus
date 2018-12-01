@@ -1,8 +1,8 @@
 #[cfg(feature = "tcp")]
 pub mod tcp {
 
-    use codec::tcp::Codec;
-    use frame::TcpAdu;
+    use crate::codec::tcp::Codec;
+    use crate::frame::TcpAdu;
     use std::io::Error;
     use tokio_codec::{Decoder, Framed};
     use tokio_io::{AsyncRead, AsyncWrite};
@@ -36,8 +36,8 @@ pub mod tcp {
     mod tests {
         use super::super::dummy_io::DummyIo;
         use super::Proto;
-        use codec::common::CodecType;
-        use codec::tcp::Codec;
+        use crate::codec::common::CodecType;
+        use crate::codec::tcp::Codec;
 
         #[test]
         fn bind_transport() {
@@ -54,8 +54,8 @@ pub mod tcp {
 #[cfg(feature = "rtu")]
 pub mod rtu {
 
-    use codec::rtu::Codec;
-    use frame::RtuAdu;
+    use crate::codec::rtu::Codec;
+    use crate::frame::RtuAdu;
     use std::io::Error;
     use tokio_codec::{Decoder, Framed};
     use tokio_io::{AsyncRead, AsyncWrite};
@@ -89,7 +89,7 @@ pub mod rtu {
     mod tests {
         use super::super::dummy_io::DummyIo;
         use super::Proto;
-        use codec::rtu::Codec;
+        use crate::codec::rtu::Codec;
 
         #[test]
         fn bind_transport() {
