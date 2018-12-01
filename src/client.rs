@@ -1,12 +1,12 @@
-use futures::prelude::*;
-use std::io::{Error, ErrorKind, Result};
 use frame::*;
-use tokio_service::Service;
+use futures::prelude::*;
 use service;
+use std::io::{Error, ErrorKind, Result};
 use std::net::SocketAddr;
 use tokio_core::reactor::{Core, Handle};
 #[cfg(feature = "rtu")]
 use tokio_serial::{Serial, SerialPortSettings};
+use tokio_service::Service;
 
 /// A transport independent asynchronous client trait.
 pub trait ModbusClient {
@@ -294,21 +294,24 @@ impl ModbusClient for Client {
         write_addr: Address,
         write_data: &[Word],
     ) -> Box<Future<Item = Vec<Word>, Error = Error>> {
-        Box::new(self.call(Request::ReadWriteMultipleRegisters(
-            read_addr,
-            read_cnt,
-            write_addr,
-            write_data.to_vec(),
-        )).and_then(move |res| {
-            if let Response::ReadWriteMultipleRegisters(res) = res {
-                if res.len() != read_cnt as usize {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+        Box::new(
+            self.call(Request::ReadWriteMultipleRegisters(
+                read_addr,
+                read_cnt,
+                write_addr,
+                write_data.to_vec(),
+            ))
+            .and_then(move |res| {
+                if let Response::ReadWriteMultipleRegisters(res) = res {
+                    if res.len() != read_cnt as usize {
+                        return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                    }
+                    Ok(res)
+                } else {
+                    Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
                 }
-                Ok(res)
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-            }
-        }))
+            }),
+        )
     }
 }
 
@@ -346,11 +349,9 @@ impl SyncModbusClient for SyncClient {
         write_addr: Address,
         write_data: &[Word],
     ) -> Result<Vec<Word>> {
-        self.core.run(self.client.read_write_multiple_registers(
-            read_addr,
-            read_cnt,
-            write_addr,
-            write_data,
-        ))
+        self.core.run(
+            self.client
+                .read_write_multiple_registers(read_addr, read_cnt, write_addr, write_data),
+        )
     }
 }

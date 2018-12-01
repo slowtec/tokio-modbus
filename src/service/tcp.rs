@@ -1,13 +1,13 @@
 use frame::*;
-use proto::tcp::Proto;
-use std::io::{Error, ErrorKind};
-use std::cell::Cell;
-use std::net::SocketAddr;
 use futures::Future;
+use proto::tcp::Proto;
+use std::cell::Cell;
+use std::io::{Error, ErrorKind};
+use std::net::SocketAddr;
 use tokio_core::net::TcpStream;
 use tokio_core::reactor::Handle;
-use tokio_proto::TcpClient;
 use tokio_proto::pipeline::ClientService;
+use tokio_proto::TcpClient;
 use tokio_service::Service;
 
 /// Modbus TCP client
@@ -50,7 +50,8 @@ impl Service for Client {
 
         let pdu = Pdu::Request(req);
 
-        let result = self.service
+        let result = self
+            .service
             .call(TcpAdu { header, pdu })
             .and_then(move |adu| {
                 if adu.header.transaction_id != t_id {

@@ -140,13 +140,13 @@ extern crate tokio_proto;
 extern crate tokio_serial;
 extern crate tokio_service;
 
-mod frame;
-mod codec;
-mod proto;
-mod service;
 mod client;
+mod codec;
+mod frame;
+mod proto;
 mod server;
+mod service;
 
-pub use frame::*;
 pub use client::*;
+pub use frame::*;
 pub use server::*;

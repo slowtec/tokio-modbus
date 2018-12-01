@@ -1,12 +1,12 @@
 #[cfg(feature = "tcp")]
 pub mod tcp {
 
+    use codec::tcp::Codec;
     use frame::TcpAdu;
-    use tokio_io::{AsyncRead, AsyncWrite};
     use std::io::Error;
     use tokio_codec::{Decoder, Framed};
+    use tokio_io::{AsyncRead, AsyncWrite};
     use tokio_proto::pipeline::{ClientProto, ServerProto};
-    use codec::tcp::Codec;
 
     pub(crate) struct Proto;
 
@@ -34,10 +34,10 @@ pub mod tcp {
 
     #[cfg(test)]
     mod tests {
-        use super::Proto;
-        use codec::tcp::Codec;
-        use codec::common::CodecType;
         use super::super::dummy_io::DummyIo;
+        use super::Proto;
+        use codec::common::CodecType;
+        use codec::tcp::Codec;
 
         #[test]
         fn bind_transport() {
@@ -54,12 +54,12 @@ pub mod tcp {
 #[cfg(feature = "rtu")]
 pub mod rtu {
 
+    use codec::rtu::Codec;
     use frame::RtuAdu;
-    use tokio_io::{AsyncRead, AsyncWrite};
     use std::io::Error;
     use tokio_codec::{Decoder, Framed};
+    use tokio_io::{AsyncRead, AsyncWrite};
     use tokio_proto::pipeline::{ClientProto, ServerProto};
-    use codec::rtu::Codec;
 
     pub(crate) struct Proto;
 
@@ -87,9 +87,9 @@ pub mod rtu {
 
     #[cfg(test)]
     mod tests {
+        use super::super::dummy_io::DummyIo;
         use super::Proto;
         use codec::rtu::Codec;
-        use super::super::dummy_io::DummyIo;
 
         #[test]
         fn bind_transport() {
@@ -104,10 +104,10 @@ pub mod rtu {
 
 #[cfg(test)]
 mod dummy_io {
+    use futures::Async;
     use std::io::Error;
     use std::io::{Read, Write};
     use tokio_io::{AsyncRead, AsyncWrite};
-    use futures::Async;
 
     pub struct DummyIo;
 
