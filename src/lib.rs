@@ -104,8 +104,7 @@
 //!
 //!     let mut settings = SerialPortSettings::default();
 //!     settings.baud_rate = 19200;
-//!     let mut port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle()).unwrap();
-//!     port.set_exclusive(false).unwrap();
+//!     let port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle()).unwrap();
 //!
 //!     let task = Client::connect_rtu(port, server_addr, &handle).and_then(|client| {
 //!         println!("Reading a sensor value");

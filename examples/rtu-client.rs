@@ -19,10 +19,12 @@ pub fn main() {
 
     let mut settings = SerialPortSettings::default();
     settings.baud_rate = 19200;
-    let mut port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle())
+    let port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle())
         .expect(&format!("Unable to open serial device '{}'", tty_path));
-    port.set_exclusive(false)
-        .expect("Unable to set serial port exlusive");
+
+    // On Unix you might disable the `exclusive` flag:
+    // port.set_exclusive(false)
+    //     .expect("Unable to set serial port exlusive");
 
     let task = Client::connect_rtu(port, server_addr, &handle).and_then(|client| {
         println!("Reading a sensor value");
