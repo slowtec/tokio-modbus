@@ -317,7 +317,7 @@ mod tests {
         use super::*;
 
         #[test]
-        fn decode_partly_received_message() {
+        fn decode_partly_received_client_message() {
             let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
                 0x12, // server address
@@ -332,6 +332,57 @@ mod tests {
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
             assert_eq!(buf.len(), 7);
+        }
+
+        #[test]
+        fn decode_partly_received_server_message_0x16() {
+            let mut codec = Codec::server();
+            let mut buf = BytesMut::from(vec![
+                0x12, // server address
+                0x16, // function code
+                0x00, // irrelevant
+                0x00, // irrelevant
+            ]);
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+
+            let res = codec.decode(&mut buf).unwrap();
+
+            assert!(res.is_none());
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+        }
+
+        #[test]
+        fn decode_partly_received_server_message_0x0f() {
+            let mut codec = Codec::server();
+            let mut buf = BytesMut::from(vec![
+                0x12, // server address
+                0x0F, // function code
+                0x00, // irrelevant
+                0x00, // irrelevant
+            ]);
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+
+            let res = codec.decode(&mut buf).unwrap();
+
+            assert!(res.is_none());
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+        }
+
+        #[test]
+        fn decode_partly_received_server_message_0x10() {
+            let mut codec = Codec::server();
+            let mut buf = BytesMut::from(vec![
+                0x12, // server address
+                0x10, // function code
+                0x00, // irrelevant
+                0x00, // irrelevant
+            ]);
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+
+            let res = codec.decode(&mut buf).unwrap();
+
+            assert!(res.is_none());
+            assert_eq!(buf.len(), MIN_ADU_LEN);
         }
 
         #[test]
