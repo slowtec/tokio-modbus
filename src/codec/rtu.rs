@@ -34,14 +34,32 @@ impl Codec {
     }
 }
 
-fn get_request_payload_len(buf: &BytesMut) -> Result<usize> {
+fn get_request_payload_len(buf: &BytesMut) -> Result<Option<usize>> {
+    if buf.len() < 2 {
+        // incomplete frame
+        return Ok(None);
+    }
     let len = match buf[1] {
-        0x01...0x06 => 4,
-        0x07 | 0x0B | 0x0C | 0x11 => 0,
-        0x0F | 0x10 => 5 + buf[4] as usize,
-        0x16 => 6,
-        0x18 => 2,
-        0x17 => 9 + buf[10] as usize,
+        0x01...0x06 => Some(4),
+        0x07 | 0x0B | 0x0C | 0x11 => Some(0),
+        0x0F | 0x10 => {
+            if buf.len() > 4 {
+                Some(5 + buf[4] as usize)
+            } else {
+                // incomplete frame
+                None
+            }
+        }
+        0x16 => Some(6),
+        0x18 => Some(2),
+        0x17 => {
+            if buf.len() > 10 {
+                Some(9 + buf[10] as usize)
+            } else {
+                // incomplete frame
+                None
+            }
+        }
         _ => {
             return Err(Error::new(ErrorKind::InvalidData, "invalid data length"));
         }
@@ -49,14 +67,32 @@ fn get_request_payload_len(buf: &BytesMut) -> Result<usize> {
     Ok(len)
 }
 
-fn get_response_payload_len(buf: &BytesMut) -> Result<usize> {
+fn get_response_payload_len(buf: &BytesMut) -> Result<Option<usize>> {
+    if buf.len() < 2 {
+        // incomplete frame
+        return Ok(None);
+    }
     let len = match buf[1] {
-        0x01...0x04 | 0x0C | 0x17 => 1 + buf[2] as usize,
-        0x05 | 0x06 | 0x0B | 0x0F | 0x10 => 4,
-        0x07 => 1,
-        0x16 => 6,
-        0x18 => 2 + Cursor::new(&buf[2..]).read_u16::<BigEndian>()? as usize,
-        0x81...0xAB => 1,
+        0x01...0x04 | 0x0C | 0x17 => {
+            if buf.len() > 3 {
+                Some(1 + buf[2] as usize)
+            } else {
+                // incomplete frame
+                None
+            }
+        }
+        0x05 | 0x06 | 0x0B | 0x0F | 0x10 => Some(4),
+        0x07 => Some(1),
+        0x16 => Some(6),
+        0x18 => {
+            if buf.len() > 3 {
+                Some(2 + Cursor::new(&buf[2..=3]).read_u16::<BigEndian>()? as usize)
+            } else {
+                // incomplete frame
+                None
+            }
+        }
+        0x81...0xAB => Some(1),
         _ => {
             return Err(Error::new(ErrorKind::InvalidData, "invalid data length"));
         }
@@ -87,34 +123,30 @@ impl Decoder for RtuDecoder {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(ServerAddress, Bytes)>> {
-        if buf.len() < MIN_ADU_LEN {
-            return Ok(None);
-        }
-
-        let payload_len: usize = match self.codec_type {
+        let payload_len: Option<usize> = match self.codec_type {
             CodecType::Client => get_response_payload_len(buf)?,
             CodecType::Server => get_request_payload_len(buf)?,
-        };
+        }.filter(|payload_len| buf.len() >= MIN_ADU_LEN + payload_len);
 
-        if buf.len() < MIN_ADU_LEN + payload_len {
-            return Ok(None);
+        if let Some(payload_len) = payload_len {
+            let mut adu = buf.split_to(payload_len + 2);
+            let crc = buf.split_to(2);
+            let crc = Cursor::new(&crc).read_u16::<BigEndian>()?;
+
+            let expected_crc = calc_crc(&adu);
+            if expected_crc != crc {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("CRC is not correct: {} instead of {}", crc, expected_crc),
+                ));
+            }
+            let address = adu.split_to(1)[0];
+            let data = adu.freeze();
+            Ok(Some((address, data)))
+        } else {
+            // incomplete frame
+            Ok(None)
         }
-
-        let mut adu = buf.split_to(payload_len + 2);
-        let crc = buf.split_to(2);
-        let crc = Cursor::new(&crc).read_u16::<BigEndian>()?;
-
-        let expected_crc = calc_crc(&adu);
-        if expected_crc != crc {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                format!("CRC is not correct: {} instead of {}", crc, expected_crc),
-            ));
-        }
-        let address = adu.split_to(1)[0];
-        let data = adu.freeze();
-
-        Ok(Some((address, data)))
     }
 }
 
@@ -189,58 +221,58 @@ mod tests {
         assert!(get_request_payload_len(&buf).is_err());
 
         buf[1] = 0x01;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x02;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x03;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x04;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x05;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x06;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x07;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 0);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(0));
 
         // TODO: 0x08
 
         buf[1] = 0x0B;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 0);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(0));
 
         buf[1] = 0x0C;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 0);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(0));
 
         buf[1] = 0x0F;
         buf[4] = 99;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 104);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(104));
 
         buf[1] = 0x10;
         buf[4] = 99;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 104);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(104));
 
         buf[1] = 0x11;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 0);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(0));
 
         // TODO: 0x14
 
         // TODO: 0x15
 
         buf[1] = 0x16;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 6);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(6));
 
         buf[1] = 0x17;
         buf[10] = 99; // write byte count
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 108);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(108));
 
         buf[1] = 0x18;
-        assert_eq!(get_request_payload_len(&buf).unwrap(), 2);
+        assert_eq!(get_request_payload_len(&buf).unwrap(), Some(2));
 
         // TODO: 0x2B
     }
@@ -253,39 +285,39 @@ mod tests {
         assert!(get_response_payload_len(&buf).is_err());
 
         buf[1] = 0x01;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 100);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(100));
 
         buf[1] = 0x02;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 100);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(100));
 
         buf[1] = 0x03;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 100);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(100));
 
         buf[1] = 0x04;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 100);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(100));
 
         buf[1] = 0x05;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x06;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x07;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 1);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(1));
 
         // TODO: 0x08
 
         buf[1] = 0x0B;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x0C;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 100);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(100));
 
         buf[1] = 0x0F;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(4));
 
         buf[1] = 0x10;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 4);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(4));
 
         // TODO: 0x11
 
@@ -294,21 +326,21 @@ mod tests {
         // TODO: 0x15
 
         buf[1] = 0x16;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 6);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(6));
 
         buf[1] = 0x17;
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 100);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(100));
 
         buf[1] = 0x18;
         buf[2] = 0x01; // byte count Hi
         buf[3] = 0x00; // byte count Lo
-        assert_eq!(get_response_payload_len(&buf).unwrap(), 258);
+        assert_eq!(get_response_payload_len(&buf).unwrap(), Some(258));
 
         // TODO: 0x2B
 
         for i in 0x81..0xAB {
             buf[1] = i;
-            assert_eq!(get_response_payload_len(&buf).unwrap(), 1);
+            assert_eq!(get_response_payload_len(&buf).unwrap(), Some(1));
         }
     }
 
@@ -317,7 +349,7 @@ mod tests {
         use super::*;
 
         #[test]
-        fn decode_partly_received_message() {
+        fn decode_partly_received_client_message() {
             let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
                 0x12, // server address
@@ -332,6 +364,57 @@ mod tests {
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
             assert_eq!(buf.len(), 7);
+        }
+
+        #[test]
+        fn decode_partly_received_server_message_0x16() {
+            let mut codec = Codec::server();
+            let mut buf = BytesMut::from(vec![
+                0x12, // server address
+                0x16, // function code
+                0x00, // irrelevant
+                0x00, // irrelevant
+            ]);
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+
+            let res = codec.decode(&mut buf).unwrap();
+
+            assert!(res.is_none());
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+        }
+
+        #[test]
+        fn decode_partly_received_server_message_0x0f() {
+            let mut codec = Codec::server();
+            let mut buf = BytesMut::from(vec![
+                0x12, // server address
+                0x0F, // function code
+                0x00, // irrelevant
+                0x00, // irrelevant
+            ]);
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+
+            let res = codec.decode(&mut buf).unwrap();
+
+            assert!(res.is_none());
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+        }
+
+        #[test]
+        fn decode_partly_received_server_message_0x10() {
+            let mut codec = Codec::server();
+            let mut buf = BytesMut::from(vec![
+                0x12, // server address
+                0x10, // function code
+                0x00, // irrelevant
+                0x00, // irrelevant
+            ]);
+            assert_eq!(buf.len(), MIN_ADU_LEN);
+
+            let res = codec.decode(&mut buf).unwrap();
+
+            assert!(res.is_none());
+            assert_eq!(buf.len(), MIN_ADU_LEN);
         }
 
         #[test]
