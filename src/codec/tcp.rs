@@ -146,7 +146,7 @@ mod tests {
                 0x00, // length high HI
                 0x03, // length low LO
                 0x66, // unit id
-                0x02,
+                0x02, //
             ]);
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
@@ -157,16 +157,16 @@ mod tests {
         fn decode_exception_message() {
             let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                0x03,
-                0x66,
+                0x00, //
+                0x00, //
+                0x00, //
+                0x00, //
+                0x00, //
+                0x03, //
+                0x66, //
                 0x82, // exception = 0x80 + 0x02
-                0x03,
-                0x00,
+                0x03, //
+                0x00, //
             ]);
 
             let TcpAdu { header, pdu } = codec.decode(&mut buf).unwrap().unwrap();
@@ -185,8 +185,8 @@ mod tests {
         fn decode_with_invalid_protocol_id() {
             let mut codec = Codec::client();
             let mut buf = BytesMut::from(vec![
-                0x00,
-                0x00,
+                0x00, //
+                0x00, //
                 0x33, // protocol id HI
                 0x12, // protocol id LO
                 0x00, // length HI

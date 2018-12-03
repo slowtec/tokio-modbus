@@ -50,7 +50,8 @@ impl Service for Client {
 
         let pdu = Pdu::Request(req);
 
-        let result = self.service
+        let result = self
+            .service
             .call(TcpAdu { header, pdu })
             .and_then(move |adu| {
                 if adu.header.transaction_id != t_id {

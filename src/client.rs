@@ -294,21 +294,24 @@ impl ModbusClient for Client {
         write_addr: Address,
         write_data: &[Word],
     ) -> Box<Future<Item = Vec<Word>, Error = Error>> {
-        Box::new(self.call(Request::ReadWriteMultipleRegisters(
-            read_addr,
-            read_cnt,
-            write_addr,
-            write_data.to_vec(),
-        )).and_then(move |res| {
-            if let Response::ReadWriteMultipleRegisters(res) = res {
-                if res.len() != read_cnt as usize {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+        Box::new(
+            self.call(Request::ReadWriteMultipleRegisters(
+                read_addr,
+                read_cnt,
+                write_addr,
+                write_data.to_vec(),
+            ))
+            .and_then(move |res| {
+                if let Response::ReadWriteMultipleRegisters(res) = res {
+                    if res.len() != read_cnt as usize {
+                        return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                    }
+                    Ok(res)
+                } else {
+                    Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
                 }
-                Ok(res)
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-            }
-        }))
+            }),
+        )
     }
 }
 
