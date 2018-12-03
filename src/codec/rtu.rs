@@ -74,7 +74,7 @@ fn get_response_payload_len(buf: &BytesMut) -> Result<Option<usize>> {
     }
     let len = match buf[1] {
         0x01...0x04 | 0x0C | 0x17 => {
-            if buf.len() > 3 {
+            if buf.len() > 2 {
                 Some(1 + buf[2] as usize)
             } else {
                 // incomplete frame
