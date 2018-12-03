@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3 (2018-12-03)
+
+- fix decoding of incomplete RTU frames
+
 ## v0.2.2 (2018-12-01)
 
 - fix compilation with `features = ["rtu"]`
