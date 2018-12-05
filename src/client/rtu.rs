@@ -1,4 +1,4 @@
-use super::Client;
+use super::Connection;
 
 use crate::service;
 
@@ -11,8 +11,8 @@ pub fn connect(
     serial: Serial,
     address: u8,
     handle: &Handle,
-) -> impl Future<Item = Client, Error = Error> {
-    service::rtu::Client::connect(serial, address, handle).map(|service| Client {
+) -> impl Future<Item = Connection, Error = Error> {
+    service::rtu::Client::connect(serial, address, handle).map(|service| Connection {
         service: Box::new(service),
     })
 }

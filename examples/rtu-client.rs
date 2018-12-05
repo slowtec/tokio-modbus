@@ -2,7 +2,7 @@
 pub fn main() {
     use futures::future::Future;
     use tokio_core::reactor::Core;
-    use tokio_modbus::*;
+    use tokio_modbus::prelude::*;
     use tokio_serial::{Serial, SerialPortSettings};
 
     let mut core = Core::new().unwrap();
@@ -19,14 +19,12 @@ pub fn main() {
     // port.set_exclusive(false)
     //     .expect("Unable to set serial port exlusive");
 
-    let task = Client::connect_rtu(port, server_addr, &handle).and_then(|client| {
+    let task = rtu::connect(port, server_addr, &handle).and_then(|conn| {
         println!("Reading a sensor value");
-        client
-            .read_holding_registers(0x082B, 2)
-            .and_then(move |res| {
-                println!("Sensor value is: {:?}", res);
-                Ok(())
-            })
+        conn.read_holding_registers(0x082B, 2).and_then(move |res| {
+            println!("Sensor value is: {:?}", res);
+            Ok(())
+        })
     });
 
     core.run(task).unwrap();
@@ -35,5 +33,5 @@ pub fn main() {
 #[cfg(not(feature = "rtu"))]
 pub fn main() {
     println!("feature `rtu` is required to run this example");
-    ::std::process::exit(1);
+    std::process::exit(1);
 }

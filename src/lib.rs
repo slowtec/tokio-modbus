@@ -46,15 +46,15 @@
 //! ```rust,no_run
 //! use tokio_core::reactor::Core;
 //! use futures::future::Future;
-//! use tokio_modbus::*;
+//! use tokio_modbus::prelude::*;
 //!
 //! pub fn main() {
 //!     let mut core = Core::new().unwrap();
 //!     let handle = core.handle();
 //!     let socket_addr = "192.168.0.222:502".parse().unwrap();
 //!
-//!     let task = Client::connect_tcp(&socket_addr, &handle).and_then(|client| {
-//!         client
+//!     let task = tcp::connect(socket_addr, &handle).and_then(|conn| {
+//!         conn
 //!             .read_input_registers(0x1000, 7)
 //!             .and_then(move |data| {
 //!                 println!("Response is '{:?}'", data);
@@ -68,11 +68,11 @@
 //! ## Sync TCP client
 //!
 //! ```rust,no_run
-//! use tokio_modbus::*;
+//! use tokio_modbus::prelude::*;
 //!
 //! pub fn main() {
 //!     let socket_addr = "192.168.0.222:502".parse().unwrap();
-//!     let mut client = SyncClient::connect_tcp(&socket_addr).unwrap();
+//!     let mut client = client::sync::tcp::connect(socket_addr).unwrap();
 //!     let data = client.read_input_registers(0x1000, 7).unwrap();
 //!     println!("Response is '{:?}'", data);
 //! }
@@ -84,7 +84,8 @@
 //! use tokio_core::reactor::Core;
 //! use futures::future::Future;
 //! use tokio_serial::{Serial, SerialPortSettings};
-//! use tokio_modbus::*;
+//!
+//!  use tokio_modbus::prelude::*;
 //!
 //! pub fn main() {
 //!     let mut core = Core::new().unwrap();
@@ -96,9 +97,9 @@
 //!     settings.baud_rate = 19200;
 //!     let port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle()).unwrap();
 //!
-//!     let task = Client::connect_rtu(port, server_addr, &handle).and_then(|client| {
+//!     let task = rtu::connect(port, server_addr, &handle).and_then(|conn| {
 //!         println!("Reading a sensor value");
-//!         client
+//!         conn
 //!             .read_holding_registers(0x082B, 2)
 //!             .and_then(move |res| {
 //!                 println!("Sensor value is: {:?}", res);
@@ -118,13 +119,12 @@
 //! - [MODBUS over serial line specification and implementation guide v1.02 (PDF)](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf)
 //! - [MODBUS Messaging on TCP/IP Implementation Guide v1.0b (PDF)](http://modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf)
 
-mod client;
+pub mod prelude;
+
+pub mod client;
+pub mod server;
+
 mod codec;
 mod frame;
 mod proto;
-mod server;
 mod service;
-
-pub use crate::client::*;
-pub use crate::frame::*;
-pub use crate::server::*;

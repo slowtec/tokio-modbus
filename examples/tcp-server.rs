@@ -1,9 +1,11 @@
 use futures::future::FutureResult;
 use futures::future::{self, Future};
 use std::thread;
+use std::time::Duration;
 use tokio_core::reactor::Core;
-use tokio_modbus::*;
 use tokio_service::Service;
+
+use tokio_modbus::prelude::*;
 
 struct MbServer;
 
@@ -28,32 +30,32 @@ impl Service for MbServer {
 
 #[cfg(feature = "tcp")]
 fn main() {
-    let _server = thread::spawn(|| {
-        let socket_addr = "127.0.0.1:5502".parse().unwrap();
-        let server = Server::new_tcp(socket_addr);
-        server.serve(|| Ok(MbServer));
+    let socket_addr = "127.0.0.1:5502".parse().unwrap();
+
+    println!("Starting up server...");
+    let _server = thread::spawn(move || {
+        tcp::Server::new(socket_addr).serve(|| Ok(MbServer));
+    });
+    // Give the server some time for stating up
+    thread::sleep(Duration::from_secs(1));
+
+    let mut core = Core::new().unwrap();
+    let handle = core.handle();
+
+    println!("Connecting client...");
+    let task = tcp::connect(socket_addr, &handle).and_then(|conn| {
+        println!("Reading input registers...");
+        conn.read_input_registers(0x00, 7).and_then(move |res| {
+            println!("The result is '{:?}'", res);
+            Ok(())
+        })
     });
 
-    let client = thread::spawn(|| {
-        let mut core = Core::new().unwrap();
-        let handle = core.handle();
-        let socket_addr = "127.0.0.1:5502".parse().unwrap();
-
-        let task = Client::connect_tcp(&socket_addr, &handle).and_then(|client| {
-            client.read_input_registers(0x0, 7).and_then(move |res| {
-                println!("The result is '{:?}'", res);
-                Ok(())
-            })
-        });
-
-        core.run(task).unwrap();
-    });
-
-    client.join().unwrap();
+    core.run(task).unwrap();
 }
 
 #[cfg(not(feature = "tcp"))]
 pub fn main() {
     println!("feature `tcp` is required to run this example");
-    ::std::process::exit(1);
+    std::process::exit(1);
 }

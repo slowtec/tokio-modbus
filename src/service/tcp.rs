@@ -1,7 +1,7 @@
 use crate::frame::{tcp::*, *};
 use crate::proto::tcp::Proto;
 
-use futures::{future, Future};
+use futures::Future;
 use std::cell::Cell;
 use std::io::{Error, ErrorKind};
 use std::net::SocketAddr;
@@ -19,18 +19,11 @@ use tokio_service::Service;
 /// "Remark: The value 0 is also accepted to communicate directly to a
 /// MODBUS/TCP device."
 ///
-/// Use 0xFF instead of 0x00 to distinguish direct connection messages from
-/// broadcast messages to slave devices.
-#[allow(dead_code)]
-pub const DIRECT_CONNECTION_UNIT_ID: u8 = 0xFF;
-
-/// The minimum Unit Identifier for addressing a slave device.
-#[allow(dead_code)]
-pub const MIN_SLAVE_DEVICE_UNIT_ID: u8 = super::MIN_ADDRESS;
-
-/// The maximum Unit Identifier for addressing a slave device.
-#[allow(dead_code)]
-pub const MAX_SLAVE_DEVICE_UNIT_ID: u8 = super::MAX_ADDRESS;
+/// Rationale: Use the proposed value 0xFF instead of the alternative
+/// value 0x00 to distinguish direct connection messages from broadcast
+/// messages that might be send to all slave devices connected to a
+/// gateway!
+const DIRECT_CONNECTION_UNIT_ID: u8 = 0xFF;
 
 /// Modbus TCP client
 pub(crate) struct Client {
@@ -39,46 +32,14 @@ pub(crate) struct Client {
     unit_id: u8,
 }
 
-fn verify_slave_device_unit_id(slave_device_unit_id: u8) -> Result<u8, Error> {
-    if slave_device_unit_id >= MIN_SLAVE_DEVICE_UNIT_ID
-        && slave_device_unit_id <= MAX_SLAVE_DEVICE_UNIT_ID
-    {
-        Ok(slave_device_unit_id)
-    } else {
-        Err(Error::new(
-            ErrorKind::Other,
-            format!(
-                "Invalid Modbus Unit Identifier for slave device: {}",
-                slave_device_unit_id
-            ),
-        ))
-    }
-}
-
 impl Client {
-    /// Establish a direct connection with a Modbus server.
+    /// Establish a direct connection with a Modbus TCP server,
+    /// i.e. not a gateway.
     pub fn connect(
         socket_addr: &SocketAddr,
         handle: &Handle,
     ) -> impl Future<Item = Client, Error = Error> {
         Self::connect_unit(socket_addr, handle, DIRECT_CONNECTION_UNIT_ID)
-    }
-
-    /// Establish an indirect connection with a slave device addressed
-    /// through a Modbus Unit Identifier.
-    #[allow(dead_code)]
-    pub fn connect_slave_device(
-        socket_addr: &SocketAddr,
-        handle: &Handle,
-        slave_device_unit_id: u8,
-    ) -> Box<dyn Future<Item = Client, Error = Error>> {
-        verify_slave_device_unit_id(slave_device_unit_id)
-            .map(|unit_id| {
-                let res: Box<dyn Future<Item = _, Error = _>> =
-                    Box::new(Self::connect_unit(socket_addr, handle, unit_id));
-                res
-            })
-            .unwrap_or_else(|err| Box::new(future::err(err)))
     }
 
     fn connect_unit(

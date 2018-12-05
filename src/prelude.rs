@@ -1,0 +1,38 @@
+///////////////////////////////////////////////////////////////////
+/// Modules
+///////////////////////////////////////////////////////////////////
+pub use crate::client;
+pub use crate::server;
+
+#[cfg(feature = "rtu")]
+pub mod rtu {
+    pub use crate::client::rtu::*;
+}
+
+#[cfg(feature = "tcp")]
+pub mod tcp {
+    pub use crate::client::tcp::*;
+    pub use crate::server::tcp::*;
+}
+
+#[cfg(feature = "sync")]
+pub mod sync {
+    pub use crate::client::sync::*;
+}
+
+///////////////////////////////////////////////////////////////////
+/// Structs
+///////////////////////////////////////////////////////////////////
+pub use crate::frame::{Request, Response};
+
+///////////////////////////////////////////////////////////////////
+/// Traits
+///////////////////////////////////////////////////////////////////
+pub use crate::client::Client;
+pub use crate::client::Reader;
+pub use crate::client::Writer;
+
+#[cfg(feature = "sync")]
+pub use crate::client::sync::Client as SyncClient;
+pub use crate::client::sync::Reader as SyncReader;
+pub use crate::client::sync::Writer as SyncWriter;

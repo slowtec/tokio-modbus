@@ -2,16 +2,15 @@
 pub fn main() {
     use futures::future::Future;
     use tokio_core::reactor::Core;
-    use tokio_modbus::*;
+    use tokio_modbus::prelude::*;
 
     let mut core = Core::new().unwrap();
     let handle = core.handle();
     let socket_addr = "192.168.0.222:502".parse().unwrap();
 
-    let task = Client::connect_tcp(&socket_addr, &handle).and_then(|client| {
+    let task = tcp::connect(socket_addr, &handle).and_then(|conn| {
         println!("Fetching the coupler ID");
-        client
-            .call(Request::Custom(0x66, vec![0x11, 0x42]))
+        conn.call(Request::Custom(0x66, vec![0x11, 0x42]))
             .and_then(move |res| {
                 match res {
                     Response::Custom(f, res) => {
@@ -31,5 +30,5 @@ pub fn main() {
 #[cfg(not(feature = "tcp"))]
 pub fn main() {
     println!("feature `tcp` is required to run this example");
-    ::std::process::exit(1);
+    std::process::exit(1);
 }

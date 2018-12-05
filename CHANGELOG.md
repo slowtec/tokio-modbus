@@ -1,5 +1,73 @@
 # Changelog
 
+## v0.3.0 (yyyy-mm-dd)
+
+- New public API
+
+### Breaking Changes
+
+- Make all public crate exports accessible in the new `prelude` module
+
+  ```diff
+  -  use tokio_modbus::*;
+  +  use tokio_modbus::prelude::*;
+  ```
+
+- Rename and relocate client traits
+
+  ```diff
+  -  client::ModbusClient
+  +  client::Client
+  ```
+
+  ```diff
+  -  client::SyncModbusClient
+  +  client::sync::Client
+  ```
+
+- Rename and relocate client structs
+
+  ```diff
+  -  client::Client
+  +  client::Connection
+  ```
+
+  ```diff
+  -  client::SyncClient
+  +  client::sync::Connection
+  ```
+
+- Split `Client` trait into `Client` + `Reader` + `Writer` traits
+
+- Use free functions in (nested) submodules for establishing client connections
+
+  ```diff
+  -  Client::connect_tcp(...);
+  +  tcp::connect(...);
+  ```
+
+  ```diff
+  -  Client::connect_rtu(...);
+  +  rtu::connect(...);
+  ```
+
+  ```diff
+  -  SyncClient::connect_tcp(...);
+  +  sync::tcp::connect(...);
+  ```
+
+  ```diff
+  -  SyncClient::connect_rtu(...);
+  +  sync::rtu::connect(...);
+  ```
+
+- Move TCP server into submodule
+
+  ```diff
+  -  Server::new_tcp(socket_addr).serve(...);
+  +  tcp::Server::new(socket_addr).serve(...);
+  ```
+
 ## v0.2.3 (2018-12-03)
 
 - fix decoding of incomplete RTU frames
