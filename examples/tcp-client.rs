@@ -1,7 +1,3 @@
-extern crate futures;
-extern crate tokio_core;
-extern crate tokio_modbus;
-
 #[cfg(feature = "tcp")]
 pub fn main() {
     use futures::future::Future;

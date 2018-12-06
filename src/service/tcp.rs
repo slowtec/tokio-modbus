@@ -77,7 +77,8 @@ impl Client {
                 let res: Box<dyn Future<Item = _, Error = _>> =
                     Box::new(Self::connect_unit(socket_addr, handle, unit_id));
                 res
-            }).unwrap_or_else(|err| Box::new(future::err(err)))
+            })
+            .unwrap_or_else(|err| Box::new(future::err(err)))
     }
 
     fn connect_unit(

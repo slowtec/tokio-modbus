@@ -328,7 +328,8 @@ impl ModbusClient for Client {
                 read_cnt,
                 write_addr,
                 write_data.to_vec(),
-            )).and_then(move |res| {
+            ))
+            .and_then(move |res| {
                 if let Response::ReadWriteMultipleRegisters(res) = res {
                     if res.len() != read_cnt as usize {
                         return Err(Error::new(ErrorKind::InvalidData, "invalid response"));

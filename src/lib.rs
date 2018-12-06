@@ -44,10 +44,6 @@
 //! ## TCP client
 //!
 //! ```rust,no_run
-//! extern crate futures;
-//! extern crate tokio_core;
-//! extern crate tokio_modbus;
-//!
 //! use tokio_core::reactor::Core;
 //! use futures::future::Future;
 //! use tokio_modbus::*;
@@ -72,7 +68,6 @@
 //! ## Sync TCP client
 //!
 //! ```rust,no_run
-//! extern crate tokio_modbus;
 //! use tokio_modbus::*;
 //!
 //! pub fn main() {
@@ -86,11 +81,6 @@
 //! ## RTU client
 //!
 //! ```rust,no_run
-//! extern crate futures;
-//! extern crate tokio_core;
-//! extern crate tokio_modbus;
-//! extern crate tokio_serial;
-//!
 //! use tokio_core::reactor::Core;
 //! use futures::future::Future;
 //! use tokio_serial::{Serial, SerialPortSettings};
@@ -127,17 +117,6 @@
 //! - [MODBUS Application Protocol Specification v1.1b3 (PDF)](http://modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf)
 //! - [MODBUS over serial line specification and implementation guide v1.02 (PDF)](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf)
 //! - [MODBUS Messaging on TCP/IP Implementation Guide v1.0b (PDF)](http://modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf)
-
-extern crate byteorder;
-extern crate bytes;
-extern crate futures;
-extern crate tokio_codec;
-extern crate tokio_core;
-extern crate tokio_io;
-extern crate tokio_proto;
-#[cfg(feature = "rtu")]
-extern crate tokio_serial;
-extern crate tokio_service;
 
 mod client;
 mod codec;

@@ -8,6 +8,7 @@ readme = "README.md"
 keywords = ["fieldbus", "modbus", "hardware", "automation"]
 homepage = "https://github.com/slowtec/tokio-modbus"
 repository = "https://github.com/slowtec/tokio-modbus"
+edition = "2018"
 
 [dependencies]
 bytes = "0.4"

@@ -1,9 +1,3 @@
-extern crate futures;
-extern crate tokio_core;
-extern crate tokio_modbus;
-extern crate tokio_proto;
-extern crate tokio_service;
-
 use futures::future::FutureResult;
 use futures::future::{self, Future};
 use std::thread;
@@ -16,7 +10,7 @@ struct MbServer;
 impl Service for MbServer {
     type Request = Request;
     type Response = Response;
-    type Error = ::std::io::Error;
+    type Error = std::io::Error;
     type Future = FutureResult<Self::Response, Self::Error>;
 
     fn call(&self, req: Self::Request) -> Self::Future {

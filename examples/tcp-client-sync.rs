@@ -1,8 +1,7 @@
-extern crate tokio_modbus;
-use tokio_modbus::*;
-
 #[cfg(all(feature = "tcp", feature = "sync"))]
 pub fn main() {
+    use tokio_modbus::*;
+
     let socket_addr = "192.168.0.222:502".parse().unwrap();
     let mut client = SyncClient::connect_tcp(&socket_addr).unwrap();
     let buff = client.read_input_registers(0x1000, 7).unwrap();

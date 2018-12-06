@@ -62,9 +62,11 @@ impl From<Request> for Bytes {
                     data.put_u16_be(w);
                 }
             }
-            Custom(_, custom_data) => for d in custom_data {
-                data.put_u8(d);
-            },
+            Custom(_, custom_data) => {
+                for d in custom_data {
+                    data.put_u8(d);
+                }
+            }
         }
         data.freeze()
     }
@@ -111,9 +113,11 @@ impl From<Response> for Bytes {
                 data.put_u16_be(address);
                 data.put_u16_be(word);
             }
-            Custom(_, custom_data) => for d in custom_data {
-                data.put_u8(d);
-            },
+            Custom(_, custom_data) => {
+                for d in custom_data {
+                    data.put_u8(d);
+                }
+            }
         }
         data.freeze()
     }
@@ -526,7 +530,8 @@ mod tests {
         let bytes: Bytes = ExceptionResponse {
             function: 0x03,
             exception: Exception::IllegalDataAddress,
-        }.into();
+        }
+        .into();
         assert_eq!(bytes[0], 0x83);
         assert_eq!(bytes[1], 0x02);
     }
@@ -553,7 +558,8 @@ mod tests {
         let ex_pdu: Bytes = ExceptionResponse {
             function: 0x03,
             exception: Exception::ServerDeviceFailure,
-        }.into();
+        }
+        .into();
 
         assert_eq!(req_pdu[0], 0x01);
         assert_eq!(req_pdu[1], 0x00);
@@ -764,17 +770,16 @@ mod tests {
 
         #[test]
         fn write_multiple_coils() {
-            assert!(
-                Request::try_from(Bytes::from(vec![
-                    0x0F,
-                    0x33,
-                    0x11,
-                    0x00,
-                    0x04,
-                    0x02,
-                    0b_0000_1101,
-                ])).is_err()
-            );
+            assert!(Request::try_from(Bytes::from(vec![
+                0x0F,
+                0x33,
+                0x11,
+                0x00,
+                0x04,
+                0x02,
+                0b_0000_1101,
+            ]))
+            .is_err());
 
             let bytes = Bytes::from(vec![0x0F, 0x33, 0x11, 0x00, 0x04, 0x01, 0b_0000_1101]);
             let req = Request::try_from(bytes).unwrap();
@@ -807,11 +812,10 @@ mod tests {
 
         #[test]
         fn write_multiple_registers() {
-            assert!(
-                Request::try_from(Bytes::from(vec![
-                    0x10, 0x00, 0x06, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12,
-                ])).is_err()
-            );
+            assert!(Request::try_from(Bytes::from(vec![
+                0x10, 0x00, 0x06, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12,
+            ]))
+            .is_err());
 
             let bytes = Bytes::from(vec![
                 0x10, 0x00, 0x06, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12,
@@ -825,12 +829,10 @@ mod tests {
 
         #[test]
         fn read_write_multiple_registers() {
-            assert!(
-                Request::try_from(Bytes::from(vec![
-                    0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF,
-                    0x12,
-                ])).is_err()
-            );
+            assert!(Request::try_from(Bytes::from(vec![
+                0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12,
+            ]))
+            .is_err());
             let bytes = Bytes::from(vec![
                 0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12,
             ]);
