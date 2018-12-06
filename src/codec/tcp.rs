@@ -164,6 +164,15 @@ mod tests {
 
         use super::*;
 
+        const TRANSACTION_ID: u16 = 0x1001;
+        const TRANSACTION_ID_HI: u8 = 0x10;
+        const TRANSACTION_ID_LO: u8 = 0x01;
+
+        const PROTOCOL_ID_HI: u8 = (PROTOCOL_ID >> 8) as u8;
+        const PROTOCOL_ID_LO: u8 = PROTOCOL_ID as u8 & 0xFF;
+
+        const UNIT_ID: u8 = 0xFE;
+
         #[test]
         fn decode_header_fragment() {
             let mut codec = ClientCodec::default();
@@ -177,14 +186,14 @@ mod tests {
         fn decode_partly_received_message() {
             let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
-                0x00, // transaction id HI
-                0x11, // transaction id LO
-                0x00, // prototcol id HI
-                0x00, // prototcol id LO
+                TRANSACTION_ID_HI,
+                TRANSACTION_ID_LO,
+                PROTOCOL_ID_HI,
+                PROTOCOL_ID_LO,
                 0x00, // length high HI
                 0x03, // length low LO
-                0x66, // unit id
-                0x02, //
+                UNIT_ID,
+                0x02, // function code
             ]);
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
@@ -195,20 +204,21 @@ mod tests {
         fn decode_exception_message() {
             let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
-                0x00, //
-                0x00, //
-                0x00, //
-                0x00, //
-                0x00, //
-                0x03, //
-                0x66, //
+                TRANSACTION_ID_HI,
+                TRANSACTION_ID_LO,
+                PROTOCOL_ID_HI,
+                PROTOCOL_ID_LO,
+                0x00, // length high HI
+                0x03, // length low LO
+                UNIT_ID,
                 0x82, // exception = 0x80 + 0x02
                 0x03, //
                 0x00, //
             ]);
 
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
-            assert_eq!(hdr.transaction_id, 0);
+            assert_eq!(hdr.transaction_id, TRANSACTION_ID);
+            assert_eq!(hdr.unit_id, UNIT_ID);
             if let ResponsePdu(Err(err)) = pdu {
                 assert_eq!(format!("{}", err), "Modbus function 2: Illegal data value");
                 assert_eq!(buf.len(), 1);
@@ -221,13 +231,13 @@ mod tests {
         fn decode_with_invalid_protocol_id() {
             let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
-                0x00, //
-                0x00, //
+                TRANSACTION_ID_HI,
+                TRANSACTION_ID_LO,
                 0x33, // protocol id HI
                 0x12, // protocol id LO
                 0x00, // length HI
                 0x03, // length LO
-                0x66, // unit id
+                UNIT_ID,
             ]);
             buf.extend_from_slice(&[0x00, 0x02, 0x66, 0x82, 0x03, 0x00]);
             let err = codec.decode(&mut buf).err().unwrap();
@@ -242,19 +252,19 @@ mod tests {
             let req = Request::ReadInputRegisters(0x23, 5);
             let pdu = req.clone().into();
             let hdr = Header {
-                transaction_id: 0,
-                unit_id: 0,
+                transaction_id: TRANSACTION_ID,
+                unit_id: UNIT_ID,
             };
             let adu = RequestAdu { hdr, pdu };
             codec.encode(adu.clone(), &mut buf).unwrap();
             // header
-            assert_eq!(buf[0], 0x0);
-            assert_eq!(buf[1], 0x0);
-            assert_eq!(buf[2], 0x0);
-            assert_eq!(buf[3], 0x0);
+            assert_eq!(buf[0], TRANSACTION_ID_HI);
+            assert_eq!(buf[1], TRANSACTION_ID_LO);
+            assert_eq!(buf[2], PROTOCOL_ID_HI);
+            assert_eq!(buf[3], PROTOCOL_ID_LO);
             assert_eq!(buf[4], 0x0);
             assert_eq!(buf[5], 0x6);
-            assert_eq!(buf[6], 0x0);
+            assert_eq!(buf[6], UNIT_ID);
 
             buf.split_to(7);
             let pdu: Bytes = req.into();
@@ -262,27 +272,12 @@ mod tests {
         }
 
         #[test]
-        fn encode_transaction_id() {
-            let mut codec = ClientCodec::default();
-            let pdu = Request::ReadInputRegisters(0x00, 1).into();
-            let hdr = Header {
-                transaction_id: 0xab,
-                unit_id: 0,
-            };
-            let adu = RequestAdu { hdr, pdu };
-
-            let mut buf = BytesMut::new();
-            codec.encode(adu.clone(), &mut buf).unwrap();
-            assert_eq!(buf[1], 0xab);
-        }
-
-        #[test]
         fn encode_with_limited_buf_capacity() {
             let mut codec = ClientCodec::default();
             let pdu = Request::ReadInputRegisters(0x23, 5).into();
             let hdr = Header {
-                transaction_id: 0,
-                unit_id: 0,
+                transaction_id: TRANSACTION_ID,
+                unit_id: UNIT_ID,
             };
             let adu = RequestAdu { hdr, pdu };
             let mut buf = BytesMut::with_capacity(40);
