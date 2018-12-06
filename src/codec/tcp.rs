@@ -80,7 +80,8 @@ impl Decoder for AduDecoder {
         debug_assert!(HEADER_LEN >= 2);
         let transaction_id = BigEndian::read_u16(&header_data[0..2]);
 
-        let unit_id = header_data[4];
+        debug_assert!(HEADER_LEN > 6);
+        let unit_id = header_data[6];
 
         let header = Header {
             transaction_id,
