@@ -46,20 +46,16 @@ tokio-modbus = { version = "*", default-features = false, features = ["rtu"] }
 ### TCP client
 
 ```rust
-extern crate futures;
-extern crate tokio_core;
-extern crate tokio_modbus;
-
 use tokio_core::reactor::Core;
 use futures::future::Future;
-use tokio_modbus::{Client, TcpClient};
+use tokio_modbus::*;
 
 pub fn main() {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
     let addr = "192.168.0.222:502".parse().unwrap();
 
-    let task = TcpClient::connect(&addr, &handle).and_then(|client| {
+    let task = Client::connect_tcp(&addr, &handle).and_then(|client| {
         client
             .read_input_registers(0x1000, 7)
             .and_then(move |data| {
@@ -74,12 +70,11 @@ pub fn main() {
 ### Sync TCP client
 
 ```rust
-extern crate tokio_modbus;
 use tokio_modbus::*;
 
 pub fn main() {
     let addr = "192.168.0.222:502".parse().unwrap();
-    let client = SyncClient::connect_tcp(&addr).unwrap();
+    let mut client = SyncClient::connect_tcp(&addr).unwrap();
     let buff = client.read_input_registers(0x1000, 7).unwrap();
     println!("Response is '{:?}'", buff);
 }
@@ -88,15 +83,10 @@ pub fn main() {
 ### RTU client
 
 ```rust
-extern crate futures;
-extern crate tokio_core;
-extern crate tokio_modbus;
-extern crate tokio_serial;
-
 use tokio_core::reactor::Core;
 use futures::future::Future;
-use tokio_serial::{Serial, SerialPortSettings};
 use tokio_modbus::*;
+use tokio_serial::{Serial, SerialPortSettings};
 
 pub fn main() {
     let mut core = Core::new().unwrap();
@@ -106,8 +96,7 @@ pub fn main() {
 
     let mut settings = SerialPortSettings::default();
     settings.baud_rate = 19200;
-    let mut port = Serial::from_path(tty_path, &settings, &handle).unwrap();
-    port.set_exclusive(false).unwrap();
+    let mut port = Serial::from_path_with_handle(tty_path, &settings, &handle).unwrap();
 
     let task = Client::connect_rtu(port, server_addr, &handle).and_then(|client| {
         println!("Reading a sensor value");
