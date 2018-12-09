@@ -43,76 +43,9 @@ tokio-modbus = { version = "*", default-features = false, features = ["rtu"] }
 
 ## Examples
 
-### TCP client
-
-```rust
-use tokio_core::reactor::Core;
-use futures::future::Future;
-use tokio_modbus::*;
-
-pub fn main() {
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
-    let addr = "192.168.0.222:502".parse().unwrap();
-
-    let task = Client::connect_tcp(&addr, &handle).and_then(|client| {
-        client
-            .read_input_registers(0x1000, 7)
-            .and_then(move |data| {
-                println!("Response is '{:?}'", data);
-                Ok(())
-            })
-    });
-    core.run(task).unwrap();
-}
-```
-
-### Sync TCP client
-
-```rust
-use tokio_modbus::*;
-
-pub fn main() {
-    let addr = "192.168.0.222:502".parse().unwrap();
-    let mut client = SyncClient::connect_tcp(&addr).unwrap();
-    let buff = client.read_input_registers(0x1000, 7).unwrap();
-    println!("Response is '{:?}'", buff);
-}
-```
-
-### RTU client
-
-```rust
-use tokio_core::reactor::Core;
-use futures::future::Future;
-use tokio_modbus::*;
-use tokio_serial::{Serial, SerialPortSettings};
-
-pub fn main() {
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
-    let tty_path = "/dev/ttyUSB0";
-    let server_addr = 0x01;
-
-    let mut settings = SerialPortSettings::default();
-    settings.baud_rate = 19200;
-    let mut port = Serial::from_path_with_handle(tty_path, &settings, &handle).unwrap();
-
-    let task = Client::connect_rtu(port, server_addr, &handle).and_then(|client| {
-        println!("Reading a sensor value");
-        client
-            .read_holding_registers(0x082B, 2)
-            .and_then(move |res| {
-                println!("Sensor value is: {:?}", res);
-                Ok(())
-            })
-    });
-
-    core.run(task).unwrap();
-}
-```
-
-More examples can be found in the [examples](https://github.com/slowtec/tokio-modbus/tree/master/examples) folder.
+Various examples for Modbus RTU and TCP using either the asynchronous
+or synchronous API can be found in the [examples]
+(https://github.com/slowtec/tokio-modbus/tree/master/examples) folder.
 
 ## Protocol-Specification
 
