@@ -34,5 +34,9 @@ pub use crate::client::Writer;
 
 #[cfg(feature = "sync")]
 pub use crate::client::sync::Client as SyncClient;
+
+#[cfg(feature = "sync")]
 pub use crate::client::sync::Reader as SyncReader;
+
+#[cfg(feature = "sync")]
 pub use crate::client::sync::Writer as SyncWriter;
