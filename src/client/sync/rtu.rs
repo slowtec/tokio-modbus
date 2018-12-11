@@ -10,9 +10,6 @@ pub fn connect(tty_path: &str, settings: &SerialPortSettings, slave: u8) -> Resu
     let handle = core.handle();
     let serial = Serial::from_path_with_handle(tty_path, settings, &handle.new_tokio_handle())?;
     let async_ctx = core.run(async_connect(&handle, serial, slave))?;
-    let sync_ctx = Context {
-        async_ctx,
-        core,
-    };
+    let sync_ctx = Context { async_ctx, core };
     Ok(sync_ctx)
 }

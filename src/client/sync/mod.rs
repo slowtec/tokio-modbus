@@ -5,8 +5,7 @@ pub mod rtu;
 pub mod tcp;
 
 use super::{
-    Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader,
-    Writer as AsyncWriter,
+    Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, Writer as AsyncWriter,
 };
 
 use crate::frame::*;
@@ -101,8 +100,7 @@ impl Writer for Context {
     }
 
     fn write_single_coil(&mut self, addr: Address, coil: Coil) -> Result<()> {
-        self.core
-            .run(self.async_ctx.write_single_coil(addr, coil))
+        self.core.run(self.async_ctx.write_single_coil(addr, coil))
     }
 
     fn write_multiple_coils(&mut self, addr: Address, coils: &[Coil]) -> Result<()> {

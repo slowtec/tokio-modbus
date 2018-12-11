@@ -24,7 +24,10 @@ impl Client {
     ) -> impl Future<Item = Self, Error = Error> {
         let proto = Proto;
         let service = proto.bind_client(handle, serial);
-        future::ok(Self { service, slave_addr })
+        future::ok(Self {
+            service,
+            slave_addr,
+        })
     }
 
     fn next_request_adu<R>(&self, req: R) -> RequestAdu
