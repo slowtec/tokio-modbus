@@ -1,4 +1,4 @@
-use super::Connection;
+use super::Context;
 
 use crate::service;
 
@@ -10,8 +10,8 @@ use tokio_core::reactor::Handle;
 pub fn connect(
     socket_addr: SocketAddr,
     handle: &Handle,
-) -> impl Future<Item = Connection, Error = Error> {
-    service::tcp::Client::connect(&socket_addr, handle).map(|service| Connection {
+) -> impl Future<Item = Context, Error = Error> {
+    service::tcp::Client::connect(&socket_addr, handle).map(|service| Context {
         service: Box::new(service),
     })
 }

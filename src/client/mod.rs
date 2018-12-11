@@ -76,8 +76,8 @@ pub trait Writer {
     ) -> Box<dyn Future<Item = (), Error = Error>>;
 }
 
-/// An asynchronous Modbus client connection.
-pub struct Connection {
+/// An asynchronous Modbus client context.
+pub struct Context {
     service: Box<
         dyn Service<
             Request = Request,
@@ -88,13 +88,13 @@ pub struct Connection {
     >,
 }
 
-impl Client for Connection {
+impl Client for Context {
     fn call(&self, req: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
         self.service.call(req)
     }
 }
 
-impl Reader for Connection {
+impl Reader for Context {
     fn read_coils(
         &self,
         addr: Address,
@@ -202,7 +202,7 @@ impl Reader for Connection {
     }
 }
 
-impl Writer for Connection {
+impl Writer for Context {
     fn write_single_coil(
         &self,
         addr: Address,

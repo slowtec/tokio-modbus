@@ -5,7 +5,7 @@ pub mod rtu;
 pub mod tcp;
 
 use super::{
-    Client as AsyncClient, Connection as AsyncConnection, Reader as AsyncReader,
+    Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader,
     Writer as AsyncWriter,
 };
 
@@ -43,36 +43,36 @@ pub trait Writer {
     fn write_multiple_registers(&mut self, _: Address, _: &[Word]) -> Result<()>;
 }
 
-/// A synchronous Modbus client connection.
-pub struct Connection {
-    async_connection: AsyncConnection,
+/// A synchronous Modbus client context.
+pub struct Context {
+    async_ctx: AsyncContext,
     core: Core,
 }
 
-impl Client for Connection {
+impl Client for Context {
     fn call(&mut self, req: Request) -> Result<Response> {
-        self.core.run(self.async_connection.call(req))
+        self.core.run(self.async_ctx.call(req))
     }
 }
 
-impl Reader for Connection {
+impl Reader for Context {
     fn read_coils(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>> {
-        self.core.run(self.async_connection.read_coils(addr, cnt))
+        self.core.run(self.async_ctx.read_coils(addr, cnt))
     }
 
     fn read_discrete_inputs(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>> {
         self.core
-            .run(self.async_connection.read_discrete_inputs(addr, cnt))
+            .run(self.async_ctx.read_discrete_inputs(addr, cnt))
     }
 
     fn read_input_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>> {
         self.core
-            .run(self.async_connection.read_input_registers(addr, cnt))
+            .run(self.async_ctx.read_input_registers(addr, cnt))
     }
 
     fn read_holding_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>> {
         self.core
-            .run(self.async_connection.read_holding_registers(addr, cnt))
+            .run(self.async_ctx.read_holding_registers(addr, cnt))
     }
 
     fn read_write_multiple_registers(
@@ -83,30 +83,30 @@ impl Reader for Connection {
         write_data: &[Word],
     ) -> Result<Vec<Word>> {
         self.core.run(
-            self.async_connection
+            self.async_ctx
                 .read_write_multiple_registers(read_addr, read_cnt, write_addr, write_data),
         )
     }
 }
 
-impl Writer for Connection {
+impl Writer for Context {
     fn write_single_register(&mut self, addr: Address, data: Word) -> Result<()> {
         self.core
-            .run(self.async_connection.write_single_register(addr, data))
+            .run(self.async_ctx.write_single_register(addr, data))
     }
 
     fn write_multiple_registers(&mut self, addr: Address, data: &[Word]) -> Result<()> {
         self.core
-            .run(self.async_connection.write_multiple_registers(addr, data))
+            .run(self.async_ctx.write_multiple_registers(addr, data))
     }
 
     fn write_single_coil(&mut self, addr: Address, coil: Coil) -> Result<()> {
         self.core
-            .run(self.async_connection.write_single_coil(addr, coil))
+            .run(self.async_ctx.write_single_coil(addr, coil))
     }
 
     fn write_multiple_coils(&mut self, addr: Address, coils: &[Coil]) -> Result<()> {
         self.core
-            .run(self.async_connection.write_multiple_coils(addr, coils))
+            .run(self.async_ctx.write_multiple_coils(addr, coils))
     }
 }

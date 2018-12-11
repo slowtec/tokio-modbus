@@ -29,17 +29,17 @@
 
   ```diff
   -  client::Client
-  +  client::Connection
+  +  client::Context
   ```
 
   ```diff
   -  client::SyncClient
-  +  client::sync::Connection
+  +  client::sync::Context
   ```
 
 - Split `Client` trait into `Client` + `Reader` + `Writer` traits
 
-- Use free functions in (nested) submodules for establishing client connections
+- Use free functions in (nested) submodules for creating/connecting a client context
 
   ```diff
   -  Client::connect_tcp(...);
