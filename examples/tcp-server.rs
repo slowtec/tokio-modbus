@@ -43,9 +43,9 @@ fn main() {
     let handle = core.handle();
 
     println!("Connecting client...");
-    let task = tcp::connect(socket_addr, &handle).and_then(|conn| {
+    let task = tcp::connect(&handle, socket_addr).and_then(|ctx| {
         println!("Reading input registers...");
-        conn.read_input_registers(0x00, 7).and_then(move |rsp| {
+        ctx.read_input_registers(0x00, 7).and_then(move |rsp| {
             println!("The result is '{:?}'", rsp);
             Ok(())
         })

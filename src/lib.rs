@@ -53,8 +53,8 @@
 //!     let handle = core.handle();
 //!     let socket_addr = "192.168.0.222:502".parse().unwrap();
 //!
-//!     let task = tcp::connect(socket_addr, &handle).and_then(|conn| {
-//!         conn
+//!     let task = tcp::connect(&handle, socket_addr).and_then(|ctx| {
+//!         ctx
 //!             .read_input_registers(0x1000, 7)
 //!             .and_then(move |data| {
 //!                 println!("Response is '{:?}'", data);
@@ -97,9 +97,9 @@
 //!     settings.baud_rate = 19200;
 //!     let port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle()).unwrap();
 //!
-//!     let task = rtu::connect(port, server_addr, &handle).and_then(|conn| {
+//!     let task = rtu::connect(&handle, port, server_addr).and_then(|ctx| {
 //!         println!("Reading a sensor value");
-//!         conn
+//!         ctx
 //!             .read_holding_registers(0x082B, 2)
 //!             .and_then(move |rsp| {
 //!                 println!("Sensor value is: {:?}", rsp);

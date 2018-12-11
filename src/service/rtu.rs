@@ -12,27 +12,27 @@ use tokio_service::Service;
 /// Modbus RTU client
 pub struct Client {
     service: ClientService<Serial, Proto>,
-    address: u8,
+    slave_addr: SlaveAddress,
 }
 
 impl Client {
     /// Establish a serial connection with a Modbus server.
-    pub fn connect(
-        serial: Serial,
-        address: u8,
+    pub fn bind(
         handle: &Handle,
-    ) -> impl Future<Item = Client, Error = Error> {
+        serial: Serial,
+        slave_addr: SlaveAddress,
+    ) -> impl Future<Item = Self, Error = Error> {
         let proto = Proto;
         let service = proto.bind_client(handle, serial);
-        future::ok(Client { service, address })
+        future::ok(Self { service, slave_addr })
     }
 
     fn next_request_adu<R>(&self, req: R) -> RequestAdu
     where
         R: Into<RequestPdu>,
     {
-        let address = self.address;
-        let hdr = Header { address };
+        let slave_addr = self.slave_addr;
+        let hdr = Header { slave_addr };
         let pdu = req.into();
         RequestAdu { hdr, pdu }
     }

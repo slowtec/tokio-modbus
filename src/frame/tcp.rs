@@ -1,9 +1,12 @@
 use super::*;
 
+pub(crate) type TransactionId = u16;
+pub(crate) type UnitId = u8;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Header {
-    pub transaction_id: u16,
-    pub unit_id: u8,
+    pub transaction_id: TransactionId,
+    pub unit_id: UnitId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

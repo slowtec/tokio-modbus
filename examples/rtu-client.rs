@@ -19,9 +19,9 @@ pub fn main() {
     // port.set_exclusive(false)
     //     .expect("Unable to set serial port exlusive");
 
-    let task = rtu::connect(port, server_addr, &handle).and_then(|conn| {
+    let task = rtu::connect(&handle, port, server_addr).and_then(|ctx| {
         println!("Reading a sensor value");
-        conn.read_holding_registers(0x082B, 2).and_then(move |rsp| {
+        ctx.read_holding_registers(0x082B, 2).and_then(move |rsp| {
             println!("Sensor value is: {:?}", rsp);
             Ok(())
         })

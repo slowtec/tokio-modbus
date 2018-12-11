@@ -8,11 +8,11 @@ use tokio_core::reactor::Handle;
 use tokio_serial::Serial;
 
 pub fn connect(
-    serial: Serial,
-    address: u8,
     handle: &Handle,
+    serial: Serial,
+    slave: u8,
 ) -> impl Future<Item = Context, Error = Error> {
-    service::rtu::Client::connect(serial, address, handle).map(|service| Context {
+    service::rtu::Client::bind(handle, serial, slave).map(|service| Context {
         service: Box::new(service),
     })
 }

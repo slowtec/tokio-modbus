@@ -166,14 +166,14 @@ mod tests {
 
         use super::*;
 
-        const TRANSACTION_ID: u16 = 0x1001;
+        const TRANSACTION_ID: TransactionId = 0x1001;
         const TRANSACTION_ID_HI: u8 = 0x10;
         const TRANSACTION_ID_LO: u8 = 0x01;
 
         const PROTOCOL_ID_HI: u8 = (PROTOCOL_ID >> 8) as u8;
         const PROTOCOL_ID_LO: u8 = PROTOCOL_ID as u8 & 0xFF;
 
-        const UNIT_ID: u8 = 0xFE;
+        const UNIT_ID: UnitId = 0xFE;
 
         #[test]
         fn decode_header_fragment() {

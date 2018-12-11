@@ -25,7 +25,7 @@
   +  client::sync::Client
   ```
 
-- Rename and relocate client structs
+- Rename and relocate _Client_ structs into _Context_
 
   ```diff
   -  client::Client
@@ -60,6 +60,8 @@
   -  SyncClient::connect_rtu(...);
   +  sync::rtu::connect(...);
   ```
+
+- For asynchronous client connections the Tokio `Handle` is always the first parameter
 
 - Move TCP server into submodule
 

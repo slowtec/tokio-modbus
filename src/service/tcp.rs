@@ -36,21 +36,21 @@ impl Client {
     /// Establish a direct connection with a Modbus TCP server,
     /// i.e. not a gateway.
     pub fn connect(
-        socket_addr: &SocketAddr,
         handle: &Handle,
-    ) -> impl Future<Item = Client, Error = Error> {
-        Self::connect_unit(socket_addr, handle, DIRECT_CONNECTION_UNIT_ID)
+        socket_addr: SocketAddr,
+    ) -> impl Future<Item = Self, Error = Error> {
+        Self::connect_unit(handle, socket_addr, DIRECT_CONNECTION_UNIT_ID)
     }
 
     fn connect_unit(
-        socket_addr: &SocketAddr,
         handle: &Handle,
+        socket_addr: SocketAddr,
         unit_id: u8,
-    ) -> impl Future<Item = Client, Error = Error> {
+    ) -> impl Future<Item = Self, Error = Error> {
         TcpClient::new(Proto)
             .connect(&socket_addr, &handle)
-            .map(move |client_service| Client {
-                service: client_service,
+            .map(move |service| Self {
+                service,
                 transaction_id: Cell::new(0),
                 unit_id,
             })

@@ -140,13 +140,11 @@ fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
     Ok(())
 }
 
-type ServerAddress = u8;
-
 impl Decoder for RequestDecoder {
-    type Item = (ServerAddress, Bytes);
+    type Item = (SlaveAddress, Bytes);
     type Error = Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(ServerAddress, Bytes)>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveAddress, Bytes)>> {
         if let Some(pdu_len) = get_request_pdu_len(buf)? {
             let adu_len = 1 + pdu_len;
             if buf.len() >= adu_len + 2 {
@@ -154,9 +152,9 @@ impl Decoder for RequestDecoder {
                 // Read trailing CRC and verify ADU
                 let crc = Cursor::new(&buf.split_to(2)).read_u16::<BigEndian>()?;
                 check_crc(&adu_data, crc)?;
-                let address = adu_data.split_to(1)[0];
+                let slave_addr = adu_data.split_to(1)[0];
                 let pdu_data = adu_data.freeze();
-                return Ok(Some((address, pdu_data)));
+                return Ok(Some((slave_addr, pdu_data)));
             }
         }
         // incomplete frame
@@ -165,10 +163,10 @@ impl Decoder for RequestDecoder {
 }
 
 impl Decoder for ResponseDecoder {
-    type Item = (ServerAddress, Bytes);
+    type Item = (SlaveAddress, Bytes);
     type Error = Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(ServerAddress, Bytes)>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveAddress, Bytes)>> {
         if let Some(pdu_len) = get_response_pdu_len(buf)? {
             let adu_len = 1 + pdu_len;
             if buf.len() >= adu_len + 2 {
@@ -176,9 +174,9 @@ impl Decoder for ResponseDecoder {
                 // Read trailing CRC and verify ADU
                 let crc = Cursor::new(&buf.split_to(2)).read_u16::<BigEndian>()?;
                 check_crc(&adu_data, crc)?;
-                let address = adu_data.split_to(1)[0];
+                let slave_addr = adu_data.split_to(1)[0];
                 let pdu_data = adu_data.freeze();
-                return Ok(Some((address, pdu_data)));
+                return Ok(Some((slave_addr, pdu_data)));
             }
         }
         Ok(None)
@@ -190,8 +188,8 @@ impl Decoder for ClientCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
-        if let Some((address, pdu_data)) = self.decoder.decode(buf)? {
-            let hdr = Header { address };
+        if let Some((slave_addr, pdu_data)) = self.decoder.decode(buf)? {
+            let hdr = Header { slave_addr };
             let pdu = ResponsePdu::try_from(pdu_data)?;
             Ok(Some(ResponseAdu { hdr, pdu }))
         } else {
@@ -205,8 +203,8 @@ impl Decoder for ServerCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu>> {
-        if let Some((address, pdu_data)) = self.decoder.decode(buf)? {
-            let hdr = Header { address };
+        if let Some((slave_addr, pdu_data)) = self.decoder.decode(buf)? {
+            let hdr = Header { slave_addr };
             let pdu = RequestPdu::try_from(pdu_data)?;
             Ok(Some(RequestAdu { hdr, pdu }))
         } else {
@@ -223,7 +221,7 @@ impl Encoder for ClientCodec {
         let RequestAdu { hdr, pdu } = adu;
         let pdu_data: Bytes = pdu.into();
         buf.reserve(pdu_data.len() + 3);
-        buf.put_u8(hdr.address);
+        buf.put_u8(hdr.slave_addr);
         buf.put_slice(&*pdu_data);
         let crc = calc_crc(buf);
         buf.put_u16_be(crc);
@@ -239,7 +237,7 @@ impl Encoder for ServerCodec {
         let ResponseAdu { hdr, pdu } = adu;
         let pdu_data: Bytes = pdu.into();
         buf.reserve(pdu_data.len() + 3);
-        buf.put_u8(hdr.address);
+        buf.put_u8(hdr.slave_addr);
         buf.put_slice(&*pdu_data);
         let crc = calc_crc(buf);
         buf.put_u16_be(crc);
@@ -403,7 +401,7 @@ mod tests {
         fn decode_partly_received_client_message() {
             let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
-                0x12, // server address
+                0x12, // slave address
                 0x02, // function code
                 0x03, // byte count
                 0x00, // data
@@ -469,7 +467,7 @@ mod tests {
         fn decode_partly_received_server_message_0x16() {
             let mut codec = ServerCodec::default();
             let mut buf = BytesMut::from(vec![
-                0x12, // server address
+                0x12, // slave address
                 0x16, // function code
             ]);
             assert_eq!(buf.len(), 2);
@@ -484,7 +482,7 @@ mod tests {
         fn decode_partly_received_server_message_0x0f() {
             let mut codec = ServerCodec::default();
             let mut buf = BytesMut::from(vec![
-                0x12, // server address
+                0x12, // slave address
                 0x0F, // function code
             ]);
             assert_eq!(buf.len(), 2);
@@ -499,7 +497,7 @@ mod tests {
         fn decode_partly_received_server_message_0x10() {
             let mut codec = ServerCodec::default();
             let mut buf = BytesMut::from(vec![
-                0x12, // server address
+                0x12, // slave address
                 0x10, // function code
             ]);
             assert_eq!(buf.len(), 2);
@@ -514,7 +512,7 @@ mod tests {
         fn decode_rtu_message() {
             let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
-                0x01, // device address
+                0x01, // slave address
                 0x03, // function code
                 0x04, // byte count
                 0x89, //
@@ -527,7 +525,7 @@ mod tests {
             ]);
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
-            assert_eq!(hdr.address, 0x01);
+            assert_eq!(hdr.slave_addr, 0x01);
             if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
                 assert_eq!(data.len(), 2);
                 assert_eq!(data, vec![0x8902, 0x42C7]);
@@ -562,8 +560,8 @@ mod tests {
             let mut buf = BytesMut::new();
             let req = Request::ReadHoldingRegisters(0x082b, 2);
             let pdu = req.clone().into();
-            let address = 0x01;
-            let hdr = Header { address };
+            let slave_addr = 0x01;
+            let hdr = Header { slave_addr };
             let adu = RequestAdu { hdr, pdu };
             codec.encode(adu.clone(), &mut buf).unwrap();
 
@@ -578,8 +576,8 @@ mod tests {
             let mut codec = ClientCodec::default();
             let req = Request::ReadHoldingRegisters(0x082b, 2);
             let pdu = req.clone().into();
-            let address = 0x01;
-            let hdr = Header { address };
+            let slave_addr = 0x01;
+            let hdr = Header { slave_addr };
             let adu = RequestAdu { hdr, pdu };
             let mut buf = BytesMut::with_capacity(40);
             unsafe {

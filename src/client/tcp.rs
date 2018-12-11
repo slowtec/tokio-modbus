@@ -8,10 +8,10 @@ use std::net::SocketAddr;
 use tokio_core::reactor::Handle;
 
 pub fn connect(
-    socket_addr: SocketAddr,
     handle: &Handle,
+    socket_addr: SocketAddr,
 ) -> impl Future<Item = Context, Error = Error> {
-    service::tcp::Client::connect(&socket_addr, handle).map(|service| Context {
+    service::tcp::Client::connect(handle, socket_addr).map(|service| Context {
         service: Box::new(service),
     })
 }

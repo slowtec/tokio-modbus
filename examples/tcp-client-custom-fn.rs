@@ -8,9 +8,9 @@ pub fn main() {
     let handle = core.handle();
     let socket_addr = "192.168.0.222:502".parse().unwrap();
 
-    let task = tcp::connect(socket_addr, &handle).and_then(|conn| {
+    let task = tcp::connect(&handle, socket_addr).and_then(|ctx| {
         println!("Fetching the coupler ID");
-        conn.call(Request::Custom(0x66, vec![0x11, 0x42]))
+        ctx.call(Request::Custom(0x66, vec![0x11, 0x42]))
             .and_then(move |rsp| {
                 match rsp {
                     Response::Custom(f, rsp) => {
