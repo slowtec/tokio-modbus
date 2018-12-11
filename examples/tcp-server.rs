@@ -20,8 +20,8 @@ impl Service for MbServer {
             Request::ReadInputRegisters(_addr, cnt) => {
                 let mut registers = vec![0; cnt as usize];
                 registers[2] = 0x77;
-                let res = Response::ReadInputRegisters(registers);
-                future::ok(res)
+                let rsp = Response::ReadInputRegisters(registers);
+                future::ok(rsp)
             }
             _ => unimplemented!(),
         }
@@ -45,8 +45,8 @@ fn main() {
     println!("Connecting client...");
     let task = tcp::connect(socket_addr, &handle).and_then(|conn| {
         println!("Reading input registers...");
-        conn.read_input_registers(0x00, 7).and_then(move |res| {
-            println!("The result is '{:?}'", res);
+        conn.read_input_registers(0x00, 7).and_then(move |rsp| {
+            println!("The result is '{:?}'", rsp);
             Ok(())
         })
     });

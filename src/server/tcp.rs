@@ -32,10 +32,10 @@ where
     fn call(&self, adu: Self::Request) -> Self::Future {
         let Self::Request { hdr, pdu } = adu;
         let req: Request = pdu.into();
-        Box::new(self.service.call(req.into()).then(move |res| match res {
-            Ok(res) => {
-                let res: Response = res.into();
-                let pdu = res.into();
+        Box::new(self.service.call(req.into()).then(move |rsp| match rsp {
+            Ok(rsp) => {
+                let rsp: Response = rsp.into();
+                let pdu = rsp.into();
                 Ok(Self::Response { hdr, pdu })
             }
             Err(e) => Err(e.into()),
@@ -115,15 +115,15 @@ mod tests {
         };
         let pdu = Request::ReadInputRegisters(0, 1).into();
         let req_adu = RequestAdu { hdr, pdu };
-        let res_adu = service.call(req_adu).wait().unwrap();
+        let rsp_adu = service.call(req_adu).wait().unwrap();
 
         assert_eq!(
-            res_adu.hdr,
+            rsp_adu.hdr,
             Header {
                 transaction_id: 9,
                 unit_id: 7,
             }
         );
-        assert_eq!(res_adu.pdu, s.response.into());
+        assert_eq!(rsp_adu.pdu, s.response.into());
     }
 }

@@ -81,13 +81,13 @@ impl Client {
     }
 }
 
-fn verify_response_header(req_hdr: Header, res_hdr: Header) -> Result<(), Error> {
-    if req_hdr != res_hdr {
+fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error> {
+    if req_hdr != rsp_hdr {
         return Err(Error::new(
             ErrorKind::InvalidData,
             format!(
                 "Invalid response header: expected/request = {:?}, actual/response = {:?}",
-                req_hdr, res_hdr
+                req_hdr, rsp_hdr
             ),
         ));
     }
@@ -107,8 +107,8 @@ impl Service for Client {
         let result = self
             .service
             .call(req_adu)
-            .and_then(move |res_adu| match res_adu.pdu {
-                ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
+            .and_then(move |rsp_adu| match rsp_adu.pdu {
+                ResponsePdu(Ok(rsp)) => verify_response_header(req_hdr, rsp_adu.hdr).and(Ok(rsp)),
                 ResponsePdu(Err(err)) => Err(Self::Error::new(ErrorKind::Other, err)),
             });
 

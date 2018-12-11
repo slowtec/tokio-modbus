@@ -11,10 +11,10 @@ pub fn main() {
     let task = tcp::connect(socket_addr, &handle).and_then(|conn| {
         println!("Fetching the coupler ID");
         conn.call(Request::Custom(0x66, vec![0x11, 0x42]))
-            .and_then(move |res| {
-                match res {
-                    Response::Custom(f, res) => {
-                        println!("Result for function {} is '{:?}'", f, res);
+            .and_then(move |rsp| {
+                match rsp {
+                    Response::Custom(f, rsp) => {
+                        println!("Result for function {} is '{:?}'", f, rsp);
                     }
                     _ => {
                         panic!("unexpeted result");

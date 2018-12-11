@@ -103,8 +103,8 @@ impl Reader for Connection {
         Box::new(
             self.service
                 .call(Request::ReadCoils(addr, cnt))
-                .and_then(|res| {
-                    if let Response::ReadCoils(coils) = res {
+                .and_then(|rsp| {
+                    if let Response::ReadCoils(coils) = rsp {
                         Ok(coils)
                     } else {
                         Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
@@ -121,8 +121,8 @@ impl Reader for Connection {
         Box::new(
             self.service
                 .call(Request::ReadDiscreteInputs(addr, cnt))
-                .and_then(|res| {
-                    if let Response::ReadDiscreteInputs(coils) = res {
+                .and_then(|rsp| {
+                    if let Response::ReadDiscreteInputs(coils) = rsp {
                         Ok(coils)
                     } else {
                         Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
@@ -139,12 +139,12 @@ impl Reader for Connection {
         Box::new(
             self.service
                 .call(Request::ReadInputRegisters(addr, cnt))
-                .and_then(move |res| {
-                    if let Response::ReadInputRegisters(res) = res {
-                        if res.len() != cnt as usize {
+                .and_then(move |rsp| {
+                    if let Response::ReadInputRegisters(rsp) = rsp {
+                        if rsp.len() != cnt as usize {
                             return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                         }
-                        Ok(res)
+                        Ok(rsp)
                     } else {
                         Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
                     }
@@ -160,12 +160,12 @@ impl Reader for Connection {
         Box::new(
             self.service
                 .call(Request::ReadHoldingRegisters(addr, cnt))
-                .and_then(move |res| {
-                    if let Response::ReadHoldingRegisters(res) = res {
-                        if res.len() != cnt as usize {
+                .and_then(move |rsp| {
+                    if let Response::ReadHoldingRegisters(rsp) = rsp {
+                        if rsp.len() != cnt as usize {
                             return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                         }
-                        Ok(res)
+                        Ok(rsp)
                     } else {
                         Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
                     }
@@ -188,12 +188,12 @@ impl Reader for Connection {
                     write_addr,
                     write_data.to_vec(),
                 ))
-                .and_then(move |res| {
-                    if let Response::ReadWriteMultipleRegisters(res) = res {
-                        if res.len() != read_cnt as usize {
+                .and_then(move |rsp| {
+                    if let Response::ReadWriteMultipleRegisters(rsp) = rsp {
+                        if rsp.len() != read_cnt as usize {
                             return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                         }
-                        Ok(res)
+                        Ok(rsp)
                     } else {
                         Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
                     }
@@ -211,9 +211,9 @@ impl Writer for Connection {
         Box::new(
             self.service
                 .call(Request::WriteSingleCoil(addr, coil))
-                .and_then(move |res| {
-                    if let Response::WriteSingleCoil(res_addr) = res {
-                        if res_addr != addr {
+                .and_then(move |rsp| {
+                    if let Response::WriteSingleCoil(rsp_addr) = rsp {
+                        if rsp_addr != addr {
                             return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                         }
                         Ok(())
@@ -233,9 +233,9 @@ impl Writer for Connection {
         Box::new(
             self.service
                 .call(Request::WriteMultipleCoils(addr, coils.to_vec()))
-                .and_then(move |res| {
-                    if let Response::WriteMultipleCoils(res_addr, res_cnt) = res {
-                        if res_addr != addr || res_cnt as usize != cnt {
+                .and_then(move |rsp| {
+                    if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
+                        if rsp_addr != addr || rsp_cnt as usize != cnt {
                             return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                         }
                         Ok(())
@@ -254,9 +254,9 @@ impl Writer for Connection {
         Box::new(
             self.service
                 .call(Request::WriteSingleRegister(addr, data))
-                .and_then(move |res| {
-                    if let Response::WriteSingleRegister(res_addr, res_word) = res {
-                        if res_addr != addr || res_word != data {
+                .and_then(move |rsp| {
+                    if let Response::WriteSingleRegister(rsp_addr, rsp_word) = rsp {
+                        if rsp_addr != addr || rsp_word != data {
                             return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                         }
                         Ok(())
@@ -276,9 +276,9 @@ impl Writer for Connection {
         Box::new(
             self.service
                 .call(Request::WriteMultipleRegisters(addr, data.to_vec()))
-                .and_then(move |res| {
-                    if let Response::WriteMultipleRegisters(res_addr, res_cnt) = res {
-                        if res_addr != addr || res_cnt as usize != cnt {
+                .and_then(move |rsp| {
+                    if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
+                        if rsp_addr != addr || rsp_cnt as usize != cnt {
                             return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                         }
                         Ok(())

@@ -81,12 +81,12 @@ impl From<RequestPdu> for Bytes {
 }
 
 impl From<Response> for Bytes {
-    fn from(res: Response) -> Bytes {
-        let cnt = response_byte_count(&res);
+    fn from(rsp: Response) -> Bytes {
+        let cnt = response_byte_count(&rsp);
         let mut data = BytesMut::with_capacity(cnt);
         use crate::frame::Response::*;
-        data.put_u8(res_to_fn_code(&res));
-        match res {
+        data.put_u8(rsp_to_fn_code(&rsp));
+        match rsp {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
                 let packed_coils = pack_coils(&coils);
                 data.put_u8(packed_coils.len() as u8);
@@ -236,7 +236,7 @@ impl TryFrom<Bytes> for Response {
         use crate::frame::Response::*;
         let mut rdr = Cursor::new(&bytes);
         let fn_code = rdr.read_u8()?;
-        let res = match fn_code {
+        let rsp = match fn_code {
             0x01 => {
                 let byte_count = rdr.read_u8()?;
                 let x = &bytes[2..];
@@ -289,7 +289,7 @@ impl TryFrom<Bytes> for Response {
             }
             _ => Custom(fn_code, bytes[1..].into()),
         };
-        Ok(res)
+        Ok(rsp)
     }
 }
 
@@ -363,7 +363,7 @@ fn coil_to_bool(coil: u16) -> io::Result<bool> {
     match coil {
         0xFF00 => Ok(true),
         0x0000 => Ok(false),
-        _ => Err(Error::new(ErrorKind::InvalidData, "Invalid Coil")),
+        _ => Err(Error::new(ErrorKind::InvalidData, "Invalid coil value: {}")),
     }
 }
 
@@ -405,9 +405,9 @@ fn req_to_fn_code(req: &Request) -> u8 {
     }
 }
 
-fn res_to_fn_code(res: &Response) -> u8 {
+fn rsp_to_fn_code(rsp: &Response) -> u8 {
     use crate::frame::Response::*;
-    match *res {
+    match *rsp {
         ReadCoils(_) => 0x01,
         ReadDiscreteInputs(_) => 0x02,
         WriteSingleCoil(_) => 0x05,
@@ -437,9 +437,9 @@ fn request_byte_count(req: &Request) -> usize {
     }
 }
 
-fn response_byte_count(res: &Response) -> usize {
+fn response_byte_count(rsp: &Response) -> usize {
     use crate::frame::Response::*;
-    match *res {
+    match *rsp {
         ReadCoils(ref coils) | ReadDiscreteInputs(ref coils) => 2 + packed_coils_len(coils.len()),
         WriteSingleCoil(_) => 3,
         WriteMultipleCoils(_, _) | WriteMultipleRegisters(_, _) | WriteSingleRegister(_, _) => 5,
@@ -513,16 +513,16 @@ mod tests {
     #[test]
     fn function_code_from_response() {
         use crate::frame::Response::*;
-        assert_eq!(res_to_fn_code(&ReadCoils(vec![])), 1);
-        assert_eq!(res_to_fn_code(&ReadDiscreteInputs(vec![])), 2);
-        assert_eq!(res_to_fn_code(&WriteSingleCoil(0x0)), 5);
-        assert_eq!(res_to_fn_code(&WriteMultipleCoils(0x0, 0x0)), 0x0F);
-        assert_eq!(res_to_fn_code(&ReadInputRegisters(vec![])), 0x04);
-        assert_eq!(res_to_fn_code(&ReadHoldingRegisters(vec![])), 0x03);
-        assert_eq!(res_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
-        assert_eq!(res_to_fn_code(&WriteMultipleRegisters(0, 0)), 0x10);
-        assert_eq!(res_to_fn_code(&ReadWriteMultipleRegisters(vec![])), 0x17);
-        assert_eq!(res_to_fn_code(&Custom(99, vec![])), 99);
+        assert_eq!(rsp_to_fn_code(&ReadCoils(vec![])), 1);
+        assert_eq!(rsp_to_fn_code(&ReadDiscreteInputs(vec![])), 2);
+        assert_eq!(rsp_to_fn_code(&WriteSingleCoil(0x0)), 5);
+        assert_eq!(rsp_to_fn_code(&WriteMultipleCoils(0x0, 0x0)), 0x0F);
+        assert_eq!(rsp_to_fn_code(&ReadInputRegisters(vec![])), 0x04);
+        assert_eq!(rsp_to_fn_code(&ReadHoldingRegisters(vec![])), 0x03);
+        assert_eq!(rsp_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
+        assert_eq!(rsp_to_fn_code(&WriteMultipleRegisters(0, 0)), 0x10);
+        assert_eq!(rsp_to_fn_code(&ReadWriteMultipleRegisters(vec![])), 0x17);
+        assert_eq!(rsp_to_fn_code(&Custom(99, vec![])), 99);
     }
 
     #[test]
@@ -541,9 +541,9 @@ mod tests {
         assert!(ExceptionResponse::try_from(Bytes::from(vec![0x79, 0x02])).is_err());
 
         let bytes = Bytes::from(vec![0x83, 0x02]);
-        let res = ExceptionResponse::try_from(bytes).unwrap();
+        let rsp = ExceptionResponse::try_from(bytes).unwrap();
         assert_eq!(
-            res,
+            rsp,
             ExceptionResponse {
                 function: 0x03,
                 exception: Exception::IllegalDataAddress,
@@ -554,7 +554,7 @@ mod tests {
     #[test]
     fn pdu_into_bytes() {
         let req_pdu: Bytes = Request::ReadCoils(0x01, 5).into();
-        let res_pdu: Bytes = Response::ReadCoils(vec![]).into();
+        let rsp_pdu: Bytes = Response::ReadCoils(vec![]).into();
         let ex_pdu: Bytes = ExceptionResponse {
             function: 0x03,
             exception: Exception::ServerDeviceFailure,
@@ -567,8 +567,8 @@ mod tests {
         assert_eq!(req_pdu[3], 0x00);
         assert_eq!(req_pdu[4], 0x05);
 
-        assert_eq!(res_pdu[0], 0x01);
-        assert_eq!(res_pdu[1], 0x00);
+        assert_eq!(rsp_pdu[0], 0x01);
+        assert_eq!(rsp_pdu[1], 0x00);
 
         assert_eq!(ex_pdu[0], 0x83);
         assert_eq!(ex_pdu[1], 0x04);
@@ -585,7 +585,7 @@ mod tests {
     #[test]
     fn pdu_with_a_lot_of_data_into_bytes() {
         let _req_pdu: Bytes = Request::WriteMultipleRegisters(0x01, vec![0; 80]).into();
-        let _res_pdu: Bytes = Response::ReadInputRegisters(vec![0; 80]).into();
+        let _rsp_pdu: Bytes = Response::ReadInputRegisters(vec![0; 80]).into();
     }
 
     mod serialize_requests {
@@ -961,9 +961,9 @@ mod tests {
         #[test]
         fn read_coils() {
             let bytes = Bytes::from(vec![1, 1, 0b_0000_1001]);
-            let res = Response::try_from(bytes).unwrap();
+            let rsp = Response::try_from(bytes).unwrap();
             assert_eq!(
-                res,
+                rsp,
                 Response::ReadCoils(vec![true, false, false, true, false, false, false, false])
             );
         }
@@ -971,9 +971,9 @@ mod tests {
         #[test]
         fn read_discrete_inputs() {
             let bytes = Bytes::from(vec![2, 1, 0b_0000_1001]);
-            let res = Response::try_from(bytes).unwrap();
+            let rsp = Response::try_from(bytes).unwrap();
             assert_eq!(
-                res,
+                rsp,
                 Response::ReadDiscreteInputs(vec![
                     true, false, false, true, false, false, false, false,
                 ],)
@@ -983,23 +983,23 @@ mod tests {
         #[test]
         fn write_single_coil() {
             let bytes = Bytes::from(vec![5, 0x00, 0x33]);
-            let res = Response::try_from(bytes).unwrap();
-            assert_eq!(res, Response::WriteSingleCoil(0x33));
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::WriteSingleCoil(0x33));
         }
 
         #[test]
         fn write_multiple_coils() {
             let bytes = Bytes::from(vec![0x0F, 0x33, 0x11, 0x00, 0x05]);
-            let res = Response::try_from(bytes).unwrap();
-            assert_eq!(res, Response::WriteMultipleCoils(0x3311, 5));
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::WriteMultipleCoils(0x3311, 5));
         }
 
         #[test]
         fn read_input_registers() {
             let bytes = Bytes::from(vec![4, 0x06, 0xAA, 0x00, 0xCC, 0xBB, 0xEE, 0xDD]);
-            let res = Response::try_from(bytes).unwrap();
+            let rsp = Response::try_from(bytes).unwrap();
             assert_eq!(
-                res,
+                rsp,
                 Response::ReadInputRegisters(vec![0xAA00, 0xCCBB, 0xEEDD])
             );
         }
@@ -1007,36 +1007,36 @@ mod tests {
         #[test]
         fn read_holding_registers() {
             let bytes = Bytes::from(vec![3, 0x04, 0xAA, 0x00, 0x11, 0x11]);
-            let res = Response::try_from(bytes).unwrap();
-            assert_eq!(res, Response::ReadHoldingRegisters(vec![0xAA00, 0x1111]));
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::ReadHoldingRegisters(vec![0xAA00, 0x1111]));
         }
 
         #[test]
         fn write_single_register() {
             let bytes = Bytes::from(vec![6, 0x00, 0x07, 0xAB, 0xCD]);
-            let res = Response::try_from(bytes).unwrap();
-            assert_eq!(res, Response::WriteSingleRegister(0x07, 0xABCD));
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::WriteSingleRegister(0x07, 0xABCD));
         }
 
         #[test]
         fn write_multiple_registers() {
             let bytes = Bytes::from(vec![0x10, 0x00, 0x06, 0x00, 0x02]);
-            let res = Response::try_from(bytes).unwrap();
-            assert_eq!(res, Response::WriteMultipleRegisters(0x06, 2));
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::WriteMultipleRegisters(0x06, 2));
         }
 
         #[test]
         fn read_write_multiple_registers() {
             let bytes = Bytes::from(vec![0x17, 0x02, 0x12, 0x34]);
-            let res = Response::try_from(bytes).unwrap();
-            assert_eq!(res, Response::ReadWriteMultipleRegisters(vec![0x1234]));
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::ReadWriteMultipleRegisters(vec![0x1234]));
         }
 
         #[test]
         fn custom() {
             let bytes = Bytes::from(vec![0x55, 0xCC, 0x88, 0xAA, 0xFF]);
-            let res = Response::try_from(bytes).unwrap();
-            assert_eq!(res, Response::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF]));
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF]));
         }
     }
 }

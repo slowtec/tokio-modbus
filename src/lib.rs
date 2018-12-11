@@ -101,8 +101,8 @@
 //!         println!("Reading a sensor value");
 //!         conn
 //!             .read_holding_registers(0x082B, 2)
-//!             .and_then(move |res| {
-//!                 println!("Sensor value is: {:?}", res);
+//!             .and_then(move |rsp| {
+//!                 println!("Sensor value is: {:?}", rsp);
 //!                 Ok(())
 //!             })
 //!     });
