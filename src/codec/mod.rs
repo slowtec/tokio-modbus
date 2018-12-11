@@ -74,9 +74,7 @@ impl From<Request> for Bytes {
 
 impl From<RequestPdu> for Bytes {
     fn from(pdu: RequestPdu) -> Bytes {
-        match pdu {
-            RequestPdu(req) => req.into(),
-        }
+        pdu.0.into()
     }
 }
 
@@ -135,10 +133,8 @@ impl From<ExceptionResponse> for Bytes {
 
 impl From<ResponsePdu> for Bytes {
     fn from(pdu: ResponsePdu) -> Bytes {
-        match pdu {
-            ResponsePdu(Ok(res)) => res.into(),
-            ResponsePdu(Err(ex)) => ex.into(),
-        }
+        // TODO: Replace with Result::map_or_else() when available
+        pdu.0.map(Into::into).unwrap_or_else(Into::into)
     }
 }
 
@@ -368,7 +364,7 @@ fn coil_to_bool(coil: u16) -> io::Result<bool> {
 }
 
 fn packed_coils_len(bitcount: usize) -> usize {
-    bitcount / 8 + if bitcount % 8 > 0 { 1 } else { 0 }
+    (bitcount + 7) / 8
 }
 
 fn pack_coils(coils: &[Coil]) -> Vec<u8> {
