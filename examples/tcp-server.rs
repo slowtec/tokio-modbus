@@ -1,5 +1,7 @@
-use futures::future::FutureResult;
-use futures::future::{self, Future};
+use futures::{
+    future::{self, FutureResult},
+    Future,
+};
 use std::thread;
 use std::time::Duration;
 use tokio_core::reactor::Core;

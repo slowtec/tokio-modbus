@@ -45,7 +45,7 @@
 //!
 //! ```rust,no_run
 //! use tokio_core::reactor::Core;
-//! use futures::future::Future;
+//! use futures::Future;
 //! use tokio_modbus::prelude::*;
 //!
 //! pub fn main() {
@@ -82,7 +82,7 @@
 //!
 //! ```rust,no_run
 //! use tokio_core::reactor::Core;
-//! use futures::future::Future;
+//! use futures::Future;
 //! use tokio_serial::{Serial, SerialPortSettings};
 //!
 //!  use tokio_modbus::prelude::*;
@@ -91,13 +91,13 @@
 //!     let mut core = Core::new().unwrap();
 //!     let handle = core.handle();
 //!     let tty_path = "/dev/ttyUSB0";
-//!     let server_addr = 0x01;
+//!     let device_id = 0x01;
 //!
 //!     let mut settings = SerialPortSettings::default();
 //!     settings.baud_rate = 19200;
 //!     let port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle()).unwrap();
 //!
-//!     let task = rtu::connect(&handle, port, server_addr).and_then(|ctx| {
+//!     let task = rtu::connect_device(&handle, port, device_id).and_then(|ctx| {
 //!         println!("Reading a sensor value");
 //!         ctx
 //!             .read_holding_registers(0x082B, 2)
@@ -122,6 +122,7 @@
 pub mod prelude;
 
 pub mod client;
+pub mod device;
 pub mod server;
 
 mod codec;

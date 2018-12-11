@@ -3,6 +3,8 @@
 ## v0.3.0 (yyyy-mm-dd)
 
 - New public API
+- Client: Switch between devices while connected
+- TCP Client: Connect to devices via gateway (unit identifier)
 
 ### Breaking Changes
 
@@ -43,25 +45,26 @@
 
   ```diff
   -  Client::connect_tcp(...);
-  +  tcp::connect(...);
+  +  tcp::connect(...) or tcp::connect_device(...);
   ```
 
   ```diff
   -  Client::connect_rtu(...);
-  +  rtu::connect(...);
+  +  rtu::connect_device(...);
   ```
 
   ```diff
   -  SyncClient::connect_tcp(...);
-  +  sync::tcp::connect(...);
+  +  sync::tcp::connect(...) or sync::tcp::connect_device(...);
   ```
 
   ```diff
   -  SyncClient::connect_rtu(...);
-  +  sync::rtu::connect(...);
+  +  sync::rtu::connect_device(...);
   ```
 
-- For asynchronous client connections the Tokio `Handle` is always the first parameter
+- Reorder parameters of asynchronous connect() functions,
+  i.e. the Tokio handle is always the first parameter
 
 - Move TCP server into submodule
 

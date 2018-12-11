@@ -7,15 +7,23 @@ pub mod sync;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
+use crate::device::*;
 use crate::frame::*;
 
 use futures::prelude::*;
 use std::io::{Error, ErrorKind};
-use tokio_service::Service;
+use std::ops::{Deref, DerefMut};
 
 /// A transport independent asynchronous client trait.
-pub trait Client {
-    fn call(&self, req: Request) -> Box<dyn Future<Item = Response, Error = Error>>;
+pub trait SwitchDevice {
+    /// Switch the device identifier for subsequent outgoing requests
+    /// returning the previous device identifier.
+    fn switch_device(&mut self, device_id: DeviceId) -> DeviceId;
+}
+
+/// A transport independent asynchronous client trait.
+pub trait Client: SwitchDevice {
+    fn call(&self, request: Request) -> Box<dyn Future<Item = Response, Error = Error>>;
 }
 
 /// An asynchronous Modbus reader.
@@ -78,19 +86,32 @@ pub trait Writer {
 
 /// An asynchronous Modbus client context.
 pub struct Context {
-    service: Box<
-        dyn Service<
-            Request = Request,
-            Response = Response,
-            Error = Error,
-            Future = Box<dyn Future<Item = Response, Error = Error>>,
-        >,
-    >,
+    client: Box<dyn Client>,
 }
 
-impl Client for Context {
-    fn call(&self, req: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
-        self.service.call(req)
+impl From<Box<dyn Client>> for Context {
+    fn from(client: Box<dyn Client>) -> Self {
+        Self { client }
+    }
+}
+
+impl Into<Box<dyn Client>> for Context {
+    fn into(self) -> Box<dyn Client> {
+        self.client
+    }
+}
+
+impl Deref for Context {
+    type Target = dyn Client;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.client
+    }
+}
+
+impl DerefMut for Context {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.client
     }
 }
 
@@ -101,7 +122,7 @@ impl Reader for Context {
         cnt: Quantity,
     ) -> Box<dyn Future<Item = Vec<Coil>, Error = Error>> {
         Box::new(
-            self.service
+            self.client
                 .call(Request::ReadCoils(addr, cnt))
                 .and_then(|rsp| {
                     if let Response::ReadCoils(coils) = rsp {
@@ -119,7 +140,7 @@ impl Reader for Context {
         cnt: Quantity,
     ) -> Box<dyn Future<Item = Vec<Coil>, Error = Error>> {
         Box::new(
-            self.service
+            self.client
                 .call(Request::ReadDiscreteInputs(addr, cnt))
                 .and_then(|rsp| {
                     if let Response::ReadDiscreteInputs(coils) = rsp {
@@ -137,7 +158,7 @@ impl Reader for Context {
         cnt: Quantity,
     ) -> Box<dyn Future<Item = Vec<Word>, Error = Error>> {
         Box::new(
-            self.service
+            self.client
                 .call(Request::ReadInputRegisters(addr, cnt))
                 .and_then(move |rsp| {
                     if let Response::ReadInputRegisters(rsp) = rsp {
@@ -158,7 +179,7 @@ impl Reader for Context {
         cnt: Quantity,
     ) -> Box<dyn Future<Item = Vec<Word>, Error = Error>> {
         Box::new(
-            self.service
+            self.client
                 .call(Request::ReadHoldingRegisters(addr, cnt))
                 .and_then(move |rsp| {
                     if let Response::ReadHoldingRegisters(rsp) = rsp {
@@ -181,7 +202,7 @@ impl Reader for Context {
         write_data: &[Word],
     ) -> Box<dyn Future<Item = Vec<Word>, Error = Error>> {
         Box::new(
-            self.service
+            self.client
                 .call(Request::ReadWriteMultipleRegisters(
                     read_addr,
                     read_cnt,
@@ -209,7 +230,7 @@ impl Writer for Context {
         coil: Coil,
     ) -> Box<dyn Future<Item = (), Error = Error>> {
         Box::new(
-            self.service
+            self.client
                 .call(Request::WriteSingleCoil(addr, coil))
                 .and_then(move |rsp| {
                     if let Response::WriteSingleCoil(rsp_addr) = rsp {
@@ -231,7 +252,7 @@ impl Writer for Context {
     ) -> Box<dyn Future<Item = (), Error = Error>> {
         let cnt = coils.len();
         Box::new(
-            self.service
+            self.client
                 .call(Request::WriteMultipleCoils(addr, coils.to_vec()))
                 .and_then(move |rsp| {
                     if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
@@ -252,7 +273,7 @@ impl Writer for Context {
         data: Word,
     ) -> Box<dyn Future<Item = (), Error = Error>> {
         Box::new(
-            self.service
+            self.client
                 .call(Request::WriteSingleRegister(addr, data))
                 .and_then(move |rsp| {
                     if let Response::WriteSingleRegister(rsp_addr, rsp_word) = rsp {
@@ -274,7 +295,7 @@ impl Writer for Context {
     ) -> Box<dyn Future<Item = (), Error = Error>> {
         let cnt = data.len();
         Box::new(
-            self.service
+            self.client
                 .call(Request::WriteMultipleRegisters(addr, data.to_vec()))
                 .and_then(move |rsp| {
                     if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {

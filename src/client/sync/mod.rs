@@ -4,9 +4,7 @@ pub mod rtu;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
-use super::{
-    Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, Writer as AsyncWriter,
-};
+use super::{Context as AsyncContext, Reader as AsyncReader, Writer as AsyncWriter};
 
 use crate::frame::*;
 
@@ -44,8 +42,8 @@ pub trait Writer {
 
 /// A synchronous Modbus client context.
 pub struct Context {
-    async_ctx: AsyncContext,
     core: Core,
+    async_ctx: AsyncContext,
 }
 
 impl Client for Context {

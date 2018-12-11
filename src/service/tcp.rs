@@ -1,3 +1,5 @@
+use crate::client::{Client, SwitchDevice};
+use crate::device::*;
 use crate::frame::{tcp::*, *};
 use crate::proto::tcp::Proto;
 
@@ -23,50 +25,51 @@ use tokio_service::Service;
 /// value 0x00 to distinguish direct connection messages from broadcast
 /// messages that might be send to all slave devices connected to a
 /// gateway!
-const DIRECT_CONNECTION_UNIT_ID: u8 = 0xFF;
+pub(crate) const DIRECT_CONNECTION_UNIT_ID: UnitId = 0xFF;
 
-/// Modbus TCP client
-pub(crate) struct Client {
-    service: ClientService<TcpStream, Proto>,
-    transaction_id: Cell<u16>,
-    unit_id: u8,
+pub const DIRECT_CONNECTION_DEVICE_ID: DeviceId = DeviceId(DIRECT_CONNECTION_UNIT_ID);
+
+pub(crate) fn connect_device<D: Into<DeviceId>>(
+    handle: &Handle,
+    socket_addr: SocketAddr,
+    device_id: D,
+) -> impl Future<Item = Context, Error = Error> {
+    let device_id: DeviceId = device_id.into();
+    let unit_id = device_id.into();
+    TcpClient::new(Proto)
+        .connect(&socket_addr, &handle)
+        .map(move |service| Context::new(service, unit_id))
 }
 
-impl Client {
-    /// Establish a direct connection with a Modbus TCP server,
-    /// i.e. not a gateway.
-    pub fn connect(
-        handle: &Handle,
-        socket_addr: SocketAddr,
-    ) -> impl Future<Item = Self, Error = Error> {
-        Self::connect_unit(handle, socket_addr, DIRECT_CONNECTION_UNIT_ID)
+const INITIAL_TRANSACTION_ID: TransactionId = 0;
+
+/// Modbus TCP client
+pub(crate) struct Context {
+    service: ClientService<TcpStream, Proto>,
+    unit_id: UnitId,
+    transaction_id: Cell<TransactionId>,
+}
+
+impl Context {
+    fn new(service: ClientService<TcpStream, Proto>, unit_id: UnitId) -> Self {
+        Self {
+            service,
+            unit_id,
+            transaction_id: Cell::new(INITIAL_TRANSACTION_ID),
+        }
     }
 
-    fn connect_unit(
-        handle: &Handle,
-        socket_addr: SocketAddr,
-        unit_id: u8,
-    ) -> impl Future<Item = Self, Error = Error> {
-        TcpClient::new(Proto)
-            .connect(&socket_addr, &handle)
-            .map(move |service| Self {
-                service,
-                transaction_id: Cell::new(0),
-                unit_id,
-            })
-    }
-
-    fn next_transaction_id(&self) -> u16 {
+    fn next_transaction_id(&self) -> TransactionId {
         let transaction_id = self.transaction_id.get();
         self.transaction_id.set(transaction_id.wrapping_add(1));
         transaction_id
     }
 
-    fn next_request_hdr(&self) -> Header {
+    fn next_request_hdr(&self, unit_id: UnitId) -> Header {
         let transaction_id = self.next_transaction_id();
         Header {
             transaction_id,
-            unit_id: self.unit_id,
+            unit_id,
         }
     }
 
@@ -75,9 +78,20 @@ impl Client {
         R: Into<RequestPdu>,
     {
         RequestAdu {
-            hdr: self.next_request_hdr(),
+            hdr: self.next_request_hdr(self.unit_id),
             pdu: req.into(),
         }
+    }
+
+    fn call_service(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
+        let req_adu = self.next_request_adu(req);
+        let req_hdr = req_adu.hdr;
+        self.service
+            .call(req_adu)
+            .and_then(move |res_adu| match res_adu.pdu {
+                ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
+                ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+            })
     }
 }
 
@@ -94,24 +108,16 @@ fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error>
     Ok(())
 }
 
-impl Service for Client {
-    type Request = Request;
-    type Response = Response;
-    type Error = Error;
-    type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
+impl SwitchDevice for Context {
+    fn switch_device(&mut self, device_id: DeviceId) -> DeviceId {
+        let res = self.unit_id.into();
+        self.unit_id = device_id.into();
+        res
+    }
+}
 
-    fn call(&self, req: Self::Request) -> Self::Future {
-        let req_adu = self.next_request_adu(req);
-        let req_hdr = req_adu.hdr;
-
-        let result = self
-            .service
-            .call(req_adu)
-            .and_then(move |rsp_adu| match rsp_adu.pdu {
-                ResponsePdu(Ok(rsp)) => verify_response_header(req_hdr, rsp_adu.hdr).and(Ok(rsp)),
-                ResponsePdu(Err(err)) => Err(Self::Error::new(ErrorKind::Other, err)),
-            });
-
-        Box::new(result)
+impl Client for Context {
+    fn call(&self, req: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
+        Box::new(self.call_service(req))
     }
 }

@@ -1,3 +1,5 @@
+use crate::client::{Client, SwitchDevice};
+use crate::device::*;
 use crate::frame::{rtu::*, *};
 use crate::proto::rtu::Proto;
 
@@ -9,13 +11,28 @@ use tokio_proto::BindClient;
 use tokio_serial::Serial;
 use tokio_service::Service;
 
+pub(crate) fn connect_device<D: Into<DeviceId>>(
+    handle: &Handle,
+    serial: Serial,
+    device_id: D,
+) -> impl Future<Item = Context, Error = Error> {
+    let proto = Proto;
+    let service = proto.bind_client(handle, serial);
+    let device_id: DeviceId = device_id.into();
+    let slave_addr = device_id.into();
+    future::ok(Context {
+        service,
+        slave_addr,
+    })
+}
+
 /// Modbus RTU client
-pub struct Client {
+pub(crate) struct Context {
     service: ClientService<Serial, Proto>,
     slave_addr: SlaveAddress,
 }
 
-impl Client {
+impl Context {
     /// Establish a serial connection with a Modbus server.
     pub fn bind(
         handle: &Handle,
@@ -39,6 +56,17 @@ impl Client {
         let pdu = req.into();
         RequestAdu { hdr, pdu }
     }
+
+    fn call_service(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
+        let req_adu = self.next_request_adu(req);
+        let req_hdr = req_adu.hdr;
+        self.service
+            .call(req_adu)
+            .and_then(move |res_adu| match res_adu.pdu {
+                ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
+                ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+            })
+    }
 }
 
 fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error> {
@@ -54,24 +82,16 @@ fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error>
     Ok(())
 }
 
-impl Service for Client {
-    type Request = Request;
-    type Response = Response;
-    type Error = Error;
-    type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
+impl SwitchDevice for Context {
+    fn switch_device(&mut self, device_id: DeviceId) -> DeviceId {
+        let res = self.slave_addr.into();
+        self.slave_addr = device_id.into();
+        res
+    }
+}
 
-    fn call(&self, req: Self::Request) -> Self::Future {
-        let req_adu = self.next_request_adu(req);
-        let req_hdr = req_adu.hdr;
-
-        let result = self
-            .service
-            .call(req_adu)
-            .and_then(move |rsp_adu| match rsp_adu.pdu {
-                ResponsePdu(Ok(rsp)) => verify_response_header(req_hdr, rsp_adu.hdr).and(Ok(rsp)),
-                ResponsePdu(Err(err)) => Err(Self::Error::new(ErrorKind::Other, err)),
-            });
-
-        Box::new(result)
+impl Client for Context {
+    fn call(&self, req: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
+        Box::new(self.call_service(req))
     }
 }

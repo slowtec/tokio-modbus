@@ -1,6 +1,6 @@
 #[cfg(feature = "tcp")]
 pub fn main() {
-    use futures::future::Future;
+    use futures::Future;
     use tokio_core::reactor::Core;
     use tokio_modbus::prelude::*;
 

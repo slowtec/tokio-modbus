@@ -1,18 +1,19 @@
-use super::Context;
+use super::*;
 
 use crate::service;
 
-use futures::prelude::*;
+use futures::Future;
 use std::io::Error;
 use tokio_core::reactor::Handle;
 use tokio_serial::Serial;
 
-pub fn connect(
+/// Connect to a physical, broadcast, or custom Modbus device.
+pub fn connect_device<D: Into<DeviceId>>(
     handle: &Handle,
     serial: Serial,
-    slave: u8,
+    device_id: D,
 ) -> impl Future<Item = Context, Error = Error> {
-    service::rtu::Client::bind(handle, serial, slave).map(|service| Context {
-        service: Box::new(service),
+    service::rtu::connect_device(handle, serial, device_id).map(|client| Context {
+        client: Box::new(client),
     })
 }
