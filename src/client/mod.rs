@@ -7,22 +7,15 @@ pub mod sync;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
-use crate::device::*;
 use crate::frame::*;
+use crate::slave::*;
 
 use futures::prelude::*;
 use std::io::{Error, ErrorKind};
 use std::ops::{Deref, DerefMut};
 
 /// A transport independent asynchronous client trait.
-pub trait SwitchDevice {
-    /// Switch the device identifier for subsequent outgoing requests
-    /// returning the previous device identifier.
-    fn switch_device(&mut self, device_id: DeviceId) -> DeviceId;
-}
-
-/// A transport independent asynchronous client trait.
-pub trait Client: SwitchDevice {
+pub trait Client: SlaveContext {
     fn call(&self, request: Request) -> Box<dyn Future<Item = Response, Error = Error>>;
 }
 

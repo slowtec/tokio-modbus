@@ -1,7 +1,7 @@
-use crate::client::{Client, SwitchDevice};
-use crate::device::*;
+use crate::client::Client;
 use crate::frame::{tcp::*, *};
 use crate::proto::tcp::Proto;
+use crate::slave::*;
 
 use futures::Future;
 use std::cell::Cell;
@@ -13,29 +13,12 @@ use tokio_proto::pipeline::ClientService;
 use tokio_proto::TcpClient;
 use tokio_service::Service;
 
-/// The Unit Identifier for direct connections
-///
-/// See also: [MODBUS Messaging on TCP/IP Implementation Guide](http://www.modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf), page 23
-/// "On TCP/IP, the MODBUS server is addressed using its IP address; therefore,
-/// the MODBUS Unit Identifier is useless. The value 0xFF has to be used."
-/// "Remark: The value 0 is also accepted to communicate directly to a
-/// MODBUS/TCP device."
-///
-/// Rationale: Use the proposed value 0xFF instead of the alternative
-/// value 0x00 to distinguish direct connection messages from broadcast
-/// messages that might be send to all slave devices connected to a
-/// gateway!
-pub(crate) const DIRECT_CONNECTION_UNIT_ID: UnitId = 0xFF;
-
-pub const DIRECT_CONNECTION_DEVICE_ID: DeviceId = DeviceId(DIRECT_CONNECTION_UNIT_ID);
-
-pub(crate) fn connect_device<D: Into<DeviceId>>(
+pub(crate) fn connect_slave(
     handle: &Handle,
     socket_addr: SocketAddr,
-    device_id: D,
+    slave: Slave,
 ) -> impl Future<Item = Context, Error = Error> {
-    let device_id: DeviceId = device_id.into();
-    let unit_id = device_id.into();
+    let unit_id = slave.into();
     TcpClient::new(Proto)
         .connect(&socket_addr, &handle)
         .map(move |service| Context::new(service, unit_id))
@@ -57,6 +40,10 @@ impl Context {
             unit_id,
             transaction_id: Cell::new(INITIAL_TRANSACTION_ID),
         }
+    }
+
+    pub fn set_unit_id(&mut self, unit_id: UnitId) {
+        self.unit_id = unit_id;
     }
 
     fn next_transaction_id(&self) -> TransactionId {
@@ -83,7 +70,7 @@ impl Context {
         }
     }
 
-    fn call_service(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
+    pub fn call(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
         let req_adu = self.next_request_adu(req);
         let req_hdr = req_adu.hdr;
         self.service
@@ -108,16 +95,14 @@ fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error>
     Ok(())
 }
 
-impl SwitchDevice for Context {
-    fn switch_device(&mut self, device_id: DeviceId) -> DeviceId {
-        let res = self.unit_id.into();
-        self.unit_id = device_id.into();
-        res
+impl SlaveContext for Context {
+    fn set_slave(&mut self, slave: Slave) {
+        self.unit_id = slave.into();
     }
 }
 
 impl Client for Context {
     fn call(&self, req: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
-        Box::new(self.call_service(req))
+        Box::new(self.call(req))
     }
 }

@@ -1,7 +1,6 @@
 use super::*;
 
-use crate::device::DeviceId;
-use crate::service::{self, tcp};
+use crate::service;
 
 use futures::Future;
 use std::io::Error;
@@ -13,18 +12,18 @@ pub fn connect(
     handle: &Handle,
     socket_addr: SocketAddr,
 ) -> impl Future<Item = Context, Error = Error> {
-    connect_device(handle, socket_addr, tcp::DIRECT_CONNECTION_DEVICE_ID)
+    connect_slave(handle, socket_addr, Slave::tcp_device())
 }
 
 /// Connect to a physical, broadcast, or custom Modbus device,
 /// probably through a Modbus TCP gateway that is forwarding
 /// messages to/from the corresponding slave device.
-pub fn connect_device<D: Into<DeviceId>>(
+pub fn connect_slave(
     handle: &Handle,
     socket_addr: SocketAddr,
-    device_id: D,
+    slave: Slave,
 ) -> impl Future<Item = Context, Error = Error> {
-    service::tcp::connect_device(handle, socket_addr, device_id).map(|client| Context {
-        client: Box::new(client),
+    service::tcp::connect_slave(handle, socket_addr, slave).map(|context| Context {
+        client: Box::new(context),
     })
 }

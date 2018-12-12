@@ -23,15 +23,14 @@ pub mod sync {
 ///////////////////////////////////////////////////////////////////
 /// Structs
 ///////////////////////////////////////////////////////////////////
-pub use crate::device::DeviceId;
 pub use crate::frame::{Request, Response};
+pub use crate::slave::{Slave, SlaveId};
 
 ///////////////////////////////////////////////////////////////////
 /// Traits
 ///////////////////////////////////////////////////////////////////
 pub use crate::client::Client;
 pub use crate::client::Reader;
-pub use crate::client::SwitchDevice;
 pub use crate::client::Writer;
 
 #[cfg(feature = "sync")]
@@ -42,3 +41,5 @@ pub use crate::client::sync::Reader as SyncReader;
 
 #[cfg(feature = "sync")]
 pub use crate::client::sync::Writer as SyncWriter;
+
+pub use crate::slave::SlaveContext;

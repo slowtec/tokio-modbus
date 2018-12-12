@@ -91,13 +91,13 @@
 //!     let mut core = Core::new().unwrap();
 //!     let handle = core.handle();
 //!     let tty_path = "/dev/ttyUSB0";
-//!     let device_id = 0x01;
+//!     let slave = Slave(0x17);
 //!
 //!     let mut settings = SerialPortSettings::default();
 //!     settings.baud_rate = 19200;
 //!     let port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle()).unwrap();
 //!
-//!     let task = rtu::connect_device(&handle, port, device_id).and_then(|ctx| {
+//!     let task = rtu::connect_slave(&handle, port, slave).and_then(|ctx| {
 //!         println!("Reading a sensor value");
 //!         ctx
 //!             .read_holding_registers(0x082B, 2)
@@ -122,8 +122,8 @@
 pub mod prelude;
 
 pub mod client;
-pub mod device;
 pub mod server;
+pub mod slave;
 
 mod codec;
 mod frame;

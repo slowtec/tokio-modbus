@@ -1,10 +1,10 @@
 use super::*;
 
-pub(crate) type SlaveAddress = u8;
+use crate::slave::SlaveId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Header {
-    pub slave_addr: SlaveAddress,
+    pub slave_id: SlaveId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

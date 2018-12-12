@@ -1,7 +1,7 @@
 use tokio_modbus::prelude::*;
 
-const DEVICE_1: DeviceId = DeviceId(1);
-const DEVICE_2: DeviceId = DeviceId(2);
+const SLAVE_1: Slave = Slave(0x01);
+const SLAVE_2: Slave = Slave(0x02);
 
 #[cfg(feature = "rtu")]
 pub fn main() {
@@ -22,25 +22,25 @@ pub fn main() {
     // port.set_exclusive(false)
     //     .expect("Unable to set serial port exlusive");
 
-    let task = rtu::connect_device(&handle, port, DeviceId::broadcast())
+    let task = rtu::connect(&handle, port)
         .and_then(move |mut ctx| {
-            ctx.switch_device(DEVICE_1);
-            println!("Reading a sensor value from {:?}", DEVICE_1);
+            ctx.set_slave(SLAVE_1);
+            println!("Reading a sensor value from {:?}", SLAVE_1);
             ctx.read_holding_registers(0x082B, 2)
                 .and_then(|rsp| Ok((ctx, rsp)))
         })
         .and_then(move |(ctx, rsp)| {
-            println!("Sensor value for device {:?} is: {:?}", DEVICE_1, rsp);
+            println!("Sensor value for device {:?} is: {:?}", SLAVE_1, rsp);
             Ok(ctx)
         })
         .and_then(|mut ctx| {
-            ctx.switch_device(DEVICE_2);
-            println!("Reading a sensor value from {:?}", DEVICE_2);
+            ctx.set_slave(SLAVE_2);
+            println!("Reading a sensor value from {:?}", SLAVE_2);
             ctx.read_holding_registers(0x082B, 2)
                 .and_then(|rsp| Ok((ctx, rsp)))
         })
         .and_then(move |(_, rsp)| {
-            println!("Sensor value for device {:?} is: {:?}", DEVICE_2, rsp);
+            println!("Sensor value for device {:?} is: {:?}", SLAVE_2, rsp);
             Ok(())
         });
 
