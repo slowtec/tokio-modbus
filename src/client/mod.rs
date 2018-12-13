@@ -12,7 +12,6 @@ use crate::slave::*;
 
 use futures::prelude::*;
 use std::io::{Error, ErrorKind};
-use std::ops::{Deref, DerefMut};
 
 /// A transport independent asynchronous client trait.
 pub trait Client: SlaveContext {
@@ -20,7 +19,7 @@ pub trait Client: SlaveContext {
 }
 
 /// An asynchronous Modbus reader.
-pub trait Reader {
+pub trait Reader: Client {
     fn read_coils(
         &self,
         _: Address,
@@ -55,7 +54,7 @@ pub trait Reader {
 }
 
 /// An asynchronous Modbus writer.
-pub trait Writer {
+pub trait Writer: Client {
     fn write_single_coil(&self, _: Address, _: Coil) -> Box<dyn Future<Item = (), Error = Error>>;
 
     fn write_multiple_coils(
@@ -94,17 +93,15 @@ impl Into<Box<dyn Client>> for Context {
     }
 }
 
-impl Deref for Context {
-    type Target = dyn Client;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.client
+impl Client for Context {
+    fn call(&self, request: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
+        self.client.call(request)
     }
 }
 
-impl DerefMut for Context {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.client
+impl SlaveContext for Context {
+    fn set_slave(&mut self, slave: Slave) {
+        self.client.set_slave(slave);
     }
 }
 

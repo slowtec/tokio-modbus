@@ -4,7 +4,7 @@ pub mod rtu;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
-use super::{Context as AsyncContext, Reader as AsyncReader, Writer as AsyncWriter};
+use super::{Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, Writer as AsyncWriter};
 
 use crate::frame::*;
 
@@ -18,7 +18,7 @@ pub trait Client {
 }
 
 /// A transport independent synchronous reader trait.
-pub trait Reader {
+pub trait Reader: Client {
     fn read_coils(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>>;
     fn read_discrete_inputs(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>>;
     fn read_input_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>>;
@@ -33,7 +33,7 @@ pub trait Reader {
 }
 
 /// A transport independent synchronous writer trait.
-pub trait Writer {
+pub trait Writer: Client {
     fn write_single_coil(&mut self, _: Address, _: Coil) -> Result<()>;
     fn write_multiple_coils(&mut self, _: Address, _: &[Coil]) -> Result<()>;
     fn write_single_register(&mut self, _: Address, _: Word) -> Result<()>;
