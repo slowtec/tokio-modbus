@@ -4,7 +4,9 @@ pub mod rtu;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
-use super::{Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, Writer as AsyncWriter};
+use super::{
+    Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, Writer as AsyncWriter,
+};
 
 use crate::frame::*;
 
