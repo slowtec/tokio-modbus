@@ -23,6 +23,9 @@ tokio-service = "0.1"
 
 tokio-serial = { version = "3.1", optional = true }
 
+[dev-dependencies]
+env_logger = "0.6"
+
 [features]
 default = ["tcp", "rtu", "sync"]
 rtu = ["tokio-serial"]

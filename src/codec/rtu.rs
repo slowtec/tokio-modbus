@@ -4,14 +4,39 @@ use crate::frame::rtu::*;
 use crate::slave::SlaveId;
 
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
+use log::{debug, error, warn};
 use std::io::{Cursor, Error, ErrorKind, Result};
 use tokio_codec::{Decoder, Encoder};
 
-#[derive(Debug, PartialEq)]
-pub(crate) struct RequestDecoder;
+// [MODBUS over Serial Line Specification and Implementation Guide V1.02](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf), page 13
+// "The maximum size of a MODBUS RTU frame is 256 bytes."
+const MAX_FRAME_LEN: usize = 256;
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct ResponseDecoder;
+pub(crate) struct RequestDecoder {
+    dropped_bytes: Vec<u8>,
+}
+
+impl Default for RequestDecoder {
+    fn default() -> Self {
+        Self {
+            dropped_bytes: Vec::with_capacity(MAX_FRAME_LEN),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct ResponseDecoder {
+    dropped_bytes: Vec<u8>,
+}
+
+impl Default for ResponseDecoder {
+    fn default() -> Self {
+        Self {
+            dropped_bytes: Vec::with_capacity(MAX_FRAME_LEN),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct ClientCodec {
@@ -21,7 +46,7 @@ pub(crate) struct ClientCodec {
 impl Default for ClientCodec {
     fn default() -> Self {
         Self {
-            decoder: ResponseDecoder,
+            decoder: Default::default(),
         }
     }
 }
@@ -34,7 +59,7 @@ pub(crate) struct ServerCodec {
 impl Default for ServerCodec {
     fn default() -> Self {
         Self {
-            decoder: RequestDecoder,
+            decoder: Default::default(),
         }
     }
 }
@@ -146,20 +171,63 @@ impl Decoder for RequestDecoder {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
-        if let Some(pdu_len) = get_request_pdu_len(buf)? {
-            let adu_len = 1 + pdu_len;
-            if buf.len() >= adu_len + 2 {
-                let mut adu_data = buf.split_to(adu_len);
-                // Read trailing CRC and verify ADU
-                let crc = Cursor::new(&buf.split_to(2)).read_u16::<BigEndian>()?;
-                check_crc(&adu_data, crc)?;
-                let slave_id = adu_data.split_to(1)[0];
-                let pdu_data = adu_data.freeze();
-                return Ok(Some((slave_id, pdu_data)));
+        get_request_pdu_len(buf).and_then(|pdu_len| {
+            if let Some(pdu_len) = pdu_len {
+                let adu_len = 1 + pdu_len;
+                if buf.len() >= adu_len + 2 {
+                    let mut adu_buf = buf.split_to(adu_len);
+                    let crc_buf = buf.split_to(2);
+                    // Read trailing CRC and verify ADU
+                    match Cursor::new(&crc_buf).read_u16::<BigEndian>() {
+                        Ok(crc) => {
+                            match check_crc(&adu_buf, crc) {
+                                Ok(()) => {
+                                    if !self.dropped_bytes.is_empty() {
+                                        warn!("Successfully decoded response frame after dropping {} byte(s): {:X?}", self.dropped_bytes.len(), self.dropped_bytes);
+                                        self.dropped_bytes.clear();
+                                    }
+                                    let slave_id = adu_buf.split_to(1)[0];
+                                    let pdu_data = adu_buf.freeze();
+                                    return Ok(Some((slave_id, pdu_data)));
+                                }
+                                Err(err) => Err(err),
+                            }
+                        }
+                        Err(err) => Err(err),
+                    }.map_err(|err| {
+                        // Restore the input buffer
+                        let rem_buf = buf.take();
+                        buf.unsplit(adu_buf);
+                        buf.unsplit(crc_buf);
+                        buf.unsplit(rem_buf);
+                        err
+                    })
+                } else {
+                    // Incomplete frame
+                    Ok(None)
+                }
+            } else {
+                // Incomplete frame
+                Ok(None)
             }
-        }
-        // incomplete frame
-        Ok(None)
+        }).or_else(|err| {
+            warn!("Failed to decode response frame: {}", err);
+            // If decoding failed the buffer cannot be empty
+            debug_assert!(!buf.is_empty());
+            // Skip and record the first byte of the buffer
+            {
+                let first = buf.first().unwrap();
+                debug!("Dropped first byte: {:X?}", first);
+                if self.dropped_bytes.len() >= MAX_FRAME_LEN {
+                    error!("Giving up to decode response frame after dropping {} byte(s): {:X?}", self.dropped_bytes.len(), self.dropped_bytes);
+                    self.dropped_bytes.clear();
+                }
+                self.dropped_bytes.push(*first);
+            }
+            buf.advance(1);
+            // Assume incomplete frame and try again
+            Ok(None)
+        })
     }
 }
 
@@ -168,19 +236,63 @@ impl Decoder for ResponseDecoder {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
-        if let Some(pdu_len) = get_response_pdu_len(buf)? {
-            let adu_len = 1 + pdu_len;
-            if buf.len() >= adu_len + 2 {
-                let mut adu_data = buf.split_to(adu_len);
-                // Read trailing CRC and verify ADU
-                let crc = Cursor::new(&buf.split_to(2)).read_u16::<BigEndian>()?;
-                check_crc(&adu_data, crc)?;
-                let slave_id = adu_data.split_to(1)[0];
-                let pdu_data = adu_data.freeze();
-                return Ok(Some((slave_id, pdu_data)));
+        get_response_pdu_len(buf).and_then(|pdu_len| {
+            if let Some(pdu_len) = pdu_len {
+                let adu_len = 1 + pdu_len;
+                if buf.len() >= adu_len + 2 {
+                    let mut adu_buf = buf.split_to(adu_len);
+                    let crc_buf = buf.split_to(2);
+                    // Read trailing CRC and verify ADU
+                    match Cursor::new(&crc_buf).read_u16::<BigEndian>() {
+                        Ok(crc) => {
+                            match check_crc(&adu_buf, crc) {
+                                Ok(()) => {
+                                    if !self.dropped_bytes.is_empty() {
+                                        warn!("Successfully decoded response frame after dropping {} byte(s): {:X?}", self.dropped_bytes.len(), self.dropped_bytes);
+                                        self.dropped_bytes.clear();
+                                    }
+                                    let slave_id = adu_buf.split_to(1)[0];
+                                    let pdu_data = adu_buf.freeze();
+                                    return Ok(Some((slave_id, pdu_data)))
+                                }
+                                Err(err) => Err(err)
+                            }
+                        }
+                        Err(err) => Err(err)
+                    }.map_err(|err| {
+                        // Restore the input buffer
+                        let rem_buf = buf.take();
+                        buf.unsplit(adu_buf);
+                        buf.unsplit(crc_buf);
+                        buf.unsplit(rem_buf);
+                        err
+                    })
+                } else {
+                    // Incomplete frame
+                    Ok(None)
+                }
+            } else {
+                // Incomplete frame
+                Ok(None)
             }
-        }
-        Ok(None)
+        }).or_else(|err| {
+            warn!("Failed to decode response frame: {}", err);
+            // If decoding failed the buffer cannot be empty
+            debug_assert!(!buf.is_empty());
+            // Skip and record the first byte of the buffer
+            {
+                let first = buf.first().unwrap();
+                debug!("Dropped first byte: {:X?}", first);
+                if self.dropped_bytes.len() >= MAX_FRAME_LEN {
+                    error!("Giving up to decode response frame after dropping {} bytes: {:X?}", self.dropped_bytes.len(), self.dropped_bytes);
+                    self.dropped_bytes.clear();
+                }
+                self.dropped_bytes.push(*first);
+            }
+            buf.advance(1);
+            // Pretend incomplete frame and try again
+            Ok(None)
+        })
     }
 }
 
@@ -189,13 +301,24 @@ impl Decoder for ClientCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
-        if let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? {
-            let hdr = Header { slave_id };
-            let pdu = ResponsePdu::try_from(pdu_data)?;
-            Ok(Some(ResponseAdu { hdr, pdu }))
-        } else {
-            Ok(None)
-        }
+        self.decoder
+            .decode(buf)
+            .and_then(|frame| {
+                if let Some((slave_id, pdu_data)) = frame {
+                    let hdr = Header { slave_id };
+                    // Decoding of the PDU should are unlikely to fail due
+                    // to transmission errors, because the frame's bytes
+                    // have already been verified with the CRC.
+                    ResponsePdu::try_from(pdu_data).map(|pdu| Some(ResponseAdu { hdr, pdu }))
+                } else {
+                    Ok(None)
+                }
+            })
+            .or_else(|_| {
+                // Decoding the transport frame is non-destructive and must
+                // never fail!
+                unreachable!();
+            })
     }
 }
 
@@ -204,13 +327,24 @@ impl Decoder for ServerCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu>> {
-        if let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? {
-            let hdr = Header { slave_id };
-            let pdu = RequestPdu::try_from(pdu_data)?;
-            Ok(Some(RequestAdu { hdr, pdu }))
-        } else {
-            Ok(None)
-        }
+        self.decoder
+            .decode(buf)
+            .and_then(|frame| {
+                if let Some((slave_id, pdu_data)) = frame {
+                    let hdr = Header { slave_id };
+                    // Decoding of the PDU should are unlikely to fail due
+                    // to transmission errors, because the frame's bytes
+                    // have already been verified with the CRC.
+                    RequestPdu::try_from(pdu_data).map(|pdu| Some(RequestAdu { hdr, pdu }))
+                } else {
+                    Ok(None)
+                }
+            })
+            .or_else(|_| {
+                // Decoding the transport frame is non-destructive and must
+                // never fail!
+                unreachable!();
+            })
     }
 }
 
@@ -524,6 +658,35 @@ mod tests {
                 0x9D, // crc
                 0x00,
             ]);
+            let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(buf.len(), 1);
+            assert_eq!(hdr.slave_id, 0x01);
+            if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
+                assert_eq!(data.len(), 2);
+                assert_eq!(data, vec![0x8902, 0x42C7]);
+            } else {
+                panic!("unexpected response")
+            }
+        }
+
+        #[test]
+        fn decode_rtu_response_drop_invalid_bytes() {
+            let _ = env_logger::init();
+            let mut codec = ClientCodec::default();
+            let mut buf = BytesMut::from(vec![
+                0x42, // dropped byte
+                0x01, // slave address
+                0x03, // function code
+                0x04, // byte count
+                0x89, //
+                0x02, //
+                0x42, //
+                0xC7, //
+                0x00, // crc
+                0x9D, // crc
+                0x00,
+            ]);
+            assert_eq!(None, codec.decode(&mut buf).unwrap());
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
