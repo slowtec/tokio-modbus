@@ -3,8 +3,9 @@
 ## v0.3.0 (yyyy-mm-dd)
 
 - New public API
-- Client: Switch between devices while connected
-- TCP Client: Connect to devices via gateway (unit identifier)
+- Client: Change devices while connected
+- TCP Client: Connect to RTU devices via gateway (unit identifier)
+- RTU Client: Try to recover from frame errors
 
 ### Breaking Changes
 
