@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, str::FromStr, num::ParseIntError};
 
 pub type SlaveId = u8;
 
@@ -61,13 +61,65 @@ impl From<Slave> for SlaveId {
     }
 }
 
+impl FromStr for Slave {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let slave_id = match u8::from_str_radix(s, 10) {
+            Ok(slave_id) => Ok(slave_id),
+            Err(err) => {
+                if s.starts_with("0x") {
+                    u8::from_str_radix(&s[2..], 16)
+                } else {
+                    Err(err)
+                }
+            }
+        }?;
+        Ok(Slave(slave_id))
+    }
+}
+
 impl fmt::Display for Slave {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{:0>2X}", self.0)
+        write!(f, "{} (0x{:0>2X})", self.0, self.0)
     }
 }
 
 pub trait SlaveContext {
     /// Select a slave device for all subsequent outgoing requests.
     fn set_slave(&mut self, slave: Slave);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_dec() {
+        assert_eq!(Slave(0), Slave::from_str("0").unwrap());
+        assert_eq!(Slave(123), Slave::from_str("123").unwrap());
+        assert_eq!(Slave(255), Slave::from_str("255").unwrap());
+        assert!(Slave::from_str("-1").is_err());
+        assert!(Slave::from_str("256").is_err());
+    }
+
+    #[test]
+    fn parse_hex() {
+        assert_eq!(Slave(0), Slave::from_str("0x00").unwrap());
+        assert_eq!(Slave(123), Slave::from_str("0x7b").unwrap());
+        assert_eq!(Slave(123), Slave::from_str("0x7B").unwrap());
+        assert_eq!(Slave(255), Slave::from_str("0xff").unwrap());
+        assert_eq!(Slave(255), Slave::from_str("0xFF").unwrap());
+        assert!(Slave::from_str("0X00").is_err());
+        assert!(Slave::from_str("0x100").is_err());
+        assert!(Slave::from_str("0xfff").is_err());
+        assert!(Slave::from_str("0xFFF").is_err());
+    }
+
+    #[test]
+    fn format() {
+        assert!(format!("{}", Slave(123)).contains("123"));
+        assert!(format!("{}", Slave(0x7B)).contains("0x7B"));
+        assert!(!format!("{}", Slave(0x7B)).contains("0x7b"));
+    }
 }
