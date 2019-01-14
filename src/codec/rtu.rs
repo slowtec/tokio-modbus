@@ -26,29 +26,36 @@ impl Default for FrameDecoder {
 }
 
 impl FrameDecoder {
-    pub fn decode(&mut self, buf: &mut BytesMut, pdu_len: usize) -> Result<Option<(SlaveId, Bytes)>> {
+    pub fn decode(
+        &mut self,
+        buf: &mut BytesMut,
+        pdu_len: usize,
+    ) -> Result<Option<(SlaveId, Bytes)>> {
         let adu_len = 1 + pdu_len;
         if buf.len() >= adu_len + 2 {
             let mut adu_buf = buf.split_to(adu_len);
             let crc_buf = buf.split_to(2);
             // Read trailing CRC and verify ADU
             match Cursor::new(&crc_buf).read_u16::<BigEndian>() {
-                Ok(crc) => {
-                    match check_crc(&adu_buf, crc) {
-                        Ok(()) => {
-                            if !self.dropped_bytes.is_empty() {
-                                warn!("Successfully decoded frame after dropping {} byte(s): {:X?}", self.dropped_bytes.len(), self.dropped_bytes);
-                                self.dropped_bytes.clear();
-                            }
-                            let slave_id = adu_buf.split_to(1)[0];
-                            let pdu_data = adu_buf.freeze();
-                            return Ok(Some((slave_id, pdu_data)));
+                Ok(crc) => match check_crc(&adu_buf, crc) {
+                    Ok(()) => {
+                        if !self.dropped_bytes.is_empty() {
+                            warn!(
+                                "Successfully decoded frame after dropping {} byte(s): {:X?}",
+                                self.dropped_bytes.len(),
+                                self.dropped_bytes
+                            );
+                            self.dropped_bytes.clear();
                         }
-                        Err(err) => Err(err),
+                        let slave_id = adu_buf.split_to(1)[0];
+                        let pdu_data = adu_buf.freeze();
+                        return Ok(Some((slave_id, pdu_data)));
                     }
-                }
+                    Err(err) => Err(err),
+                },
                 Err(err) => Err(err),
-            }.map_err(|err| {
+            }
+            .map_err(|err| {
                 // Restore the input buffer
                 let rem_buf = buf.take();
                 debug_assert!(buf.is_empty());
@@ -71,7 +78,11 @@ impl FrameDecoder {
             let first = buf.first().unwrap();
             debug!("Dropped first byte: {:X?}", first);
             if self.dropped_bytes.len() >= MAX_FRAME_LEN {
-                error!("Giving up to decode frame after dropping {} byte(s): {:X?}", self.dropped_bytes.len(), self.dropped_bytes);
+                error!(
+                    "Giving up to decode frame after dropping {} byte(s): {:X?}",
+                    self.dropped_bytes.len(),
+                    self.dropped_bytes
+                );
                 self.dropped_bytes.clear();
             }
             self.dropped_bytes.push(*first);
@@ -209,17 +220,30 @@ impl Decoder for RequestDecoder {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
-        get_request_pdu_len(buf).and_then(|pdu_len| {
-            if let Some(pdu_len) = pdu_len {
-                self.frame_decoder.decode(buf, pdu_len)
-            } else {
-                // Incomplete frame
-                Ok(None)
-            }
-        }).or_else(|err| {
-            warn!("Failed to decode response frame: {}", err);
-            self.frame_decoder.recover_on_error(buf)
-        })
+        loop {
+            let mut retry = false;
+            let res = get_request_pdu_len(buf)
+                .and_then(|pdu_len| {
+                    retry = false;
+                    if let Some(pdu_len) = pdu_len {
+                        self.frame_decoder.decode(buf, pdu_len)
+                    } else {
+                        // Incomplete frame
+                        Ok(None)
+                    }
+                })
+                .or_else(|err| {
+                    warn!("Failed to decode request frame: {}", err);
+                    match self.frame_decoder.recover_on_error(buf) {
+                        Ok(None) => {
+                            retry = true;
+                            Ok(None)
+                        }
+                        other => other,
+                    }
+                });
+            return res;
+        }
     }
 }
 
@@ -228,17 +252,30 @@ impl Decoder for ResponseDecoder {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
-        get_response_pdu_len(buf).and_then(|pdu_len| {
-            if let Some(pdu_len) = pdu_len {
-                self.frame_decoder.decode(buf, pdu_len)
-            } else {
-                // Incomplete frame
-                Ok(None)
-            }
-        }).or_else(|err| {
-            warn!("Failed to decode response frame: {}", err);
-            self.frame_decoder.recover_on_error(buf)
-        })
+        loop {
+            let mut retry = false;
+            let res = get_response_pdu_len(buf)
+                .and_then(|pdu_len| {
+                    retry = false;
+                    if let Some(pdu_len) = pdu_len {
+                        self.frame_decoder.decode(buf, pdu_len)
+                    } else {
+                        // Incomplete frame
+                        Ok(None)
+                    }
+                })
+                .or_else(|err| {
+                    warn!("Failed to decode response frame: {}", err);
+                    match self.frame_decoder.recover_on_error(buf) {
+                        Ok(None) => {
+                            retry = true;
+                            Ok(None)
+                        }
+                        other => other,
+                    }
+                });
+            return res;
+        }
     }
 }
 
@@ -621,6 +658,7 @@ mod tests {
             let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
                 0x42, // dropped byte
+                0x43, // dropped byte
                 0x01, // slave address
                 0x03, // function code
                 0x04, // byte count
@@ -632,6 +670,7 @@ mod tests {
                 0x9D, // crc
                 0x00,
             ]);
+            assert_eq!(None, codec.decode(&mut buf).unwrap());
             assert_eq!(None, codec.decode(&mut buf).unwrap());
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);

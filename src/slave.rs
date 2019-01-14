@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr, num::ParseIntError};
+use std::{fmt, num::ParseIntError, str::FromStr};
 
 pub type SlaveId = u8;
 
