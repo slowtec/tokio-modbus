@@ -292,7 +292,13 @@ impl Decoder for ClientCodec {
                     // Decoding of the PDU should are unlikely to fail due
                     // to transmission errors, because the frame's bytes
                     // have already been verified with the CRC.
-                    ResponsePdu::try_from(pdu_data).map(|pdu| Some(ResponseAdu { hdr, pdu }))
+                    ResponsePdu::try_from(pdu_data)
+                        .map(|pdu| Some(ResponseAdu { hdr, pdu }))
+                        .map_err(|err| {
+                            // Unrecoverable error
+                            error!("Failed to decode response PDU: {}", err);
+                            err
+                        })
                 } else {
                     Ok(None)
                 }
@@ -318,7 +324,13 @@ impl Decoder for ServerCodec {
                     // Decoding of the PDU should are unlikely to fail due
                     // to transmission errors, because the frame's bytes
                     // have already been verified with the CRC.
-                    RequestPdu::try_from(pdu_data).map(|pdu| Some(RequestAdu { hdr, pdu }))
+                    RequestPdu::try_from(pdu_data)
+                        .map(|pdu| Some(RequestAdu { hdr, pdu }))
+                        .map_err(|err| {
+                            // Unrecoverable error
+                            error!("Failed to decode request PDU: {}", err);
+                            err
+                        })
                 } else {
                     Ok(None)
                 }
