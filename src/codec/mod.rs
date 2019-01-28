@@ -209,7 +209,7 @@ impl TryFrom<Bytes> for Request {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
                     format!("Invalid function code: 0x{:0>2X}", fn_code),
-                ))
+                ));
             }
         };
         Ok(req)

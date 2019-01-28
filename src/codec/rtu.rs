@@ -143,7 +143,7 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 format!("Invalid function code: 0x{:0>2X}", fn_code),
-            ))
+            ));
         }
     };
     Ok(len)
@@ -179,7 +179,7 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 format!("Invalid function code: 0x{:0>2X}", fn_code),
-            ))
+            ));
         }
     };
     Ok(len)
@@ -242,7 +242,9 @@ impl Decoder for RequestDecoder {
                         other => other,
                     }
                 });
-            return res;
+            if !retry {
+                return res;
+            }
         }
     }
 }
@@ -274,7 +276,9 @@ impl Decoder for ResponseDecoder {
                         other => other,
                     }
                 });
-            return res;
+            if !retry {
+                return res;
+            }
         }
     }
 }
@@ -682,8 +686,6 @@ mod tests {
                 0x9D, // crc
                 0x00,
             ]);
-            assert_eq!(None, codec.decode(&mut buf).unwrap());
-            assert_eq!(None, codec.decode(&mut buf).unwrap());
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
