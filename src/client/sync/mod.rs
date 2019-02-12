@@ -5,17 +5,18 @@ pub mod rtu;
 pub mod tcp;
 
 use super::{
-    Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, Writer as AsyncWriter,
+    Client as AsyncClient, Context as AsyncContext, SlaveContext, Reader as AsyncReader, Writer as AsyncWriter,
 };
 
 use crate::frame::*;
+use crate::slave::*;
 
 use std::io::Result;
 
 use tokio_core::reactor::Core;
 
 /// A transport independent synchronous client trait.
-pub trait Client {
+pub trait Client: SlaveContext {
     fn call(&mut self, req: Request) -> Result<Response>;
 }
 
@@ -51,6 +52,12 @@ pub struct Context {
 impl Client for Context {
     fn call(&mut self, req: Request) -> Result<Response> {
         self.core.run(self.async_ctx.call(req))
+    }
+}
+
+impl SlaveContext for Context {
+    fn set_slave(&mut self, slave: Slave) {
+        self.async_ctx.set_slave(slave);
     }
 }
 
