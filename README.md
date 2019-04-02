@@ -55,6 +55,6 @@ or synchronous API can be found in the [examples]
 
 ## License
 
-Copyright 2018 [slowtec GmbH](https://www.slowtec.de)
+Copyright 2017-2019 [slowtec GmbH](https://www.slowtec.de)
 
 MIT/Apache-2.0
