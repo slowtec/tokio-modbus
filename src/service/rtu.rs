@@ -29,17 +29,6 @@ pub(crate) struct Context {
 }
 
 impl Context {
-    /// Establish a serial connection with a Modbus server.
-    pub fn bind(
-        handle: &Handle,
-        serial: Serial,
-        slave_id: SlaveId,
-    ) -> impl Future<Item = Self, Error = Error> {
-        let proto = Proto;
-        let service = proto.bind_client(handle, serial);
-        future::ok(Self { service, slave_id })
-    }
-
     fn next_request_adu<R>(&self, req: R) -> RequestAdu
     where
         R: Into<RequestPdu>,

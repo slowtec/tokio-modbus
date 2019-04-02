@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3.0 (yyyy-mm-dd)
+## v0.3.0 (2019-04-02)
 
 - New public API
 - Client: Change devices while connected

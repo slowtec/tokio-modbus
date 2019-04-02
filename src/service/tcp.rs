@@ -42,10 +42,6 @@ impl Context {
         }
     }
 
-    pub fn set_unit_id(&mut self, unit_id: UnitId) {
-        self.unit_id = unit_id;
-    }
-
     fn next_transaction_id(&self) -> TransactionId {
         let transaction_id = self.transaction_id.get();
         self.transaction_id.set(transaction_id.wrapping_add(1));
