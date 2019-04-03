@@ -13,14 +13,14 @@ use tokio_service::Service;
 
 pub(crate) fn connect_slave<T>(
     handle: &Handle,
-    serial: T,
+    transport: T,
     slave: Slave,
 ) -> impl Future<Item = Context<T>, Error = Error>
 where
     T: AsyncRead + AsyncWrite + 'static,
 {
     let proto = Proto;
-    let service = proto.bind_client(handle, serial);
+    let service = proto.bind_client(handle, transport);
     let slave_id = slave.into();
     future::ok(Context { service, slave_id })
 }
