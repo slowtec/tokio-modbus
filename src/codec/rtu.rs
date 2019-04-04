@@ -5,6 +5,7 @@ use crate::slave::SlaveId;
 
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use log::{debug, error, warn};
+use smallvec::SmallVec;
 use std::io::{Cursor, Error, ErrorKind, Result};
 use tokio_codec::{Decoder, Encoder};
 
@@ -12,15 +13,17 @@ use tokio_codec::{Decoder, Encoder};
 // "The maximum size of a MODBUS RTU frame is 256 bytes."
 const MAX_FRAME_LEN: usize = 256;
 
+type DroppedBytes = SmallVec<[u8; MAX_FRAME_LEN]>;
+
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct FrameDecoder {
-    dropped_bytes: Vec<u8>,
+    dropped_bytes: SmallVec<[u8; MAX_FRAME_LEN]>,
 }
 
 impl Default for FrameDecoder {
     fn default() -> Self {
         Self {
-            dropped_bytes: Vec::with_capacity(MAX_FRAME_LEN),
+            dropped_bytes: DroppedBytes::new(),
         }
     }
 }
