@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3.1 (2019-04-03)
+## v0.3.1 (2019-04-08)
 
 - RTU client: Use a generic async transport instead of `Serial`
 
