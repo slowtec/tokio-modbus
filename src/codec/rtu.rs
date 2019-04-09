@@ -73,7 +73,7 @@ impl FrameDecoder {
         }
     }
 
-    pub fn recover_on_error(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
+    pub fn recover_on_error(&mut self, buf: &mut BytesMut) {
         // If decoding failed the buffer cannot be empty
         debug_assert!(!buf.is_empty());
         // Skip and record the first byte of the buffer
@@ -91,8 +91,6 @@ impl FrameDecoder {
             self.dropped_bytes.push(*first);
         }
         buf.advance(1);
-        // Assume incomplete frame and try again
-        Ok(None)
     }
 }
 
@@ -237,13 +235,9 @@ impl Decoder for RequestDecoder {
                 })
                 .or_else(|err| {
                     warn!("Failed to decode request frame: {}", err);
-                    match self.frame_decoder.recover_on_error(buf) {
-                        Ok(None) => {
-                            retry = true;
-                            Ok(None)
-                        }
-                        other => other,
-                    }
+                    self.frame_decoder.recover_on_error(buf);
+                    retry = true;
+                    Ok(None)
                 });
             if !retry {
                 return res;
@@ -271,13 +265,9 @@ impl Decoder for ResponseDecoder {
                 })
                 .or_else(|err| {
                     warn!("Failed to decode response frame: {}", err);
-                    match self.frame_decoder.recover_on_error(buf) {
-                        Ok(None) => {
-                            retry = true;
-                            Ok(None)
-                        }
-                        other => other,
-                    }
+                    self.frame_decoder.recover_on_error(buf);
+                    retry = true;
+                    Ok(None)
                 });
             if !retry {
                 return res;
