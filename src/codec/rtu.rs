@@ -221,28 +221,7 @@ impl Decoder for RequestDecoder {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
-        loop {
-            let mut retry = false;
-            let res = get_request_pdu_len(buf)
-                .and_then(|pdu_len| {
-                    retry = false;
-                    if let Some(pdu_len) = pdu_len {
-                        self.frame_decoder.decode(buf, pdu_len)
-                    } else {
-                        // Incomplete frame
-                        Ok(None)
-                    }
-                })
-                .or_else(|err| {
-                    warn!("Failed to decode request frame: {}", err);
-                    self.frame_decoder.recover_on_error(buf);
-                    retry = true;
-                    Ok(None)
-                });
-            if !retry {
-                return res;
-            }
-        }
+        decode("request", &mut self.frame_decoder, get_request_pdu_len, buf)
     }
 }
 
@@ -251,27 +230,44 @@ impl Decoder for ResponseDecoder {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
-        loop {
-            let mut retry = false;
-            let res = get_response_pdu_len(buf)
-                .and_then(|pdu_len| {
-                    retry = false;
-                    if let Some(pdu_len) = pdu_len {
-                        self.frame_decoder.decode(buf, pdu_len)
-                    } else {
-                        // Incomplete frame
-                        Ok(None)
-                    }
-                })
-                .or_else(|err| {
-                    warn!("Failed to decode response frame: {}", err);
-                    self.frame_decoder.recover_on_error(buf);
-                    retry = true;
+        decode(
+            "response",
+            &mut self.frame_decoder,
+            get_response_pdu_len,
+            buf,
+        )
+    }
+}
+
+fn decode<F>(
+    pdu_type: &str,
+    frame_decoder: &mut FrameDecoder,
+    get_pdu_len: F,
+    buf: &mut BytesMut,
+) -> Result<Option<(SlaveId, Bytes)>>
+where
+    F: Fn(&BytesMut) -> Result<Option<usize>>,
+{
+    loop {
+        let mut retry = false;
+        let res = get_pdu_len(buf)
+            .and_then(|pdu_len| {
+                retry = false;
+                if let Some(pdu_len) = pdu_len {
+                    frame_decoder.decode(buf, pdu_len)
+                } else {
+                    // Incomplete frame
                     Ok(None)
-                });
-            if !retry {
-                return res;
-            }
+                }
+            })
+            .or_else(|err| {
+                warn!("Failed to decode {} frame: {}", pdu_type, err);
+                frame_decoder.recover_on_error(buf);
+                retry = true;
+                Ok(None)
+            });
+        if !retry {
+            return res;
         }
     }
 }
