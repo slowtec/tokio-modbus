@@ -248,11 +248,12 @@ fn decode<F>(
 where
     F: Fn(&BytesMut) -> Result<Option<usize>>,
 {
+    // TODO: Transform this loop into idiomatic code
     loop {
         let mut retry = false;
         let res = get_pdu_len(buf)
             .and_then(|pdu_len| {
-                retry = false;
+                debug_assert!(!retry);
                 if let Some(pdu_len) = pdu_len {
                     frame_decoder.decode(buf, pdu_len)
                 } else {
