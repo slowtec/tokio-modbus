@@ -37,6 +37,16 @@ pub enum Request {
     WriteMultipleRegisters(Address, Vec<Word>),
     ReadWriteMultipleRegisters(Address, Quantity, Address, Vec<Word>),
     Custom(FunctionCode, Vec<u8>),
+    /// A poison pill for stopping the client service and to release
+    /// the underlying transport, e.g. for disconnecting from an
+    /// exclusively used serial port.
+    ///
+    /// This is an ugly workaround, because `tokio-proto` does not
+    /// provide other means to gracefully shut down the `ClientService`.
+    /// Otherwise the bound transport is never freed as long as the
+    /// executor is active, even when dropping the Modbus client
+    /// context.
+    Disconnect,
 }
 
 /// The data of a successfull request.

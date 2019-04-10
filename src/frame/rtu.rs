@@ -11,6 +11,7 @@ pub(crate) struct Header {
 pub(crate) struct RequestAdu {
     pub hdr: Header,
     pub pdu: RequestPdu,
+    pub disconnect: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

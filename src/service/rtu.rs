@@ -32,18 +32,23 @@ pub(crate) struct Context<T: AsyncRead + AsyncWrite + 'static> {
 }
 
 impl<T: AsyncRead + AsyncWrite + 'static> Context<T> {
-    fn next_request_adu<R>(&self, req: R) -> RequestAdu
+    fn next_request_adu<R>(&self, req: R, disconnect: bool) -> RequestAdu
     where
         R: Into<RequestPdu>,
     {
         let slave_id = self.slave_id;
         let hdr = Header { slave_id };
         let pdu = req.into();
-        RequestAdu { hdr, pdu }
+        RequestAdu {
+            hdr,
+            pdu,
+            disconnect,
+        }
     }
 
     fn call(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
-        let req_adu = self.next_request_adu(req);
+        let disconnect = req == Request::Disconnect;
+        let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
         self.service
             .call(req_adu)

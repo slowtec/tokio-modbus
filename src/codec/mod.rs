@@ -67,6 +67,7 @@ impl From<Request> for Bytes {
                     data.put_u8(d);
                 }
             }
+            Disconnect => unreachable!(),
         }
         data.freeze()
     }
@@ -398,6 +399,7 @@ fn req_to_fn_code(req: &Request) -> u8 {
         WriteMultipleRegisters(_, _) => 0x10,
         ReadWriteMultipleRegisters(_, _, _, _) => 0x17,
         Custom(code, _) => code,
+        Disconnect => unreachable!(),
     }
 }
 
@@ -430,6 +432,7 @@ fn request_byte_count(req: &Request) -> usize {
         WriteMultipleRegisters(_, ref data) => 6 + data.len() * 2,
         ReadWriteMultipleRegisters(_, _, _, ref data) => 10 + data.len() * 2,
         Custom(_, ref data) => 1 + data.len(),
+        Disconnect => unreachable!(),
     }
 }
 

@@ -81,6 +81,19 @@ pub struct Context {
     client: Box<dyn Client>,
 }
 
+impl Context {
+    pub fn disconnect(&self) -> impl Future<Item = (), Error = Error> {
+        // Disconnecting is expected to fail!
+        self.client.call(Request::Disconnect).then(|res| match res {
+            Ok(_) => unreachable!(),
+            Err(err) => match err.kind() {
+                ErrorKind::NotConnected | ErrorKind::BrokenPipe => Ok(()),
+                _ => Err(err),
+            },
+        })
+    }
+}
+
 impl From<Box<dyn Client>> for Context {
     fn from(client: Box<dyn Client>) -> Self {
         Self { client }
