@@ -9,6 +9,7 @@ ignored by both clients and servers!
 
 - Client: Added a `Disconnect` request as *poison pill* for stopping
   the client service and to release the underlying transport.
+- Minimal Rust version: `1.34.0`
 
 ## v0.3.1 (2019-04-08)
 

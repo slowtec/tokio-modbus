@@ -8,6 +8,7 @@ use crate::frame::*;
 
 use byteorder::ReadBytesExt;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
+use std::convert::TryFrom;
 use std::io::{self, Cursor, Error, ErrorKind};
 
 impl From<Request> for Bytes {
@@ -137,14 +138,6 @@ impl From<ResponsePdu> for Bytes {
         // TODO: Replace with Result::map_or_else() when available
         pdu.0.map(Into::into).unwrap_or_else(Into::into)
     }
-}
-
-// As long as `TryFrom` is only available in stable rust,
-// we just use our own trait.
-// This should be fine since we just use it internally.
-pub(crate) trait TryFrom<T>: Sized {
-    type Error;
-    fn try_from(value: T) -> Result<Self, Self::Error>;
 }
 
 impl TryFrom<Bytes> for Request {
