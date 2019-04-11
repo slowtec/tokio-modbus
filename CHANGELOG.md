@@ -1,15 +1,21 @@
 # Changelog
 
-## v0.3.2 (2019-04-11)
-
-Potential breaking change: Extending the `Request` enum with the new variant
-`Disconnect` might break existing code. This variant is only used internally
-within the client and will never be sent across the wire and can safely be
-ignored by both clients and servers!
+## v0.3.2 (2019-04-12)
 
 - Client: Added a `Disconnect` request as *poison pill* for stopping
   the client service and to release the underlying transport.
+- Added utilities to share a Modbus context within a thread for communicating
+  with multiple devices.
+- Added utility functions to disconnect and reconnect stale connections after
+  errors.
 - Minimal Rust version: `1.34.0`
+
+### Potential breaking change
+
+Extending the `Request` enum with the new variant `Disconnect` might break
+existing code. This variant is only used internally within the client and
+will never be sent across the wire and can safely be ignored by both clients
+and servers!
 
 ## v0.3.1 (2019-04-08)
 

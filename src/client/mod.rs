@@ -7,6 +7,8 @@ pub mod sync;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
+pub mod util;
+
 use crate::frame::*;
 use crate::slave::*;
 
