@@ -5,7 +5,8 @@ pub mod rtu;
 pub mod tcp;
 
 use super::{
-    Client as AsyncClient, Context as AsyncContext, SlaveContext, Reader as AsyncReader, Writer as AsyncWriter,
+    Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, SlaveContext,
+    Writer as AsyncWriter,
 };
 
 use crate::frame::*;
