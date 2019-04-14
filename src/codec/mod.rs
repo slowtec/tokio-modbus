@@ -5,11 +5,12 @@ pub mod rtu;
 pub mod tcp;
 
 use crate::frame::*;
+use modbus_core as mb;
 
 use byteorder::ReadBytesExt;
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use std::convert::TryFrom;
-use std::io::{self, Cursor, Error, ErrorKind};
+use std::io::{Cursor, Error, ErrorKind};
 
 impl From<Request> for Bytes {
     fn from(req: Request) -> Bytes {
@@ -144,69 +145,10 @@ impl TryFrom<Bytes> for Request {
     type Error = Error;
 
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        use crate::frame::Request::*;
-        let mut rdr = Cursor::new(&bytes);
-        let fn_code = rdr.read_u8()?;
-        let req = match fn_code {
-            0x01 => ReadCoils(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x02 => ReadDiscreteInputs(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x05 => WriteSingleCoil(
-                rdr.read_u16::<BigEndian>()?,
-                coil_to_bool(rdr.read_u16::<BigEndian>()?)?,
-            ),
-            0x0F => {
-                let address = rdr.read_u16::<BigEndian>()?;
-                let quantity = rdr.read_u16::<BigEndian>()?;
-                let byte_count = rdr.read_u8()?;
-                if bytes.len() < (6 + byte_count as usize) {
-                    return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
-                }
-                let x = &bytes[6..];
-                WriteMultipleCoils(address, unpack_coils(x, quantity))
-            }
-            0x04 => ReadInputRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x03 => {
-                ReadHoldingRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
-            }
-            0x06 => WriteSingleRegister(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-
-            0x10 => {
-                let address = rdr.read_u16::<BigEndian>()?;
-                let quantity = rdr.read_u16::<BigEndian>()?;
-                let byte_count = rdr.read_u8()? as usize;
-                if bytes.len() < (6 + byte_count as usize) {
-                    return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
-                }
-                let mut data = vec![];
-                for _ in 0..quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
-                }
-                WriteMultipleRegisters(address, data)
-            }
-            0x17 => {
-                let read_address = rdr.read_u16::<BigEndian>()?;
-                let read_quantity = rdr.read_u16::<BigEndian>()?;
-                let write_address = rdr.read_u16::<BigEndian>()?;
-                let write_quantity = rdr.read_u16::<BigEndian>()?;
-                let write_count = rdr.read_u8()? as usize;
-                let mut data = vec![];
-                if bytes.len() < (10 + write_count as usize) {
-                    return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
-                }
-                for _ in 0..write_quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
-                }
-                ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data)
-            }
-            fn_code if fn_code < 0x80 => Custom(fn_code, bytes[1..].into()),
-            fn_code => {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
-                    format!("Invalid function code: 0x{:0>2X}", fn_code),
-                ));
-            }
-        };
-        Ok(req)
+        let bytes: &[u8] = &bytes;
+        mb::Request::try_from(bytes)
+            .map(|r| r.into())
+            .map_err(|e| Error::new(ErrorKind::InvalidData, format!("{}", e)))
     }
 }
 
@@ -223,63 +165,10 @@ impl TryFrom<Bytes> for Response {
     type Error = Error;
 
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        use crate::frame::Response::*;
-        let mut rdr = Cursor::new(&bytes);
-        let fn_code = rdr.read_u8()?;
-        let rsp = match fn_code {
-            0x01 => {
-                let byte_count = rdr.read_u8()?;
-                let x = &bytes[2..];
-                // Here we have not information about the exact requested quantity so we just
-                // unpack the whole byte.
-                let quantity = u16::from(byte_count * 8);
-                ReadCoils(unpack_coils(x, quantity))
-            }
-            0x02 => {
-                let byte_count = rdr.read_u8()?;
-                let x = &bytes[2..];
-                // Here we have no information about the exact requested quantity so we just
-                // unpack the whole byte.
-                let quantity = u16::from(byte_count * 8);
-                ReadDiscreteInputs(unpack_coils(x, quantity))
-            }
-            0x05 => WriteSingleCoil(rdr.read_u16::<BigEndian>()?),
-            0x0F => WriteMultipleCoils(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x04 => {
-                let byte_count = rdr.read_u8()?;
-                let quantity = byte_count / 2;
-                let mut data = vec![];
-                for _ in 0..quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
-                }
-                ReadInputRegisters(data)
-            }
-            0x03 => {
-                let byte_count = rdr.read_u8()?;
-                let quantity = byte_count / 2;
-                let mut data = vec![];
-                for _ in 0..quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
-                }
-                ReadHoldingRegisters(data)
-            }
-            0x06 => WriteSingleRegister(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-
-            0x10 => {
-                WriteMultipleRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
-            }
-            0x17 => {
-                let byte_count = rdr.read_u8()?;
-                let quantity = byte_count / 2;
-                let mut data = vec![];
-                for _ in 0..quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
-                }
-                ReadWriteMultipleRegisters(data)
-            }
-            _ => Custom(fn_code, bytes[1..].into()),
-        };
-        Ok(rsp)
+        let bytes: &[u8] = &bytes;
+        mb::Response::try_from(bytes)
+            .map(|r| r.into())
+            .map_err(|e| Error::new(ErrorKind::InvalidData, format!("{}", e)))
     }
 }
 
@@ -342,40 +231,13 @@ impl TryFrom<Bytes> for ResponsePdu {
 }
 
 fn bool_to_coil(state: bool) -> u16 {
-    if state {
-        0xFF00
-    } else {
-        0x0000
-    }
-}
-
-fn coil_to_bool(coil: u16) -> io::Result<bool> {
-    match coil {
-        0xFF00 => Ok(true),
-        0x0000 => Ok(false),
-        _ => Err(Error::new(ErrorKind::InvalidData, "Invalid coil value: {}")),
-    }
-}
-
-fn packed_coils_len(bitcount: usize) -> usize {
-    (bitcount + 7) / 8
+    mb::bool_to_u16_coil(state)
 }
 
 fn pack_coils(coils: &[Coil]) -> Vec<u8> {
-    let packed_size = packed_coils_len(coils.len());
+    let packed_size = mb::packed_coils_len(coils.len());
     let mut res = vec![0; packed_size];
-    for (i, b) in coils.iter().enumerate() {
-        let v = if *b { 0b1 } else { 0b0 };
-        res[(i / 8) as usize] |= v << (i % 8);
-    }
-    res
-}
-
-fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
-    let mut res = Vec::with_capacity(count as usize);
-    for i in 0..count {
-        res.push((bytes[(i / 8u16) as usize] >> (i % 8)) & 0b1 > 0);
-    }
+    mb::pack_coils(coils, &mut res).unwrap();
     res
 }
 
@@ -421,7 +283,7 @@ fn request_byte_count(req: &Request) -> usize {
         | ReadHoldingRegisters(_, _)
         | WriteSingleRegister(_, _)
         | WriteSingleCoil(_, _) => 5,
-        WriteMultipleCoils(_, ref coils) => 6 + packed_coils_len(coils.len()),
+        WriteMultipleCoils(_, ref coils) => 6 + mb::packed_coils_len(coils.len()),
         WriteMultipleRegisters(_, ref data) => 6 + data.len() * 2,
         ReadWriteMultipleRegisters(_, _, _, ref data) => 10 + data.len() * 2,
         Custom(_, ref data) => 1 + data.len(),
@@ -432,7 +294,9 @@ fn request_byte_count(req: &Request) -> usize {
 fn response_byte_count(rsp: &Response) -> usize {
     use crate::frame::Response::*;
     match *rsp {
-        ReadCoils(ref coils) | ReadDiscreteInputs(ref coils) => 2 + packed_coils_len(coils.len()),
+        ReadCoils(ref coils) | ReadDiscreteInputs(ref coils) => {
+            2 + mb::packed_coils_len(coils.len())
+        }
         WriteSingleCoil(_) => 3,
         WriteMultipleCoils(_, _) | WriteMultipleRegisters(_, _) | WriteSingleRegister(_, _) => 5,
         ReadInputRegisters(ref data)
@@ -454,12 +318,6 @@ mod tests {
     }
 
     #[test]
-    fn convert_coil_to_bool() {
-        assert_eq!(coil_to_bool(0xFF00).unwrap(), true);
-        assert_eq!(coil_to_bool(0x0000).unwrap(), false);
-    }
-
-    #[test]
     fn convert_booleans_to_bytes() {
         assert_eq!(pack_coils(&[]), &[]);
         assert_eq!(pack_coils(&[true]), &[0b_1]);
@@ -471,17 +329,6 @@ mod tests {
         assert_eq!(pack_coils(&[true; 9]), &[255, 1]);
         assert_eq!(pack_coils(&[false; 8]), &[0]);
         assert_eq!(pack_coils(&[false; 9]), &[0, 0]);
-    }
-
-    #[test]
-    fn test_unpack_bits() {
-        assert_eq!(unpack_coils(&[], 0), &[]);
-        assert_eq!(unpack_coils(&[0, 0], 0), &[]);
-        assert_eq!(unpack_coils(&[0b1], 1), &[true]);
-        assert_eq!(unpack_coils(&[0b01], 2), &[true, false]);
-        assert_eq!(unpack_coils(&[0b10], 2), &[false, true]);
-        assert_eq!(unpack_coils(&[0b101], 3), &[true, false, true]);
-        assert_eq!(unpack_coils(&[0xff, 0b11], 10), &[true; 10]);
     }
 
     #[test]
