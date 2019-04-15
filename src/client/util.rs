@@ -1,3 +1,5 @@
+//! Utilities for sharing a Modbus context
+
 use super::*;
 
 use futures::{future, Future};
@@ -43,6 +45,8 @@ impl SharedContextHolder {
 }
 
 /// Trait for (re-)creating new contexts on demand.
+///
+/// Implement this trait for reconnecting a `SharedContext` on demand.
 pub trait NewContext {
     /// Create a new context.
     fn new_context(&self) -> Box<dyn Future<Item = Context, Error = Error>>;
@@ -64,13 +68,14 @@ impl SharedContext {
         }
     }
 
+    /// Checks if a shared context is available.
     pub fn is_connected(&self) -> bool {
         self.shared_context.is_connected()
     }
 
-    /// Try to obtain a shared context reference. The result will
-    /// be `None` if no context is available, i.e. if the shared
-    /// context is not connected.
+    /// Try to obtain a shared context reference. The result is `None`
+    /// if no context is available, i.e. if the shared context is not
+    /// connected.
     ///
     /// The result should only be used temporarily for the next
     /// asynchronous request and must not be reused later!

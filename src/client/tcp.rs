@@ -1,3 +1,5 @@
+//! Connecting a Modbus TCP context
+
 use super::*;
 
 use crate::service;

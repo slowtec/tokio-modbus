@@ -1,3 +1,5 @@
+//! Synchronous Modbus context access
+
 #[cfg(feature = "rtu")]
 pub mod rtu;
 

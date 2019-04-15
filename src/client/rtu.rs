@@ -1,3 +1,5 @@
+//! Connecting a Modbus RTU context
+
 use super::*;
 
 use crate::service;
