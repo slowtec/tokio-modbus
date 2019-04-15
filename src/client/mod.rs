@@ -315,3 +315,50 @@ impl Writer for Context {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use futures::future;
+
+    use std::cell::RefCell;
+
+    #[derive(Default, Debug)]
+    pub struct ClientMock {
+        slave: Option<Slave>,
+        last_request: RefCell<Option<Request>>,
+        next_response: Option<Result<Response, Error>>,
+    }
+
+    #[allow(dead_code)]
+    impl ClientMock {
+        pub fn slave(&self) -> Option<Slave> {
+            self.slave
+        }
+
+        pub fn last_request(&self) -> &RefCell<Option<Request>> {
+           &self.last_request
+        }
+
+        pub fn set_next_response(&mut self, next_response: Result<Response, Error>) {
+            self.next_response = Some(next_response);
+        }
+    }
+
+    impl Client for ClientMock {
+        fn call(&self, request: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
+            self.last_request.replace(Some(request));
+            Box::new(future::result(match self.next_response.as_ref().unwrap() {
+                Ok(response) => Ok(response.clone()),
+                Err(err) => Err(Error::new(err.kind(), format!("{}", err)))
+            }))
+        }
+    }
+
+    impl SlaveContext for ClientMock {
+        fn set_slave(&mut self, slave: Slave) {
+            self.slave = Some(slave);
+        }
+    }
+}

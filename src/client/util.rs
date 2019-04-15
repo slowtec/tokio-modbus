@@ -116,3 +116,42 @@ pub fn reconnect_shared_context(
                 })
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use super::super::tests::*;
+
+    struct NewContextMock;
+
+    impl NewContext for NewContextMock {
+        fn new_context(&self) -> Box<dyn Future<Item = Context, Error = Error>> {
+            let client: Box<dyn Client> = Box::new(ClientMock::default());
+            Box::new(future::ok(Context::from(client)))
+        }
+    }
+
+    #[test]
+    fn new_shared_context() {
+        let disconnected = SharedContext::new(None, Box::new(NewContextMock));
+        assert!(!disconnected.is_connected());
+        assert!(disconnected.share_context().is_none());
+        let client: Box<dyn Client> = Box::new(ClientMock::default());
+        let connected = SharedContext::new(Some(Context::from(client)), Box::new(NewContextMock));
+        assert!(connected.is_connected());
+        assert!(connected.share_context().is_some());
+    }
+
+    #[test]
+    fn reconnect_shared_context() {
+        let sc = SharedContext::new(None, Box::new(NewContextMock));
+        assert!(!sc.is_connected());
+        assert!(sc.share_context().is_none());
+
+        let sc = Rc::new(RefCell::new(sc));
+        super::reconnect_shared_context(&sc).wait().unwrap();
+        assert!(sc.borrow().is_connected());
+        assert!(sc.borrow().share_context().is_some());
+    }
+}
