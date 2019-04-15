@@ -71,11 +71,10 @@ pub fn main() {
             context.set_slave(SLAVE_1);
             context
                 .read_holding_registers(0x082B, 2)
-                .map(move |response| (shared_context, response))
-        })
-        .map(move |(shared_context, response)| {
-            println!("Sensor value for device {:?} is: {:?}", SLAVE_1, response);
-            shared_context
+                .map(move |response| {
+                    println!("Sensor value for device {:?} is: {:?}", SLAVE_1, response);
+                    shared_context // Continue
+                })
         })
         .and_then(move |shared_context| {
             println!("Reading a sensor value from {:?}", SLAVE_2);
@@ -84,11 +83,10 @@ pub fn main() {
             context.set_slave(SLAVE_2);
             context
                 .read_holding_registers(0x082B, 2)
-                .map(move |response| (shared_context, response))
-        })
-        .map(move |(_, response)| {
-            println!("Sensor value for device {:?} is: {:?}", SLAVE_2, response);
-            // Done
+                .map(move |response| {
+                    println!("Sensor value for device {:?} is: {:?}", SLAVE_2, response);
+                    // Done
+                })
         });
 
     core.run(task).unwrap();

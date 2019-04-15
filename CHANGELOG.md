@@ -1,13 +1,13 @@
 # Changelog
 
-## v0.3.2 (2019-04-12)
+## v0.3.2 (2019-04-15)
 
 - Client: Added a `Disconnect` request as *poison pill* for stopping
-  the client service and to release the underlying transport.
-- Added utilities to share a Modbus context within a thread for communicating
-  with multiple devices.
-- Added utility functions to disconnect and reconnect stale connections after
-  errors.
+  the client service and to release the underlying transport
+- Added utilities to share a single Modbus context within a thread for
+  communicating with multiple devices
+- Added utility functions to disconnect and reconnect stale connections
+  after errors
 - Minimal Rust version: `1.34.0`
 
 ### Potential breaking change
