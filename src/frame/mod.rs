@@ -50,6 +50,11 @@ pub enum Request {
 }
 
 /// The data of a successfull request.
+///
+/// ReadCoils/ReadDiscreteInputs: The length of the result Vec is always a
+/// multiple of 8. Only the values of the first bits/coils that have actually
+/// been requested are defined. The value of the remaining bits depend on the
+/// server implementation and those coils should be should be ignored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Response {
     ReadCoils(Vec<Coil>),

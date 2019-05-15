@@ -129,8 +129,10 @@ impl Reader for Context {
         Box::new(
             self.client
                 .call(Request::ReadCoils(addr, cnt))
-                .and_then(|rsp| {
-                    if let Response::ReadCoils(coils) = rsp {
+                .and_then(move |rsp| {
+                    if let Response::ReadCoils(mut coils) = rsp {
+                        debug_assert!(coils.len() >= cnt as usize);
+                        coils.truncate(cnt as usize);
                         Ok(coils)
                     } else {
                         Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
@@ -147,8 +149,10 @@ impl Reader for Context {
         Box::new(
             self.client
                 .call(Request::ReadDiscreteInputs(addr, cnt))
-                .and_then(|rsp| {
-                    if let Response::ReadDiscreteInputs(coils) = rsp {
+                .and_then(move |rsp| {
+                    if let Response::ReadDiscreteInputs(mut coils) = rsp {
+                        debug_assert!(coils.len() >= cnt as usize);
+                        coils.truncate(cnt as usize);
                         Ok(coils)
                     } else {
                         Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
@@ -338,7 +342,7 @@ mod tests {
         }
 
         pub fn last_request(&self) -> &RefCell<Option<Request>> {
-           &self.last_request
+            &self.last_request
         }
 
         pub fn set_next_response(&mut self, next_response: Result<Response, Error>) {
@@ -351,7 +355,7 @@ mod tests {
             self.last_request.replace(Some(request));
             Box::new(future::result(match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
-                Err(err) => Err(Error::new(err.kind(), format!("{}", err)))
+                Err(err) => Err(Error::new(err.kind(), format!("{}", err))),
             }))
         }
     }
@@ -359,6 +363,39 @@ mod tests {
     impl SlaveContext for ClientMock {
         fn set_slave(&mut self, slave: Slave) {
             self.slave = Some(slave);
+        }
+    }
+
+    #[test]
+    fn read_some_coils() {
+        // The protocol will always return entire bytes with, i.e.
+        // a multiple of 8 coils.
+        let response_coils = [true, false, false, true, false, true, false, true].to_vec();
+        for num_coils in 1usize..8usize {
+            let mut client = Box::new(ClientMock::default());
+            client.set_next_response(Ok(Response::ReadCoils(response_coils.clone())));
+            let mut context = Context { client };
+            context.set_slave(Slave(1));
+            let coils = context.read_coils(1, num_coils as u16).wait().unwrap();
+            assert_eq!(&response_coils[0..num_coils], &coils[..]);
+        }
+    }
+
+    #[test]
+    fn read_some_discrete_inputs() {
+        // The protocol will always return entire bytes with, i.e.
+        // a multiple of 8 coils.
+        let response_inputs = [true, false, false, true, false, true, false, true].to_vec();
+        for num_inputs in 1usize..8usize {
+            let mut client = Box::new(ClientMock::default());
+            client.set_next_response(Ok(Response::ReadDiscreteInputs(response_inputs.clone())));
+            let mut context = Context { client };
+            context.set_slave(Slave(1));
+            let inputs = context
+                .read_discrete_inputs(1, num_inputs as u16)
+                .wait()
+                .unwrap();
+            assert_eq!(&response_inputs[0..num_inputs], &inputs[..]);
         }
     }
 }
