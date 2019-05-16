@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.3 (2019-05-16)
+
+- Fixed reading coils: Truncate response payload to match the requested
+  number of coils or discrete inputs.
+
 ## v0.3.2 (2019-04-15)
 
 - Client: Added a `Disconnect` request as *poison pill* for stopping
