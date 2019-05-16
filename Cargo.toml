@@ -22,16 +22,17 @@ tokio-codec = "0.1"
 tokio-proto = "0.1"
 tokio-service = "0.1"
 
-tokio-serial = { version = "3.2", optional = true }
+tokio-serial = { version = "3.2", optional = true, default-features = false }
 
 [dev-dependencies]
 env_logger = "0.6"
 
 [features]
-default = ["tcp", "rtu", "sync"]
+default = ["tcp", "rtu", "sync", "libudev"]
 rtu = ["tokio-serial"]
 tcp = []
 sync = []
+libudev = ["tokio-serial/libudev"]
 
 [badges]
 travis-ci = { repository = "slowtec/tokio-modbus" }
