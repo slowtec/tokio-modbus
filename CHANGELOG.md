@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.4 (2019-05-21)
+
+- Disabled the default features of *tokio-serial* to exclude an unused
+  dependency on *libudev* inherited from *mio-serial*
+
 ## v0.3.3 (2019-05-16)
 
 - Fixed reading coils: Truncate response payload to match the requested
