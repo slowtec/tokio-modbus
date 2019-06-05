@@ -11,6 +11,9 @@ impl Slave {
     /// connected Modbus slave devices at once. Broadcast messages
     /// are one-way and sent from the master to all slaves, i.e.
     /// a request without a response.
+    ///
+    /// Some devices may use a custom id from the reserved range
+    /// 248-255 for broadcasting.
     pub const fn broadcast() -> Self {
         Slave(0)
     }
@@ -85,6 +88,17 @@ impl fmt::Display for Slave {
     }
 }
 
+/// Stateful management of the currently active device.
+///
+/// RTU devices are addressed by their assigned *slave id*.
+///
+/// TCP devices are either addressed directly (= implicitly) by using the
+/// reserved *unit id* `Slave::tcp_device() = 0xFF` (default) or indirectly
+/// through an TCP/RTU gateway by setting the *unit id* to the desired
+/// *slave id*.
+///
+/// The names *slave id* and *unit id* are used synonymously depending
+/// on the context. This library consistently adopted the term *slave*.
 pub trait SlaveContext {
     /// Select a slave device for all subsequent outgoing requests.
     fn set_slave(&mut self, slave: Slave);
