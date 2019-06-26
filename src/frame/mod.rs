@@ -9,7 +9,12 @@ use std::{error, fmt};
 /// A Modbus function code is represented by an unsigned 8 bit integer.
 pub(crate) type FunctionCode = u8;
 
-/// A Modbus address is represented by 16 bit (from `0` to `65535`).
+/// A Modbus protocol address is represented by 16 bit from `0` to `65535`.
+///
+/// This *protocol address* uses 0-based indexing, while the *coil address* or
+/// *register address* is often specified as a number with 1-based indexing.
+/// Please consult the specification of your devices if 1-based coil/register
+/// addresses need to be converted to 0-based protocol addresses by subtracting 1.
 pub(crate) type Address = u16;
 
 /// A Coil represents a single bit.
