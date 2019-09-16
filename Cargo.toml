@@ -23,7 +23,7 @@ tokio-proto = "0.1"
 tokio-service = "0.1"
 
 # Disable default-features to exclude unused dependency on libudev
-tokio-serial = { version = "3.2", optional = true, default-features = false }
+tokio-serial = { version = "3.3", optional = true, default-features = false }
 
 [dev-dependencies]
 env_logger = "0.6"
