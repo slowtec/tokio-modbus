@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.5 (2019-09-17)
+
+- Added missing implementation of `disconnect()` for TCP clients
+- Upgraded *tokio-serial* to version 3.3
+
 ## v0.3.4 (2019-05-21)
 
 - Disabled the default features of *tokio-serial* to exclude an unused
