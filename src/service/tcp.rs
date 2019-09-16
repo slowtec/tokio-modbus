@@ -56,18 +56,20 @@ impl Context {
         }
     }
 
-    fn next_request_adu<R>(&self, req: R) -> RequestAdu
+    fn next_request_adu<R>(&self, req: R, disconnect: bool) -> RequestAdu
     where
         R: Into<RequestPdu>,
     {
         RequestAdu {
             hdr: self.next_request_hdr(self.unit_id),
             pdu: req.into(),
+            disconnect,
         }
     }
 
     pub fn call(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
-        let req_adu = self.next_request_adu(req);
+        let disconnect = req == Request::Disconnect;
+        let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
         self.service
             .call(req_adu)

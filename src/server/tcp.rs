@@ -30,7 +30,7 @@ where
     type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
 
     fn call(&self, adu: Self::Request) -> Self::Future {
-        let Self::Request { hdr, pdu } = adu;
+        let Self::Request { hdr, pdu, .. } = adu;
         let req: Request = pdu.into();
         Box::new(self.service.call(req.into()).then(move |rsp| match rsp {
             Ok(rsp) => {
@@ -114,7 +114,11 @@ mod tests {
             unit_id: 7,
         };
         let pdu = Request::ReadInputRegisters(0, 1).into();
-        let req_adu = RequestAdu { hdr, pdu };
+        let req_adu = RequestAdu {
+            hdr,
+            pdu,
+            disconnect: false,
+        };
         let rsp_adu = service.call(req_adu).wait().unwrap();
 
         assert_eq!(
