@@ -120,7 +120,7 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
     }
     let fn_code = adu_buf[1];
     let len = match fn_code {
-        0x01...0x06 => Some(5),
+        0x01..=0x06 => Some(5),
         0x07 | 0x0B | 0x0C | 0x11 => Some(1),
         0x0F | 0x10 => {
             if adu_buf.len() > 4 {
@@ -156,7 +156,7 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
     }
     let fn_code = adu_buf[1];
     let len = match fn_code {
-        0x01...0x04 | 0x0C | 0x17 => {
+        0x01..=0x04 | 0x0C | 0x17 => {
             if adu_buf.len() > 2 {
                 Some(2 + adu_buf[2] as usize)
             } else {
@@ -175,7 +175,7 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
                 None
             }
         }
-        0x81...0xAB => Some(2),
+        0x81..=0xAB => Some(2),
         _ => {
             return Err(Error::new(
                 ErrorKind::InvalidData,
@@ -676,7 +676,7 @@ mod tests {
 
         #[test]
         fn decode_rtu_response_drop_invalid_bytes() {
-            let _ = env_logger::init();
+            env_logger::init();
             let mut codec = ClientCodec::default();
             let mut buf = BytesMut::from(vec![
                 0x42, // dropped byte

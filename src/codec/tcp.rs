@@ -44,6 +44,7 @@ impl Decoder for AduDecoder {
     type Item = (Header, Bytes);
     type Error = Error;
 
+    #[allow(clippy::assertions_on_constants)]
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(Header, Bytes)>> {
         if buf.len() < HEADER_LEN {
             return Ok(None);
@@ -184,7 +185,7 @@ mod tests {
         const TRANSACTION_ID_LO: u8 = 0x01;
 
         const PROTOCOL_ID_HI: u8 = (PROTOCOL_ID >> 8) as u8;
-        const PROTOCOL_ID_LO: u8 = PROTOCOL_ID as u8 & 0xFF;
+        const PROTOCOL_ID_LO: u8 = (PROTOCOL_ID & 0xFF) as u8;
 
         const UNIT_ID: UnitId = 0xFE;
 
