@@ -47,13 +47,27 @@ fn main() {
     println!("Connecting client...");
     let task = tcp::connect(&handle, socket_addr).and_then(|ctx| {
         println!("Reading input registers...");
-        ctx.read_input_registers(0x00, 7).and_then(move |rsp| {
-            println!("The result is '{:?}'", rsp);
-            Ok(())
-        })
+        ctx.read_input_registers(0x00, 7)
+            .then(move |res| {
+                match res {
+                    Ok(rsp) => {
+                        println!("The result is '{:?}'", rsp);
+                    }
+                    Err(err) => {
+                        eprintln!("Failed to read input registers: {}", err);
+                    }
+                }
+                Ok(ctx) // continue
+            })
+            .and_then(|ctx| {
+                println!("Disconnecting client...");
+                ctx.disconnect()
+            })
     });
 
     core.run(task).unwrap();
+
+    println!("Done.");
 }
 
 #[cfg(not(feature = "tcp"))]
