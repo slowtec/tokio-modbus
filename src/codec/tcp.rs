@@ -2,10 +2,10 @@ use super::*;
 
 use crate::frame::tcp::*;
 
-use byteorder::ByteOrder;
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
+use byteorder::{ByteOrder, BigEndian};
+use bytes::{BufMut, Bytes, BytesMut};
 use std::io::{Error, ErrorKind, Result};
-use tokio_codec::{Decoder, Encoder};
+use tokio_util::codec::{Decoder, Encoder};
 
 const HEADER_LEN: usize = 7;
 
@@ -145,9 +145,9 @@ impl Encoder for ClientCodec {
         let RequestAdu { hdr, pdu, .. } = adu;
         let pdu_data: Bytes = pdu.into();
         buf.reserve(pdu_data.len() + 7);
-        buf.put_u16_be(hdr.transaction_id);
-        buf.put_u16_be(PROTOCOL_ID);
-        buf.put_u16_be((pdu_data.len() + 1) as u16);
+        buf.put_u16(hdr.transaction_id);
+        buf.put_u16(PROTOCOL_ID);
+        buf.put_u16((pdu_data.len() + 1) as u16);
         buf.put_u8(hdr.unit_id);
         buf.put_slice(&*pdu_data);
         Ok(())
@@ -162,9 +162,9 @@ impl Encoder for ServerCodec {
         let ResponseAdu { hdr, pdu } = adu;
         let pdu_data: Bytes = pdu.into();
         buf.reserve(pdu_data.len() + 7);
-        buf.put_u16_be(hdr.transaction_id);
-        buf.put_u16_be(PROTOCOL_ID);
-        buf.put_u16_be((pdu_data.len() + 1) as u16);
+        buf.put_u16(hdr.transaction_id);
+        buf.put_u16(PROTOCOL_ID);
+        buf.put_u16((pdu_data.len() + 1) as u16);
         buf.put_u8(hdr.unit_id);
         buf.put_slice(&*pdu_data);
         Ok(())
@@ -192,7 +192,7 @@ mod tests {
         #[test]
         fn decode_header_fragment() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(vec![0x00, 0x11, 0x00, 0x00, 0x00, 0x00]);
+            let mut buf = BytesMut::from(&[0x00, 0x11, 0x00, 0x00, 0x00, 0x00][..]);
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
             assert_eq!(buf.len(), 6);
@@ -201,7 +201,7 @@ mod tests {
         #[test]
         fn decode_partly_received_message() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 TRANSACTION_ID_HI,
                 TRANSACTION_ID_LO,
                 PROTOCOL_ID_HI,
@@ -210,7 +210,7 @@ mod tests {
                 0x03, // length low LO
                 UNIT_ID,
                 0x02, // function code
-            ]);
+            ][..]);
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
             assert_eq!(buf.len(), 8);
@@ -219,7 +219,7 @@ mod tests {
         #[test]
         fn decode_exception_message() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 TRANSACTION_ID_HI,
                 TRANSACTION_ID_LO,
                 PROTOCOL_ID_HI,
@@ -230,7 +230,7 @@ mod tests {
                 0x82, // exception = 0x80 + 0x02
                 0x03, //
                 0x00, //
-            ]);
+            ][..]);
 
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(hdr.transaction_id, TRANSACTION_ID);
@@ -246,7 +246,7 @@ mod tests {
         #[test]
         fn decode_with_invalid_protocol_id() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 TRANSACTION_ID_HI,
                 TRANSACTION_ID_LO,
                 0x33, // protocol id HI
@@ -254,7 +254,7 @@ mod tests {
                 0x00, // length HI
                 0x03, // length LO
                 UNIT_ID,
-            ]);
+            ][..]);
             buf.extend_from_slice(&[0x00, 0x02, 0x66, 0x82, 0x03, 0x00]);
             let err = codec.decode(&mut buf).err().unwrap();
             assert_eq!(err.kind(), ErrorKind::InvalidData);

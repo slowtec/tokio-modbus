@@ -1,47 +1,9 @@
-use crate::frame::{tcp::*, *};
-use crate::proto::tcp::Proto;
-
-use futures::Future;
+use crate::frame::*;
+use crate::server::tcp_server::TcpServer;
+use futures::{self, Future};
 use std::io::Error;
 use std::net::SocketAddr;
-use tokio_proto::TcpServer;
-use tokio_service::{NewService, Service};
-
-struct ServiceWrapper<S> {
-    service: S,
-}
-
-impl<S> ServiceWrapper<S> {
-    fn new(service: S) -> Self {
-        Self { service }
-    }
-}
-
-impl<S> Service for ServiceWrapper<S>
-where
-    S: Service + Send + Sync + 'static,
-    S::Request: From<Request>,
-    S::Response: Into<Response>,
-    S::Error: Into<Error>,
-{
-    type Request = RequestAdu;
-    type Response = ResponseAdu;
-    type Error = Error;
-    type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
-
-    fn call(&self, adu: Self::Request) -> Self::Future {
-        let Self::Request { hdr, pdu, .. } = adu;
-        let req: Request = pdu.into();
-        Box::new(self.service.call(req.into()).then(move |rsp| match rsp {
-            Ok(rsp) => {
-                let rsp: Response = rsp.into();
-                let pdu = rsp.into();
-                Ok(Self::Response { hdr, pdu })
-            }
-            Err(e) => Err(e.into()),
-        }))
-    }
-}
+use crate::NewService;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Server {
@@ -67,24 +29,37 @@ impl Server {
     /// Start a Modbus TCP server that blocks the current thread.
     pub fn serve<S>(self, service: S)
     where
-        S: NewService + Send + Sync + 'static,
+        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response> + Send + Sync + 'static,
         S::Request: From<Request>,
         S::Response: Into<Response>,
         S::Error: Into<Error>,
         S::Instance: Send + Sync + 'static,
     {
-        let mut server = TcpServer::new(Proto, self.socket_addr);
+        self.serve_until(service, futures::future::pending());
+    }
+
+    /// Start a Modbus TCP server that blocks the current thread.
+    pub fn serve_until<S, Sd>(self, service: S, shutdown_signal: Sd)
+    where
+        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response> + Send + Sync + 'static,
+        Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
+        S::Request: From<Request>,
+        S::Response: Into<Response>,
+        S::Error: Into<Error>,
+        S::Instance: Send + Sync + 'static,
+    {
+        let mut server = TcpServer::new(self.socket_addr);
         if let Some(threads) = self.threads {
             server.threads(threads);
         }
-        server.serve(move || Ok(ServiceWrapper::new(service.new_service()?)));
+        server.serve_until(service, shutdown_signal);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::future;
+    use crate::Service;
 
     #[test]
     fn service_wrapper() {
@@ -97,37 +72,19 @@ mod tests {
             type Request = Request;
             type Response = Response;
             type Error = Error;
-            type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
 
-            fn call(&self, _: Self::Request) -> Self::Future {
-                Box::new(future::ok(self.response.clone()))
+            fn call(&self, _: Self::Request) -> Response {
+                self.response.clone()
             }
         }
 
-        let s = DummyService {
+        let service = DummyService {
             response: Response::ReadInputRegisters(vec![0x33]),
         };
-        let service = ServiceWrapper::new(s.clone());
 
-        let hdr = Header {
-            transaction_id: 9,
-            unit_id: 7,
-        };
-        let pdu = Request::ReadInputRegisters(0, 1).into();
-        let req_adu = RequestAdu {
-            hdr,
-            pdu,
-            disconnect: false,
-        };
-        let rsp_adu = service.call(req_adu).wait().unwrap();
+        let pdu = Request::ReadInputRegisters(0, 1);
+        let rsp_adu = service.call(pdu);
 
-        assert_eq!(
-            rsp_adu.hdr,
-            Header {
-                transaction_id: 9,
-                unit_id: 7,
-            }
-        );
-        assert_eq!(rsp_adu.pdu, s.response.into());
+        assert_eq!(rsp_adu, service.response);
     }
 }

@@ -1,40 +1,46 @@
 use crate::client::Client;
 use crate::frame::{tcp::*, *};
-use crate::proto::tcp::Proto;
+use crate::codec;
 use crate::slave::*;
 
 use futures::Future;
 use std::cell::Cell;
 use std::io::{Error, ErrorKind};
 use std::net::SocketAddr;
-use tokio_core::net::TcpStream;
-use tokio_core::reactor::Handle;
-use tokio_proto::pipeline::ClientService;
-use tokio_proto::TcpClient;
-use tokio_service::Service;
+use tokio::net::TcpStream;
+use tokio_util::codec::Framed;
+
+use futures_util::sink::SinkExt;
+use futures_util::stream::StreamExt;
+
+use std::pin::Pin;
 
 pub(crate) fn connect_slave(
-    handle: &Handle,
     socket_addr: SocketAddr,
     slave: Slave,
-) -> impl Future<Item = Context, Error = Error> {
-    let unit_id = slave.into();
-    TcpClient::new(Proto)
-        .connect(&socket_addr, &handle)
-        .map(move |service| Context::new(service, unit_id))
+) -> impl Future<Output = Result<Context, Error>> + 'static {
+    let unit_id : UnitId = slave.into();
+    async move {
+        let service = TcpStream::connect(socket_addr).await?;
+        let framed = Framed::new(service, codec::tcp::ClientCodec::default());
+
+        let context: Context = Context::new(framed, unit_id);
+
+        Ok(context)
+    }
 }
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
 
 /// Modbus TCP client
 pub(crate) struct Context {
-    service: ClientService<TcpStream, Proto>,
+    service: Framed<TcpStream, codec::tcp::ClientCodec>,
     unit_id: UnitId,
     transaction_id: Cell<TransactionId>,
 }
 
 impl Context {
-    fn new(service: ClientService<TcpStream, Proto>, unit_id: UnitId) -> Self {
+    fn new(service: Framed<TcpStream, codec::tcp::ClientCodec>, unit_id: UnitId) -> Self {
         Self {
             service,
             unit_id,
@@ -67,16 +73,19 @@ impl Context {
         }
     }
 
-    pub fn call(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
+    pub async fn call(&mut self, req: Request) -> Result<Response, Error> {
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
-        self.service
-            .call(req_adu)
-            .and_then(move |res_adu| match res_adu.pdu {
-                ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
-                ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
-            })
+
+        self.service.send(req_adu).await?;
+        let res_adu = self.service.next().await.ok_or(Error::last_os_error())??;
+
+        match res_adu.pdu {
+            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
+            ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+        }
+
     }
 }
 
@@ -100,7 +109,7 @@ impl SlaveContext for Context {
 }
 
 impl Client for Context {
-    fn call(&self, req: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
-        Box::new(self.call(req))
+    fn call<'a>(&'a mut self, req: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>>{
+        Box::pin(Context::call(self, req))
     }
 }
