@@ -3,11 +3,12 @@ use super::*;
 use crate::frame::rtu::*;
 use crate::slave::SlaveId;
 
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use byteorder::BigEndian;
 use log::{debug, error, warn};
 use smallvec::SmallVec;
 use std::io::{Cursor, Error, ErrorKind, Result};
-use tokio_codec::{Decoder, Encoder};
+use tokio_util::codec::{Decoder, Encoder};
 
 // [MODBUS over Serial Line Specification and Implementation Guide V1.02](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf), page 13
 // "The maximum size of a MODBUS RTU frame is 256 bytes."
@@ -60,7 +61,7 @@ impl FrameDecoder {
             }
             .map_err(|err| {
                 // Restore the input buffer
-                let rem_buf = buf.take();
+                let rem_buf = buf.split();
                 debug_assert!(buf.is_empty());
                 buf.unsplit(adu_buf);
                 buf.unsplit(crc_buf);
@@ -364,7 +365,7 @@ impl Encoder for ClientCodec {
         buf.put_u8(hdr.slave_id);
         buf.put_slice(&*pdu_data);
         let crc = calc_crc(buf);
-        buf.put_u16_be(crc);
+        buf.put_u16(crc);
         Ok(())
     }
 }
@@ -380,7 +381,7 @@ impl Encoder for ServerCodec {
         buf.put_u8(hdr.slave_id);
         buf.put_slice(&*pdu_data);
         let crc = calc_crc(buf);
-        buf.put_u16_be(crc);
+        buf.put_u16(crc);
         Ok(())
     }
 }
@@ -540,7 +541,7 @@ mod tests {
         #[test]
         fn decode_partly_received_client_message() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 0x12, // slave address
                 0x02, // function code
                 0x03, // byte count
@@ -549,7 +550,7 @@ mod tests {
                 0x00, // data
                 0x00, // CRC first byte
                       // missing crc second byte
-            ]);
+            ][..]);
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
             assert_eq!(buf.len(), 7);
@@ -570,7 +571,7 @@ mod tests {
         #[test]
         fn decode_single_byte_client_message() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(vec![0x00]);
+            let mut buf = BytesMut::from(&[0x00][..]);
             assert_eq!(1, buf.len());
 
             let res = codec.decode(&mut buf).unwrap();
@@ -594,7 +595,7 @@ mod tests {
         #[test]
         fn decode_single_byte_server_message() {
             let mut codec = ServerCodec::default();
-            let mut buf = BytesMut::from(vec![0x00]);
+            let mut buf = BytesMut::from(&[0x00][..]);
             assert_eq!(1, buf.len());
 
             let res = codec.decode(&mut buf).unwrap();
@@ -606,10 +607,10 @@ mod tests {
         #[test]
         fn decode_partly_received_server_message_0x16() {
             let mut codec = ServerCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 0x12, // slave address
                 0x16, // function code
-            ]);
+            ][..]);
             assert_eq!(buf.len(), 2);
 
             let res = codec.decode(&mut buf).unwrap();
@@ -621,10 +622,10 @@ mod tests {
         #[test]
         fn decode_partly_received_server_message_0x0f() {
             let mut codec = ServerCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 0x12, // slave address
                 0x0F, // function code
-            ]);
+            ][..]);
             assert_eq!(buf.len(), 2);
 
             let res = codec.decode(&mut buf).unwrap();
@@ -636,10 +637,10 @@ mod tests {
         #[test]
         fn decode_partly_received_server_message_0x10() {
             let mut codec = ServerCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 0x12, // slave address
                 0x10, // function code
-            ]);
+            ][..]);
             assert_eq!(buf.len(), 2);
 
             let res = codec.decode(&mut buf).unwrap();
@@ -651,7 +652,7 @@ mod tests {
         #[test]
         fn decode_rtu_message() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 0x01, // slave address
                 0x03, // function code
                 0x04, // byte count
@@ -662,7 +663,7 @@ mod tests {
                 0x00, // crc
                 0x9D, // crc
                 0x00,
-            ]);
+            ][..]);
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
@@ -678,7 +679,7 @@ mod tests {
         fn decode_rtu_response_drop_invalid_bytes() {
             env_logger::init();
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 0x42, // dropped byte
                 0x43, // dropped byte
                 0x01, // slave address
@@ -691,7 +692,7 @@ mod tests {
                 0x00, // crc
                 0x9D, // crc
                 0x00,
-            ]);
+            ][..]);
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
@@ -706,13 +707,13 @@ mod tests {
         #[test]
         fn decode_exception_message() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(vec![
+            let mut buf = BytesMut::from(&[
                 0x66, //
                 0x82, // exception = 0x80 + 0x02
                 0x03, //
                 0xB1, // crc
                 0x7E, // crc
-            ]);
+            ][..]);
 
             let ResponseAdu { pdu, .. } = codec.decode(&mut buf).unwrap().unwrap();
             if let ResponsePdu(Err(err)) = pdu {

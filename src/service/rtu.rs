@@ -1,37 +1,37 @@
 use crate::client::Client;
 use crate::frame::{rtu::*, *};
-use crate::proto::rtu::Proto;
 use crate::slave::*;
+use crate::codec;
 
 use futures::{future, Future};
 use std::io::{Error, ErrorKind};
-use tokio_core::reactor::Handle;
-use tokio_io::{AsyncRead, AsyncWrite};
-use tokio_proto::pipeline::ClientService;
-use tokio_proto::BindClient;
-use tokio_service::Service;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_util::codec::Framed;
+use std::pin::Pin;
+
+use futures_util::sink::SinkExt;
+use futures_util::stream::StreamExt;
 
 pub(crate) fn connect_slave<T>(
-    handle: &Handle,
     transport: T,
     slave: Slave,
-) -> impl Future<Item = Context<T>, Error = Error>
+) -> impl Future<Output = Result<Context<T>, Error>>
 where
-    T: AsyncRead + AsyncWrite + 'static,
+    T: AsyncRead + AsyncWrite + Unpin + 'static,
 {
-    let proto = Proto;
-    let service = proto.bind_client(handle, transport);
+    let framed = Framed::new(transport, codec::rtu::ClientCodec::default());
+
     let slave_id = slave.into();
-    future::ok(Context { service, slave_id })
+    future::ok(Context { service: framed, slave_id })
 }
 
 /// Modbus RTU client
-pub(crate) struct Context<T: AsyncRead + AsyncWrite + 'static> {
-    service: ClientService<T, Proto>,
+pub(crate) struct Context<T: AsyncRead + AsyncWrite + Unpin + 'static> {
+    service: Framed<T, codec::rtu::ClientCodec>,
     slave_id: SlaveId,
 }
 
-impl<T: AsyncRead + AsyncWrite + 'static> Context<T> {
+impl<T: AsyncRead + AsyncWrite + Unpin + 'static> Context<T> {
     fn next_request_adu<R>(&self, req: R, disconnect: bool) -> RequestAdu
     where
         R: Into<RequestPdu>,
@@ -46,16 +46,19 @@ impl<T: AsyncRead + AsyncWrite + 'static> Context<T> {
         }
     }
 
-    fn call(&self, req: Request) -> impl Future<Item = Response, Error = Error> {
+    async fn call(&mut self, req: Request) -> Result<Response, Error> {
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
-        self.service
-            .call(req_adu)
-            .and_then(move |res_adu| match res_adu.pdu {
-                ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
-                ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
-            })
+
+        self.service.send(req_adu).await?;
+        let res_adu = self.service.next().await.unwrap()?;
+
+        match res_adu.pdu {
+            ResponsePdu(Ok(res)) =>
+                verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
+            ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+        }
     }
 }
 
@@ -72,14 +75,14 @@ fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error>
     Ok(())
 }
 
-impl<T: AsyncRead + AsyncWrite + 'static> SlaveContext for Context<T> {
+impl<T: AsyncRead + AsyncWrite + Unpin + 'static> SlaveContext for Context<T> {
     fn set_slave(&mut self, slave: Slave) {
         self.slave_id = slave.into();
     }
 }
 
-impl<T: AsyncRead + AsyncWrite + 'static> Client for Context<T> {
-    fn call(&self, req: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
-        Box::new(self.call(req))
+impl<T: AsyncRead + AsyncWrite + Unpin + 'static> Client for Context<T> {
+    fn call<'a>(&'a mut self, req: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
+        Box::pin(self.call(req))
     }
 }

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #[cfg(feature = "rtu")]
 pub mod rtu;
 
@@ -6,8 +7,8 @@ pub mod tcp;
 
 use crate::frame::*;
 
-use byteorder::ReadBytesExt;
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
+use byteorder::{ReadBytesExt, BigEndian};
+use bytes::{BufMut, Bytes, BytesMut};
 use std::convert::TryFrom;
 use std::io::{self, Cursor, Error, ErrorKind};
 
@@ -22,17 +23,17 @@ impl From<Request> for Bytes {
             | ReadDiscreteInputs(address, quantity)
             | ReadInputRegisters(address, quantity)
             | ReadHoldingRegisters(address, quantity) => {
-                data.put_u16_be(address);
-                data.put_u16_be(quantity);
+                data.put_u16(address);
+                data.put_u16(quantity);
             }
             WriteSingleCoil(address, state) => {
-                data.put_u16_be(address);
-                data.put_u16_be(bool_to_coil(state));
+                data.put_u16(address);
+                data.put_u16(bool_to_coil(state));
             }
             WriteMultipleCoils(address, coils) => {
-                data.put_u16_be(address);
+                data.put_u16(address);
                 let len = coils.len();
-                data.put_u16_be(len as u16);
+                data.put_u16(len as u16);
                 let packed_coils = pack_coils(&coils);
                 data.put_u8(packed_coils.len() as u8);
                 for b in packed_coils {
@@ -40,27 +41,27 @@ impl From<Request> for Bytes {
                 }
             }
             WriteSingleRegister(address, word) => {
-                data.put_u16_be(address);
-                data.put_u16_be(word);
+                data.put_u16(address);
+                data.put_u16(word);
             }
             WriteMultipleRegisters(address, words) => {
-                data.put_u16_be(address);
+                data.put_u16(address);
                 let len = words.len();
-                data.put_u16_be(len as u16);
+                data.put_u16(len as u16);
                 data.put_u8((len as u8) * 2);
                 for w in words {
-                    data.put_u16_be(w);
+                    data.put_u16(w);
                 }
             }
             ReadWriteMultipleRegisters(read_address, quantity, write_address, words) => {
-                data.put_u16_be(read_address);
-                data.put_u16_be(quantity);
-                data.put_u16_be(write_address);
+                data.put_u16(read_address);
+                data.put_u16(quantity);
+                data.put_u16(write_address);
                 let n = words.len();
-                data.put_u16_be(n as u16);
+                data.put_u16(n as u16);
                 data.put_u8(n as u8 * 2);
                 for w in words {
-                    data.put_u16_be(w);
+                    data.put_u16(w);
                 }
             }
             Custom(_, custom_data) => {
@@ -99,19 +100,19 @@ impl From<Response> for Bytes {
             | ReadWriteMultipleRegisters(registers) => {
                 data.put_u8((registers.len() * 2) as u8);
                 for r in registers {
-                    data.put_u16_be(r);
+                    data.put_u16(r);
                 }
             }
             WriteSingleCoil(address) => {
-                data.put_u16_be(address);
+                data.put_u16(address);
             }
             WriteMultipleCoils(address, quantity) | WriteMultipleRegisters(address, quantity) => {
-                data.put_u16_be(address);
-                data.put_u16_be(quantity);
+                data.put_u16(address);
+                data.put_u16(quantity);
             }
             WriteSingleRegister(address, word) => {
-                data.put_u16_be(address);
-                data.put_u16_be(word);
+                data.put_u16(address);
+                data.put_u16(word);
             }
             Custom(_, custom_data) => {
                 for d in custom_data {

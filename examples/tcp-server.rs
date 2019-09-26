@@ -1,11 +1,7 @@
-use futures::{
-    future::{self, FutureResult},
-    Future,
-};
 use std::thread;
 use std::time::Duration;
-use tokio_core::reactor::Core;
-use tokio_service::Service;
+
+use tokio_modbus::Service;
 
 use tokio_modbus::prelude::*;
 
@@ -15,15 +11,14 @@ impl Service for MbServer {
     type Request = Request;
     type Response = Response;
     type Error = std::io::Error;
-    type Future = FutureResult<Self::Response, Self::Error>;
 
-    fn call(&self, req: Self::Request) -> Self::Future {
+    fn call(&self, req: Self::Request) -> Self::Response {
         match req {
             Request::ReadInputRegisters(_addr, cnt) => {
                 let mut registers = vec![0; cnt as usize];
                 registers[2] = 0x77;
                 let rsp = Response::ReadInputRegisters(registers);
-                future::ok(rsp)
+                rsp
             }
             _ => unimplemented!(),
         }
@@ -41,33 +36,19 @@ fn main() {
     // Give the server some time for stating up
     thread::sleep(Duration::from_secs(1));
 
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
 
     println!("Connecting client...");
-    let task = tcp::connect(&handle, socket_addr).and_then(|ctx| {
+    let task = async {
+        let mut ctx = tcp::connect(socket_addr).await?;
         println!("Reading input registers...");
-        ctx.read_input_registers(0x00, 7)
-            .then(move |res| {
-                match res {
-                    Ok(rsp) => {
-                        println!("The result is '{:?}'", rsp);
-                    }
-                    Err(err) => {
-                        eprintln!("Failed to read input registers: {}", err);
-                    }
-                }
-                Ok(ctx) // continue
-            })
-            .and_then(|ctx| {
-                println!("Disconnecting client...");
-                ctx.disconnect()
-            })
-    });
+        let rsp = ctx.read_input_registers(0x00, 7).await?;
+        println!("The result is '{:?}'", rsp);
 
-    core.run(task).unwrap();
+        Result::<_, std::io::Error>::Ok(())
+    };
 
-    println!("Done.");
+    rt.block_on(task).unwrap();
 }
 
 #[cfg(not(feature = "tcp"))]

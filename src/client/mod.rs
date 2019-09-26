@@ -15,67 +15,71 @@ use crate::slave::*;
 use futures::prelude::*;
 use std::io::{Error, ErrorKind};
 
+use std::pin::Pin;
+
 /// A transport independent asynchronous client trait.
 pub trait Client: SlaveContext {
-    fn call(&self, request: Request) -> Box<dyn Future<Item = Response, Error = Error>>;
+    //fn call(&self, request: Request) -> Pin<Box<dyn Future<Output = Response>>>;
+    fn call<'a>(&'a mut self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>>;
+
 }
 
 /// An asynchronous Modbus reader.
 pub trait Reader: Client {
-    fn read_coils(
-        &self,
+    fn read_coils<'a>(
+        &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Box<dyn Future<Item = Vec<Coil>, Error = Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + 'a>>;
 
-    fn read_discrete_inputs(
-        &self,
+    fn read_discrete_inputs<'a>(
+        &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Box<dyn Future<Item = Vec<Coil>, Error = Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + 'a>>;
 
-    fn read_input_registers(
-        &self,
+    fn read_input_registers<'a>(
+        &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Box<dyn Future<Item = Vec<Word>, Error = Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>>;
 
-    fn read_holding_registers(
-        &self,
+    fn read_holding_registers<'a>(
+        &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Box<dyn Future<Item = Vec<Word>, Error = Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>>;
 
-    fn read_write_multiple_registers(
-        &self,
+    fn read_write_multiple_registers<'a>(
+        &'a mut self,
         _: Address,
         _: Quantity,
         _: Address,
         _: &[Word],
-    ) -> Box<dyn Future<Item = Vec<Word>, Error = Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>>;
 }
 
 /// An asynchronous Modbus writer.
 pub trait Writer: Client {
-    fn write_single_coil(&self, _: Address, _: Coil) -> Box<dyn Future<Item = (), Error = Error>>;
+    fn write_single_coil<'a>(&'a mut self, _: Address, _: Coil) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
 
-    fn write_multiple_coils(
-        &self,
+    fn write_multiple_coils<'a>(
+        &'a mut self,
         _: Address,
         _: &[Coil],
-    ) -> Box<dyn Future<Item = (), Error = Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
 
-    fn write_single_register(
-        &self,
+    fn write_single_register<'a>(
+        &'a mut self,
         _: Address,
         _: Word,
-    ) -> Box<dyn Future<Item = (), Error = Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
 
-    fn write_multiple_registers(
-        &self,
+    fn write_multiple_registers<'a>(
+        &'a mut self,
         _: Address,
         _: &[Word],
-    ) -> Box<dyn Future<Item = (), Error = Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
 }
 
 /// An asynchronous Modbus client context.
@@ -83,16 +87,20 @@ pub struct Context {
     client: Box<dyn Client>,
 }
 
+
 impl Context {
-    pub fn disconnect(&self) -> impl Future<Item = (), Error = Error> {
+    pub async fn disconnect(&mut self) -> Result<(), Error> {
         // Disconnecting is expected to fail!
-        self.client.call(Request::Disconnect).then(|res| match res {
+        let res = self.client.call(Request::Disconnect).await;
+        match res {
             Ok(_) => unreachable!(),
-            Err(err) => match err.kind() {
-                ErrorKind::NotConnected | ErrorKind::BrokenPipe => Ok(()),
-                _ => Err(err),
+            Err(err) => {
+                match err.kind() {
+                    ErrorKind::NotConnected | ErrorKind::BrokenPipe => Ok(()),
+                    _ => Err(err),
+                }
             },
-        })
+        }
     }
 }
 
@@ -109,7 +117,7 @@ impl Into<Box<dyn Client>> for Context {
 }
 
 impl Client for Context {
-    fn call(&self, request: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
+    fn call<'a>(&'a mut self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
         self.client.call(request)
     }
 }
@@ -121,202 +129,202 @@ impl SlaveContext for Context {
 }
 
 impl Reader for Context {
-    fn read_coils(
-        &self,
+    fn read_coils<'a>(
+        &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Box<dyn Future<Item = Vec<Coil>, Error = Error>> {
-        Box::new(
-            self.client
-                .call(Request::ReadCoils(addr, cnt))
-                .and_then(move |rsp| {
-                    if let Response::ReadCoils(mut coils) = rsp {
-                        debug_assert!(coils.len() >= cnt as usize);
-                        coils.truncate(cnt as usize);
-                        Ok(coils)
-                    } else {
-                        Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-                    }
-                }),
-        )
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + 'a>> {
+        let request = self.client.call(Request::ReadCoils(addr, cnt));
+
+        Box::pin(async move {
+            let rsp = request.await?;
+
+            if let Response::ReadCoils(mut coils) = rsp {
+                debug_assert!(coils.len() >= cnt as usize);
+                coils.truncate(cnt as usize);
+                Ok(coils)
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }
+        })
     }
 
-    fn read_discrete_inputs(
-        &self,
+    fn read_discrete_inputs<'a>(
+        &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Box<dyn Future<Item = Vec<Coil>, Error = Error>> {
-        Box::new(
-            self.client
-                .call(Request::ReadDiscreteInputs(addr, cnt))
-                .and_then(move |rsp| {
-                    if let Response::ReadDiscreteInputs(mut coils) = rsp {
-                        debug_assert!(coils.len() >= cnt as usize);
-                        coils.truncate(cnt as usize);
-                        Ok(coils)
-                    } else {
-                        Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-                    }
-                }),
-        )
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + 'a>> {
+        let request = self.client.call(Request::ReadDiscreteInputs(addr, cnt));
+
+        Box::pin(async move {
+            let rsp = request.await?;
+
+            if let Response::ReadDiscreteInputs(mut coils) = rsp {
+                debug_assert!(coils.len() >= cnt as usize);
+                coils.truncate(cnt as usize);
+                Ok(coils)
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }    
+        })
     }
 
-    fn read_input_registers(
-        &self,
+    fn read_input_registers<'a>(
+        &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Box<dyn Future<Item = Vec<Word>, Error = Error>> {
-        Box::new(
-            self.client
-                .call(Request::ReadInputRegisters(addr, cnt))
-                .and_then(move |rsp| {
-                    if let Response::ReadInputRegisters(rsp) = rsp {
-                        if rsp.len() != cnt as usize {
-                            return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                        }
-                        Ok(rsp)
-                    } else {
-                        Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-                    }
-                }),
-        )
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>> {
+        let request = self.client.call(Request::ReadInputRegisters(addr, cnt));
+        
+        Box::pin(async move {
+            let rsp = request.await?;
+
+            if let Response::ReadInputRegisters(rsp) = rsp {
+                if rsp.len() != cnt as usize {
+                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                }
+                Ok(rsp)
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }
+        })
     }
 
-    fn read_holding_registers(
-        &self,
+    fn read_holding_registers<'a>(
+        &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Box<dyn Future<Item = Vec<Word>, Error = Error>> {
-        Box::new(
-            self.client
-                .call(Request::ReadHoldingRegisters(addr, cnt))
-                .and_then(move |rsp| {
-                    if let Response::ReadHoldingRegisters(rsp) = rsp {
-                        if rsp.len() != cnt as usize {
-                            return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                        }
-                        Ok(rsp)
-                    } else {
-                        Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-                    }
-                }),
-        )
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>> {
+        let request = self.client.call(Request::ReadHoldingRegisters(addr, cnt));
+
+        Box::pin(async move {
+            let rsp = request.await?;
+                
+            if let Response::ReadHoldingRegisters(rsp) = rsp {
+                if rsp.len() != cnt as usize {
+                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                }
+                Ok(rsp)
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }
+        })
     }
 
-    fn read_write_multiple_registers(
-        &self,
+    fn read_write_multiple_registers<'a>(
+        &'a mut self,
         read_addr: Address,
         read_cnt: Quantity,
         write_addr: Address,
         write_data: &[Word],
-    ) -> Box<dyn Future<Item = Vec<Word>, Error = Error>> {
-        Box::new(
-            self.client
-                .call(Request::ReadWriteMultipleRegisters(
-                    read_addr,
-                    read_cnt,
-                    write_addr,
-                    write_data.to_vec(),
-                ))
-                .and_then(move |rsp| {
-                    if let Response::ReadWriteMultipleRegisters(rsp) = rsp {
-                        if rsp.len() != read_cnt as usize {
-                            return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                        }
-                        Ok(rsp)
-                    } else {
-                        Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-                    }
-                }),
-        )
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>> {
+        let request = self.client
+            .call(Request::ReadWriteMultipleRegisters(
+                read_addr,
+                read_cnt,
+                write_addr,
+                write_data.to_vec(),
+            ));
+        Box::pin(async move {
+            let rsp = request.await?;
+
+            if let Response::ReadWriteMultipleRegisters(rsp) = rsp {
+                if rsp.len() != read_cnt as usize {
+                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                }
+                Ok(rsp)
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }
+        })
     }
 }
 
 impl Writer for Context {
-    fn write_single_coil(
-        &self,
+    fn write_single_coil<'a>(
+        &'a mut self,
         addr: Address,
         coil: Coil,
-    ) -> Box<dyn Future<Item = (), Error = Error>> {
-        Box::new(
-            self.client
-                .call(Request::WriteSingleCoil(addr, coil))
-                .and_then(move |rsp| {
-                    if let Response::WriteSingleCoil(rsp_addr) = rsp {
-                        if rsp_addr != addr {
-                            return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                        }
-                        Ok(())
-                    } else {
-                        Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-                    }
-                }),
-        )
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
+        let request = self.client.call(Request::WriteSingleCoil(addr, coil));
+
+        Box::pin(async move {
+            let rsp = request.await?;
+          
+            if let Response::WriteSingleCoil(rsp_addr) = rsp {
+                if rsp_addr != addr {
+                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                }
+                Ok(())
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }
+        })
     }
 
-    fn write_multiple_coils(
-        &self,
+    fn write_multiple_coils<'a>(
+        &'a mut self,
         addr: Address,
         coils: &[Coil],
-    ) -> Box<dyn Future<Item = (), Error = Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
         let cnt = coils.len();
-        Box::new(
-            self.client
-                .call(Request::WriteMultipleCoils(addr, coils.to_vec()))
-                .and_then(move |rsp| {
-                    if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
-                        if rsp_addr != addr || rsp_cnt as usize != cnt {
-                            return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                        }
-                        Ok(())
-                    } else {
-                        Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-                    }
-                }),
-        )
+        let request = self.client.call(Request::WriteMultipleCoils(addr, coils.to_vec()));
+
+        Box::pin(async move {
+            let rsp = request.await?;
+                
+            if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
+                if rsp_addr != addr || rsp_cnt as usize != cnt {
+                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                }
+                Ok(())
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }
+        })
     }
 
-    fn write_single_register(
-        &self,
+    fn write_single_register<'a>(
+        &'a mut self,
         addr: Address,
         data: Word,
-    ) -> Box<dyn Future<Item = (), Error = Error>> {
-        Box::new(
-            self.client
-                .call(Request::WriteSingleRegister(addr, data))
-                .and_then(move |rsp| {
-                    if let Response::WriteSingleRegister(rsp_addr, rsp_word) = rsp {
-                        if rsp_addr != addr || rsp_word != data {
-                            return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                        }
-                        Ok(())
-                    } else {
-                        Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-                    }
-                }),
-        )
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
+        let request = self.client.call(Request::WriteSingleRegister(addr, data));
+
+        Box::pin(async move {
+            let rsp = request.await?;
+    
+            if let Response::WriteSingleRegister(rsp_addr, rsp_word) = rsp {
+                if rsp_addr != addr || rsp_word != data {
+                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                }
+                Ok(())
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }
+        })
     }
 
-    fn write_multiple_registers(
-        &self,
+    fn write_multiple_registers<'a>(
+        &'a mut self,
         addr: Address,
         data: &[Word],
-    ) -> Box<dyn Future<Item = (), Error = Error>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
         let cnt = data.len();
-        Box::new(
-            self.client
-                .call(Request::WriteMultipleRegisters(addr, data.to_vec()))
-                .and_then(move |rsp| {
-                    if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
-                        if rsp_addr != addr || rsp_cnt as usize != cnt {
-                            return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                        }
-                        Ok(())
-                    } else {
-                        Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-                    }
-                }),
-        )
+        let request = self.client.call(Request::WriteMultipleRegisters(addr, data.to_vec()));
+
+        Box::pin(async move {
+            let rsp = request.await?;
+                
+            if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
+                if rsp_addr != addr || rsp_cnt as usize != cnt {
+                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                }
+                Ok(())
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }
+        })
     }
 }
 
@@ -351,9 +359,9 @@ mod tests {
     }
 
     impl Client for ClientMock {
-        fn call(&self, request: Request) -> Box<dyn Future<Item = Response, Error = Error>> {
+        fn call<'a>(&'a mut self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
             self.last_request.replace(Some(request));
-            Box::new(future::result(match self.next_response.as_ref().unwrap() {
+            Box::pin(future::ready(match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
                 Err(err) => Err(Error::new(err.kind(), format!("{}", err))),
             }))
@@ -376,7 +384,7 @@ mod tests {
             client.set_next_response(Ok(Response::ReadCoils(response_coils.clone())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
-            let coils = context.read_coils(1, num_coils as u16).wait().unwrap();
+            let coils =  futures::executor::block_on(context.read_coils(1, num_coils as u16)).unwrap();
             assert_eq!(&response_coils[0..num_coils], &coils[..]);
         }
     }
@@ -391,9 +399,8 @@ mod tests {
             client.set_next_response(Ok(Response::ReadDiscreteInputs(response_inputs.clone())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
-            let inputs = context
-                .read_discrete_inputs(1, num_inputs as u16)
-                .wait()
+            let inputs = futures::executor::block_on(context
+                .read_discrete_inputs(1, num_inputs as u16))
                 .unwrap();
             assert_eq!(&response_inputs[0..num_inputs], &inputs[..]);
         }

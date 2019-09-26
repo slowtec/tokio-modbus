@@ -44,24 +44,21 @@
 //! ## TCP client
 //!
 //! ```rust,no_run
-//! use tokio_core::reactor::Core;
+//! use tokio::runtime::Runtime;
 //! use futures::Future;
 //! use tokio_modbus::prelude::*;
-//!
+//! 
 //! pub fn main() {
-//!     let mut core = Core::new().unwrap();
-//!     let handle = core.handle();
+//!     let mut rt = tokio::runtime::Runtime::new().unwrap();
 //!     let socket_addr = "192.168.0.222:502".parse().unwrap();
 //!
-//!     let task = tcp::connect(&handle, socket_addr).and_then(|ctx| {
-//!         ctx
-//!             .read_input_registers(0x1000, 7)
-//!             .and_then(move |data| {
-//!                 println!("Response is '{:?}'", data);
-//!                 Ok(())
-//!             })
-//!     });
-//!     core.run(task).unwrap();
+//!     let task = async {
+//!         let mut ctx = tcp::connect(socket_addr).await?;
+//!         let data = ctx.read_input_registers(0x1000, 7).await?;
+//!         println!("Response is '{:?}'", data);
+//!         Result::<_, std::io::Error>::Ok(())
+//!     };
+//!     rt.block_on(task).unwrap();
 //! }
 //! ```
 //!
@@ -81,33 +78,30 @@
 //! ## RTU client
 //!
 //! ```rust,no_run
-//! use tokio_core::reactor::Core;
+//! use tokio::runtime::Runtime;
 //! use futures::Future;
 //! use tokio_serial::{Serial, SerialPortSettings};
 //!
-//!  use tokio_modbus::prelude::*;
+//! use tokio_modbus::prelude::*;
 //!
 //! pub fn main() {
-//!     let mut core = Core::new().unwrap();
-//!     let handle = core.handle();
+//!     let mut rt = tokio::runtime::Runtime::new().unwrap();
 //!     let tty_path = "/dev/ttyUSB0";
 //!     let slave = Slave(0x17);
 //!
 //!     let mut settings = SerialPortSettings::default();
 //!     settings.baud_rate = 19200;
-//!     let port = Serial::from_path_with_handle(tty_path, &settings, &handle.new_tokio_handle()).unwrap();
+//!     let port = Serial::from_path(tty_path, &settings).unwrap();
 //!
-//!     let task = rtu::connect_slave(&handle, port, slave).and_then(|ctx| {
+//!     let task = async {
+//!         let mut ctx = rtu::connect_slave(port, slave).await?;
 //!         println!("Reading a sensor value");
-//!         ctx
-//!             .read_holding_registers(0x082B, 2)
-//!             .and_then(move |rsp| {
-//!                 println!("Sensor value is: {:?}", rsp);
-//!                 Ok(())
-//!             })
-//!     });
+//!         let rsp = ctx.read_holding_registers(0x082B, 2).await?;
+//!         println!("Sensor value is: {:?}", rsp);
+//!         Result::<_, std::io::Error>::Ok(())
+//!     };
 //!
-//!     core.run(task).unwrap();
+//!     rt.block_on(task).unwrap();
 //! }
 //! ```
 //!
@@ -125,7 +119,10 @@ pub mod client;
 pub mod server;
 pub mod slave;
 
+pub use crate::service::service::{Service, NewService};
+
 mod codec;
 mod frame;
-mod proto;
 mod service;
+
+
