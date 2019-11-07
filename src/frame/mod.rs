@@ -4,6 +4,7 @@ pub mod rtu;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
+use modbus_core as mb;
 use std::{error, fmt};
 
 /// A Modbus function code is represented by an unsigned 8 bit integer.
@@ -178,5 +179,59 @@ impl fmt::Display for ExceptionResponse {
 impl error::Error for ExceptionResponse {
     fn description(&self) -> &str {
         self.exception.description()
+    }
+}
+
+impl<'r> From<mb::Request<'r>> for Request {
+    fn from(req: mb::Request<'r>) -> Self {
+        use mb::Request as r;
+        use Request::*;
+        match req {
+            r::ReadCoils(addr, cnt) => ReadCoils(addr, cnt),
+            r::ReadDiscreteInputs(addr, cnt) => ReadDiscreteInputs(addr, cnt),
+            r::WriteSingleCoil(addr, coil) => WriteSingleCoil(addr, coil),
+            r::WriteMultipleCoils(addr, coils) => {
+                WriteMultipleCoils(addr, coils.into_iter().collect())
+            }
+            r::ReadInputRegisters(addr, cnt) => ReadInputRegisters(addr, cnt),
+            r::ReadHoldingRegisters(addr, cnt) => ReadHoldingRegisters(addr, cnt),
+            r::WriteSingleRegister(addr, word) => WriteSingleRegister(addr, word),
+            r::WriteMultipleRegisters(addr, words) => {
+                WriteMultipleRegisters(addr, words.into_iter().collect())
+            }
+            r::ReadWriteMultipleRegisters(read_addr, read_cnt, write_addr, words) => {
+                ReadWriteMultipleRegisters(
+                    read_addr,
+                    read_cnt,
+                    write_addr,
+                    words.into_iter().collect(),
+                )
+            }
+            r::Custom(code, data) => Custom(code.into(), data.iter().cloned().collect()),
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl<'r> From<mb::Response<'r>> for Response {
+    fn from(res: mb::Response<'r>) -> Self {
+        use mb::Response as r;
+        use Response::*;
+        match res {
+            r::ReadCoils(coils) => ReadCoils(coils.into_iter().collect()),
+            r::ReadDiscreteInputs(coils) => ReadDiscreteInputs(coils.into_iter().collect()),
+            r::WriteSingleCoil(addr) => WriteSingleCoil(addr),
+            r::WriteMultipleCoils(addr, cnt) => WriteMultipleCoils(addr, cnt),
+            r::ReadInputRegisters(words) => ReadInputRegisters(words.into_iter().collect()),
+            r::ReadHoldingRegisters(words) => ReadHoldingRegisters(words.into_iter().collect()),
+            r::WriteSingleRegister(addr, word) => WriteSingleRegister(addr, word),
+            r::WriteMultipleRegisters(addr, cnt) => WriteMultipleRegisters(addr, cnt),
+            r::ReadWriteMultipleRegisters(words) => {
+                ReadWriteMultipleRegisters(words.into_iter().collect())
+            }
+            r::Custom(code, bytes) => Custom(code.into(), bytes.iter().cloned().collect()),
+
+            _ => unimplemented!(),
+        }
     }
 }
