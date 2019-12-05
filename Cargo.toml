@@ -13,13 +13,13 @@ edition = "2018"
 [dependencies]
 bytes = "0.5"
 byteorder = "1"
-futures = "0.3.1"
+futures = "0.3"
 log = "0.4"
-smallvec = { version = "0.6", default-features = false }
+smallvec = { version = "1", default-features = false }
 tokio = { version = "0.2", features = ["tcp", "rt-core"] }
 tokio-util = { version = "0.2", features = ["codec"] }
 net2 = "0.2"
-futures-util = "0.3.1"
+futures-util = "0.3"
 
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "4.3.3", optional = true, default-features = false }
