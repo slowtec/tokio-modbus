@@ -79,7 +79,7 @@ impl Context {
         let req_hdr = req_adu.hdr;
 
         self.service.send(req_adu).await?;
-        let res_adu = self.service.next().await.ok_or(Error::last_os_error())??;
+        let res_adu = self.service.next().await.ok_or_else(Error::last_os_error)??;
 
         match res_adu.pdu {
             ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),

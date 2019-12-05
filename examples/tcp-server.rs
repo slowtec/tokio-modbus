@@ -17,8 +17,7 @@ impl Service for MbServer {
             Request::ReadInputRegisters(_addr, cnt) => {
                 let mut registers = vec![0; cnt as usize];
                 registers[2] = 0x77;
-                let rsp = Response::ReadInputRegisters(registers);
-                rsp
+                Response::ReadInputRegisters(registers)
             }
             _ => unimplemented!(),
         }
