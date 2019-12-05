@@ -20,6 +20,9 @@ pub fn connect_slave(
     let mut rt = tokio::runtime::Runtime::new().unwrap();
     let serial = Serial::from_path(tty_path, settings)?;
     let async_ctx = rt.block_on(async_connect_slave(serial, slave))?;
-    let sync_ctx = Context { core: rt, async_ctx };
+    let sync_ctx = Context {
+        core: rt,
+        async_ctx,
+    };
     Ok(sync_ctx)
 }

@@ -1,9 +1,9 @@
 use crate::frame::*;
 use crate::server::tcp_server::TcpServer;
+use crate::NewService;
 use futures::{self, Future};
 use std::io::Error;
 use std::net::SocketAddr;
-use crate::NewService;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Server {
@@ -29,7 +29,10 @@ impl Server {
     /// Start a Modbus TCP server that blocks the current thread.
     pub fn serve<S>(self, service: S)
     where
-        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response> + Send + Sync + 'static,
+        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
+            + Send
+            + Sync
+            + 'static,
         S::Request: From<Request>,
         S::Response: Into<Response>,
         S::Error: Into<Error>,
@@ -41,7 +44,10 @@ impl Server {
     /// Start a Modbus TCP server that blocks the current thread.
     pub fn serve_until<S, Sd>(self, service: S, shutdown_signal: Sd)
     where
-        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response> + Send + Sync + 'static,
+        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
+            + Send
+            + Sync
+            + 'static,
         Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
         S::Request: From<Request>,
         S::Response: Into<Response>,

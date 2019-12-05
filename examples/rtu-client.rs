@@ -2,12 +2,12 @@ use futures::Future;
 
 use std::{cell::RefCell, io::Error, rc::Rc};
 
+use std::pin::Pin;
+use tokio_modbus::client::{rtu, Context};
 use tokio_modbus::prelude::{
     client::util::{reconnect_shared_context, NewContext, SharedContext},
     *,
 };
-use tokio_modbus::client::{rtu, Context};
-use std::pin::Pin;
 
 const SLAVE_1: Slave = Slave(0x01);
 const SLAVE_2: Slave = Slave(0x02);
@@ -25,11 +25,8 @@ pub fn main() {
     }
 
     impl NewContext for SerialConfig {
-        fn new_context(&self) ->Pin<Box<dyn Future<Output = Result<Context, Error>>>> {
-            let serial = Serial::from_path(
-                &self.path,
-                &self.settings,
-            );
+        fn new_context(&self) -> Pin<Box<dyn Future<Output = Result<Context, Error>>>> {
+            let serial = Serial::from_path(&self.path, &self.settings);
             Box::pin(async {
                 let port = serial?;
                 rtu::connect(port).await

@@ -1,6 +1,6 @@
 use crate::client::Client;
-use crate::frame::{tcp::*, *};
 use crate::codec;
+use crate::frame::{tcp::*, *};
 use crate::slave::*;
 
 use futures::Future;
@@ -19,7 +19,7 @@ pub(crate) fn connect_slave(
     socket_addr: SocketAddr,
     slave: Slave,
 ) -> impl Future<Output = Result<Context, Error>> + 'static {
-    let unit_id : UnitId = slave.into();
+    let unit_id: UnitId = slave.into();
     async move {
         let service = TcpStream::connect(socket_addr).await?;
         let framed = Framed::new(service, codec::tcp::ClientCodec::default());
@@ -85,7 +85,6 @@ impl Context {
             ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
             ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
         }
-
     }
 }
 
@@ -109,7 +108,10 @@ impl SlaveContext for Context {
 }
 
 impl Client for Context {
-    fn call<'a>(&'a mut self, req: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>>{
+    fn call<'a>(
+        &'a mut self,
+        req: Request,
+    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
         Box::pin(Context::call(self, req))
     }
 }

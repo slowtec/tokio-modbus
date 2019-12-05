@@ -9,9 +9,7 @@ use std::io::Error;
 use std::net::SocketAddr;
 
 /// Establish a direct connection to a Modbus TCP coupler.
-pub fn connect(
-    socket_addr: SocketAddr,
-) -> impl Future<Output = Result<Context, Error>> {
+pub fn connect(socket_addr: SocketAddr) -> impl Future<Output = Result<Context, Error>> {
     connect_slave(socket_addr, Slave::tcp_device())
 }
 
@@ -26,9 +24,9 @@ pub fn connect_slave(
 
     async {
         let context = context_future.await?;
-        
+
         Ok(Context {
-            client: Box::new(context)
+            client: Box::new(context),
         })
     }
 }

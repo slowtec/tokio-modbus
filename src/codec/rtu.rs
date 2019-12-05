@@ -3,8 +3,8 @@ use super::*;
 use crate::frame::rtu::*;
 use crate::slave::SlaveId;
 
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 use byteorder::BigEndian;
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use log::{debug, error, warn};
 use smallvec::SmallVec;
 use std::io::{Cursor, Error, ErrorKind, Result};
@@ -541,16 +541,18 @@ mod tests {
         #[test]
         fn decode_partly_received_client_message() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(&[
-                0x12, // slave address
-                0x02, // function code
-                0x03, // byte count
-                0x00, // data
-                0x00, // data
-                0x00, // data
-                0x00, // CRC first byte
-                      // missing crc second byte
-            ][..]);
+            let mut buf = BytesMut::from(
+                &[
+                    0x12, // slave address
+                    0x02, // function code
+                    0x03, // byte count
+                    0x00, // data
+                    0x00, // data
+                    0x00, // data
+                    0x00, // CRC first byte
+                          // missing crc second byte
+                ][..],
+            );
             let res = codec.decode(&mut buf).unwrap();
             assert!(res.is_none());
             assert_eq!(buf.len(), 7);
@@ -607,10 +609,12 @@ mod tests {
         #[test]
         fn decode_partly_received_server_message_0x16() {
             let mut codec = ServerCodec::default();
-            let mut buf = BytesMut::from(&[
-                0x12, // slave address
-                0x16, // function code
-            ][..]);
+            let mut buf = BytesMut::from(
+                &[
+                    0x12, // slave address
+                    0x16, // function code
+                ][..],
+            );
             assert_eq!(buf.len(), 2);
 
             let res = codec.decode(&mut buf).unwrap();
@@ -622,10 +626,12 @@ mod tests {
         #[test]
         fn decode_partly_received_server_message_0x0f() {
             let mut codec = ServerCodec::default();
-            let mut buf = BytesMut::from(&[
-                0x12, // slave address
-                0x0F, // function code
-            ][..]);
+            let mut buf = BytesMut::from(
+                &[
+                    0x12, // slave address
+                    0x0F, // function code
+                ][..],
+            );
             assert_eq!(buf.len(), 2);
 
             let res = codec.decode(&mut buf).unwrap();
@@ -637,10 +643,12 @@ mod tests {
         #[test]
         fn decode_partly_received_server_message_0x10() {
             let mut codec = ServerCodec::default();
-            let mut buf = BytesMut::from(&[
-                0x12, // slave address
-                0x10, // function code
-            ][..]);
+            let mut buf = BytesMut::from(
+                &[
+                    0x12, // slave address
+                    0x10, // function code
+                ][..],
+            );
             assert_eq!(buf.len(), 2);
 
             let res = codec.decode(&mut buf).unwrap();
@@ -652,18 +660,20 @@ mod tests {
         #[test]
         fn decode_rtu_message() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(&[
-                0x01, // slave address
-                0x03, // function code
-                0x04, // byte count
-                0x89, //
-                0x02, //
-                0x42, //
-                0xC7, //
-                0x00, // crc
-                0x9D, // crc
-                0x00,
-            ][..]);
+            let mut buf = BytesMut::from(
+                &[
+                    0x01, // slave address
+                    0x03, // function code
+                    0x04, // byte count
+                    0x89, //
+                    0x02, //
+                    0x42, //
+                    0xC7, //
+                    0x00, // crc
+                    0x9D, // crc
+                    0x00,
+                ][..],
+            );
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
@@ -679,20 +689,22 @@ mod tests {
         fn decode_rtu_response_drop_invalid_bytes() {
             env_logger::init();
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(&[
-                0x42, // dropped byte
-                0x43, // dropped byte
-                0x01, // slave address
-                0x03, // function code
-                0x04, // byte count
-                0x89, //
-                0x02, //
-                0x42, //
-                0xC7, //
-                0x00, // crc
-                0x9D, // crc
-                0x00,
-            ][..]);
+            let mut buf = BytesMut::from(
+                &[
+                    0x42, // dropped byte
+                    0x43, // dropped byte
+                    0x01, // slave address
+                    0x03, // function code
+                    0x04, // byte count
+                    0x89, //
+                    0x02, //
+                    0x42, //
+                    0xC7, //
+                    0x00, // crc
+                    0x9D, // crc
+                    0x00,
+                ][..],
+            );
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
@@ -707,13 +719,15 @@ mod tests {
         #[test]
         fn decode_exception_message() {
             let mut codec = ClientCodec::default();
-            let mut buf = BytesMut::from(&[
-                0x66, //
-                0x82, // exception = 0x80 + 0x02
-                0x03, //
-                0xB1, // crc
-                0x7E, // crc
-            ][..]);
+            let mut buf = BytesMut::from(
+                &[
+                    0x66, //
+                    0x82, // exception = 0x80 + 0x02
+                    0x03, //
+                    0xB1, // crc
+                    0x7E, // crc
+                ][..],
+            );
 
             let ResponseAdu { pdu, .. } = codec.decode(&mut buf).unwrap().unwrap();
             if let ResponsePdu(Err(err)) = pdu {

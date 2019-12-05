@@ -20,8 +20,10 @@ use std::pin::Pin;
 /// A transport independent asynchronous client trait.
 pub trait Client: SlaveContext {
     //fn call(&self, request: Request) -> Pin<Box<dyn Future<Output = Response>>>;
-    fn call<'a>(&'a mut self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>>;
-
+    fn call<'a>(
+        &'a mut self,
+        request: Request,
+    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>>;
 }
 
 /// An asynchronous Modbus reader.
@@ -61,7 +63,11 @@ pub trait Reader: Client {
 
 /// An asynchronous Modbus writer.
 pub trait Writer: Client {
-    fn write_single_coil<'a>(&'a mut self, _: Address, _: Coil) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
+    fn write_single_coil<'a>(
+        &'a mut self,
+        _: Address,
+        _: Coil,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
 
     fn write_multiple_coils<'a>(
         &'a mut self,
@@ -87,18 +93,15 @@ pub struct Context {
     client: Box<dyn Client>,
 }
 
-
 impl Context {
     pub async fn disconnect(&mut self) -> Result<(), Error> {
         // Disconnecting is expected to fail!
         let res = self.client.call(Request::Disconnect).await;
         match res {
             Ok(_) => unreachable!(),
-            Err(err) => {
-                match err.kind() {
-                    ErrorKind::NotConnected | ErrorKind::BrokenPipe => Ok(()),
-                    _ => Err(err),
-                }
+            Err(err) => match err.kind() {
+                ErrorKind::NotConnected | ErrorKind::BrokenPipe => Ok(()),
+                _ => Err(err),
             },
         }
     }
@@ -117,7 +120,10 @@ impl Into<Box<dyn Client>> for Context {
 }
 
 impl Client for Context {
-    fn call<'a>(&'a mut self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
+    fn call<'a>(
+        &'a mut self,
+        request: Request,
+    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
         self.client.call(request)
     }
 }
@@ -165,7 +171,7 @@ impl Reader for Context {
                 Ok(coils)
             } else {
                 Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-            }    
+            }
         })
     }
 
@@ -175,7 +181,7 @@ impl Reader for Context {
         cnt: Quantity,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>> {
         let request = self.client.call(Request::ReadInputRegisters(addr, cnt));
-        
+
         Box::pin(async move {
             let rsp = request.await?;
 
@@ -199,7 +205,7 @@ impl Reader for Context {
 
         Box::pin(async move {
             let rsp = request.await?;
-                
+
             if let Response::ReadHoldingRegisters(rsp) = rsp {
                 if rsp.len() != cnt as usize {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
@@ -218,13 +224,12 @@ impl Reader for Context {
         write_addr: Address,
         write_data: &[Word],
     ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>> {
-        let request = self.client
-            .call(Request::ReadWriteMultipleRegisters(
-                read_addr,
-                read_cnt,
-                write_addr,
-                write_data.to_vec(),
-            ));
+        let request = self.client.call(Request::ReadWriteMultipleRegisters(
+            read_addr,
+            read_cnt,
+            write_addr,
+            write_data.to_vec(),
+        ));
         Box::pin(async move {
             let rsp = request.await?;
 
@@ -250,7 +255,7 @@ impl Writer for Context {
 
         Box::pin(async move {
             let rsp = request.await?;
-          
+
             if let Response::WriteSingleCoil(rsp_addr) = rsp {
                 if rsp_addr != addr {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
@@ -268,11 +273,13 @@ impl Writer for Context {
         coils: &[Coil],
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
         let cnt = coils.len();
-        let request = self.client.call(Request::WriteMultipleCoils(addr, coils.to_vec()));
+        let request = self
+            .client
+            .call(Request::WriteMultipleCoils(addr, coils.to_vec()));
 
         Box::pin(async move {
             let rsp = request.await?;
-                
+
             if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
                 if rsp_addr != addr || rsp_cnt as usize != cnt {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
@@ -293,7 +300,7 @@ impl Writer for Context {
 
         Box::pin(async move {
             let rsp = request.await?;
-    
+
             if let Response::WriteSingleRegister(rsp_addr, rsp_word) = rsp {
                 if rsp_addr != addr || rsp_word != data {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
@@ -311,11 +318,13 @@ impl Writer for Context {
         data: &[Word],
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
         let cnt = data.len();
-        let request = self.client.call(Request::WriteMultipleRegisters(addr, data.to_vec()));
+        let request = self
+            .client
+            .call(Request::WriteMultipleRegisters(addr, data.to_vec()));
 
         Box::pin(async move {
             let rsp = request.await?;
-                
+
             if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
                 if rsp_addr != addr || rsp_cnt as usize != cnt {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
@@ -359,7 +368,10 @@ mod tests {
     }
 
     impl Client for ClientMock {
-        fn call<'a>(&'a mut self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
+        fn call<'a>(
+            &'a mut self,
+            request: Request,
+        ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
             self.last_request.replace(Some(request));
             Box::pin(future::ready(match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
@@ -384,7 +396,8 @@ mod tests {
             client.set_next_response(Ok(Response::ReadCoils(response_coils.clone())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
-            let coils =  futures::executor::block_on(context.read_coils(1, num_coils as u16)).unwrap();
+            let coils =
+                futures::executor::block_on(context.read_coils(1, num_coils as u16)).unwrap();
             assert_eq!(&response_coils[0..num_coils], &coils[..]);
         }
     }
@@ -399,9 +412,9 @@ mod tests {
             client.set_next_response(Ok(Response::ReadDiscreteInputs(response_inputs.clone())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
-            let inputs = futures::executor::block_on(context
-                .read_discrete_inputs(1, num_inputs as u16))
-                .unwrap();
+            let inputs =
+                futures::executor::block_on(context.read_discrete_inputs(1, num_inputs as u16))
+                    .unwrap();
             assert_eq!(&response_inputs[0..num_inputs], &inputs[..]);
         }
     }
