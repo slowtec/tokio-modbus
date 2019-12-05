@@ -15,6 +15,9 @@ pub fn connect(socket_addr: SocketAddr) -> Result<Context> {
 pub fn connect_slave(socket_addr: SocketAddr, slave: Slave) -> Result<Context> {
     let mut rt = tokio::runtime::Runtime::new().unwrap();
     let async_ctx = rt.block_on(async_connect_slave(socket_addr, slave))?;
-    let sync_ctx = Context { core: rt, async_ctx };
+    let sync_ctx = Context {
+        core: rt,
+        async_ctx,
+    };
     Ok(sync_ctx)
 }

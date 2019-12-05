@@ -47,7 +47,7 @@
 //! use tokio::runtime::Runtime;
 //! use futures::Future;
 //! use tokio_modbus::prelude::*;
-//! 
+//!
 //! pub fn main() {
 //!     let mut rt = tokio::runtime::Runtime::new().unwrap();
 //!     let socket_addr = "192.168.0.222:502".parse().unwrap();
@@ -119,10 +119,8 @@ pub mod client;
 pub mod server;
 pub mod slave;
 
-pub use crate::service::service::{Service, NewService};
+pub use crate::service::service::{NewService, Service};
 
 mod codec;
 mod frame;
 mod service;
-
-

@@ -1,17 +1,16 @@
+use crate::codec;
+use crate::{NewService, Service};
+
+use futures::{future::Future, select};
+use futures_util::future::FutureExt;
+use futures_util::sink::SinkExt;
+use futures_util::stream::StreamExt;
+use log::{error, trace};
+use net2;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
-
-use net2;
-
-use futures::{select, future::Future};
-use tokio::net::{TcpStream, TcpListener};
-use crate::{NewService, Service};
-use crate::codec;
-use log::{error, trace};
-use futures_util::stream::StreamExt;
-use futures_util::sink::SinkExt;
-use futures_util::future::FutureExt;
+use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
 
 // TODO: Add more options, e.g.:
@@ -45,10 +44,7 @@ impl TcpServer {
     /// default configuration.
     ///
     pub fn new(addr: SocketAddr) -> TcpServer {
-        TcpServer {
-            threads: 1,
-            addr,
-        }
+        TcpServer { threads: 1, addr }
     }
 
     /// Set the address for the server.
@@ -67,9 +63,13 @@ impl TcpServer {
     // /// Start up the server, providing the given service on it.
     // ///
     // /// This method will block the current thread until the server is shut down.
-    pub fn serve<S, Sd>(&self, new_service: S) where
-        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response> + Send + Sync + 'static,
-        S::Instance: 'static + Send + Sync
+    pub fn serve<S, Sd>(&self, new_service: S)
+    where
+        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
+            + Send
+            + Sync
+            + 'static,
+        S::Instance: 'static + Send + Sync,
     {
         self.serve_until(new_service, futures::future::pending())
     }
@@ -77,10 +77,14 @@ impl TcpServer {
     /// Start up the server, providing the given service on it.
     ///
     /// This method will block the current thread until the server is shut down or until the given future, `shutdown_signal` resolves.
-    pub fn serve_until<S, Sd>(&self, new_service: S, shutdown_signal: Sd) where
-        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response> + Send + Sync + 'static,
+    pub fn serve_until<S, Sd>(&self, new_service: S, shutdown_signal: Sd)
+    where
+        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
+            + Send
+            + Sync
+            + 'static,
         Sd: Future<Output = ()> + Send + Sync + Unpin + 'static,
-        S::Instance: 'static + Send + Sync
+        S::Instance: 'static + Send + Sync,
     {
         self.with_handle(new_service, shutdown_signal)
     }
@@ -93,10 +97,14 @@ impl TcpServer {
     /// turn used to make a new service instance for each incoming connection.
     ///
     /// This method will block the current thread until the server is shut down.
-    pub fn with_handle<S, Sd>(&self, new_service: S, shutdown_signal: Sd) where
-        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response> + Send + Sync + 'static,
+    pub fn with_handle<S, Sd>(&self, new_service: S, shutdown_signal: Sd)
+    where
+        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
+            + Send
+            + Sync
+            + 'static,
         Sd: Future<Output = ()> + Send + Sync + Unpin + 'static,
-        S::Instance: 'static + Send + Sync
+        S::Instance: 'static + Send + Sync,
     {
         // let proto = self.proto.clone();
         // let new_service = Arc::new(new_service);
@@ -108,10 +116,13 @@ impl TcpServer {
 }
 
 fn serve_until<S, Sd>(addr: SocketAddr, workers: usize, new_service: S, shutdown_signal: Sd)
-    where
-        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response> + Send + Sync + 'static,
-        S::Instance: 'static + Send + Sync,
-        Sd: Future<Output = ()> + Unpin + Send + Sync + 'static
+where
+    S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
+        + Send
+        + Sync
+        + 'static,
+    S::Instance: 'static + Send + Sync,
+    Sd: Future<Output = ()> + Unpin + Send + Sync + 'static,
 {
     let mut rt = tokio::runtime::Runtime::new().unwrap();
 
@@ -154,9 +165,15 @@ fn serve_until<S, Sd>(addr: SocketAddr, workers: usize, new_service: S, shutdown
     rt.block_on(task);
 }
 
-async fn process<S>(framed: Framed<TcpStream, codec::tcp::ServerCodec>, service: S) -> Result<(), std::io::Error>
-    where
-        S: Service<Request = crate::frame::Request, Response = crate::frame::Response> + Send + Sync + 'static,
+async fn process<S>(
+    framed: Framed<TcpStream, codec::tcp::ServerCodec>,
+    service: S,
+) -> Result<(), std::io::Error>
+where
+    S: Service<Request = crate::frame::Request, Response = crate::frame::Response>
+        + Send
+        + Sync
+        + 'static,
 {
     let mut framed = framed;
 
@@ -172,16 +189,17 @@ async fn process<S>(framed: Framed<TcpStream, codec::tcp::ServerCodec>, service:
         let hdr = request.hdr;
         let response = service.call(request.pdu.0);
 
-        framed.send(crate::frame::tcp::ResponseAdu {
-            hdr,
-            pdu: response.into()
-        }).await?;
+        framed
+            .send(crate::frame::tcp::ResponseAdu {
+                hdr,
+                pdu: response.into(),
+            })
+            .await?;
     }
     Ok(())
 }
 
-fn listener(addr: &SocketAddr,
-            workers: usize) -> io::Result<TcpListener> {
+fn listener(addr: &SocketAddr, workers: usize) -> io::Result<TcpListener> {
     let listener = match *addr {
         SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?,
         SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?,
@@ -199,7 +217,7 @@ fn configure_tcp(workers: usize, tcp: &net2::TcpBuilder) -> io::Result<()> {
     if workers > 1 {
         tcp.reuse_port(true)?;
     }
-    
+
     Ok(())
 }
 

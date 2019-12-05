@@ -108,7 +108,8 @@ impl Writer for Context {
     }
 
     fn write_single_coil(&mut self, addr: Address, coil: Coil) -> Result<()> {
-        self.core.block_on(self.async_ctx.write_single_coil(addr, coil))
+        self.core
+            .block_on(self.async_ctx.write_single_coil(addr, coil))
     }
 
     fn write_multiple_coils(&mut self, addr: Address, coils: &[Coil]) -> Result<()> {

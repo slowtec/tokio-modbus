@@ -1,13 +1,13 @@
 use crate::client::Client;
+use crate::codec;
 use crate::frame::{rtu::*, *};
 use crate::slave::*;
-use crate::codec;
 
 use futures::{future, Future};
 use std::io::{Error, ErrorKind};
+use std::pin::Pin;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
-use std::pin::Pin;
 
 use futures_util::sink::SinkExt;
 use futures_util::stream::StreamExt;
@@ -22,7 +22,10 @@ where
     let framed = Framed::new(transport, codec::rtu::ClientCodec::default());
 
     let slave_id = slave.into();
-    future::ok(Context { service: framed, slave_id })
+    future::ok(Context {
+        service: framed,
+        slave_id,
+    })
 }
 
 /// Modbus RTU client
@@ -55,8 +58,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + 'static> Context<T> {
         let res_adu = self.service.next().await.unwrap()?;
 
         match res_adu.pdu {
-            ResponsePdu(Ok(res)) =>
-                verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
+            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
             ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
         }
     }
@@ -82,7 +84,10 @@ impl<T: AsyncRead + AsyncWrite + Unpin + 'static> SlaveContext for Context<T> {
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin + 'static> Client for Context<T> {
-    fn call<'a>(&'a mut self, req: Request) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
+    fn call<'a>(
+        &'a mut self,
+        req: Request,
+    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
         Box::pin(self.call(req))
     }
 }

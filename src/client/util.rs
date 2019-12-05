@@ -4,7 +4,7 @@ use super::*;
 
 use futures::Future;
 
-use std::{cell::RefCell, io::Error, rc::Rc, pin::Pin};
+use std::{cell::RefCell, io::Error, pin::Pin, rc::Rc};
 
 /// Helper for sharing a context between multiple clients,
 /// i.e. when addressing multiple slave devices in turn.
@@ -26,7 +26,7 @@ impl SharedContextHolder {
         if let Some(context) = self.context.take() {
             let mut context = context.borrow_mut();
             context.disconnect().await?;
-        } 
+        }
 
         Ok(())
     }
@@ -96,8 +96,9 @@ pub async fn reconnect_shared_context(
     shared_context
         .borrow_mut()
         .shared_context
-        .disconnect().await?;
-        
+        .disconnect()
+        .await?;
+
     // After disconnecting the existing context create
     // a new instance...
     debug_assert!(!disconnected_context.borrow().is_connected());
@@ -105,8 +106,9 @@ pub async fn reconnect_shared_context(
     let context = disconnected_context
         .borrow()
         .new_context
-        .new_context().await?;
-        
+        .new_context()
+        .await?;
+
     // ...and put it into the shared context. The new
     // context will then be used for all subsequent
     // client requests.

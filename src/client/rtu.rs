@@ -18,10 +18,7 @@ where
 }
 
 /// Connect to any kind of Modbus slave device.
-pub fn connect_slave<T>(
-    transport: T,
-    slave: Slave,
-) -> impl Future<Output = Result<Context, Error>>
+pub fn connect_slave<T>(transport: T, slave: Slave) -> impl Future<Output = Result<Context, Error>>
 where
     T: AsyncRead + AsyncWrite + Unpin + 'static,
 {
@@ -29,7 +26,7 @@ where
         let client = service::rtu::connect_slave(transport, slave).await?;
 
         Ok(Context {
-            client: Box::new(client)
+            client: Box::new(client),
         })
     }
 }

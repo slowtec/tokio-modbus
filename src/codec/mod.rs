@@ -7,7 +7,7 @@ pub mod tcp;
 
 use crate::frame::*;
 
-use byteorder::{ReadBytesExt, BigEndian};
+use byteorder::{BigEndian, ReadBytesExt};
 use bytes::{BufMut, Bytes, BytesMut};
 use std::convert::TryFrom;
 use std::io::{self, Cursor, Error, ErrorKind};

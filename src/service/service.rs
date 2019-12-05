@@ -3,7 +3,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 pub trait Service {
-
     /// Requests handled by the service.
     type Request;
 
@@ -19,7 +18,6 @@ pub trait Service {
     /// Process the request and return the response asynchronously.
     fn call(&self, req: Self::Request) -> Self::Response;
 }
-
 
 /// Creates new `Service` values.
 pub trait NewService {
@@ -40,8 +38,9 @@ pub trait NewService {
 }
 
 impl<F, R> NewService for F
-    where F: Fn() -> io::Result<R>,
-          R: Service,
+where
+    F: Fn() -> io::Result<R>,
+    R: Service,
 {
     type Request = R::Request;
     type Response = R::Response;
