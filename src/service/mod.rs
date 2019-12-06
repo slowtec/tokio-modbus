@@ -18,11 +18,8 @@ pub trait Service {
     /// Errors produced by the service.
     type Error;
 
-    /// The future response value.
-    //type Future: Future<Output = Result<Self::Response, Self::Error>>;
-
     /// Process the request and return the response asynchronously.
-    fn call(&self, req: Self::Request) -> Self::Response;
+    fn call(&self, req: Self::Request) -> Result<Self::Response, Self::Error>;
 }
 
 /// Creates new `Service` values.
@@ -84,9 +81,8 @@ impl<S: Service + ?Sized> Service for Box<S> {
     type Request = S::Request;
     type Response = S::Response;
     type Error = S::Error;
-    //type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> S::Response {
+    fn call(&self, request: S::Request) -> Result<S::Response, S::Error> {
         (**self).call(request)
     }
 }
@@ -95,9 +91,8 @@ impl<S: Service + ?Sized> Service for Rc<S> {
     type Request = S::Request;
     type Response = S::Response;
     type Error = S::Error;
-    //type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> S::Response {
+    fn call(&self, request: S::Request) -> Result<S::Response, S::Error> {
         (**self).call(request)
     }
 }
@@ -106,9 +101,8 @@ impl<S: Service + ?Sized> Service for Arc<S> {
     type Request = S::Request;
     type Response = S::Response;
     type Error = S::Error;
-    //type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> S::Response {
+    fn call(&self, request: S::Request) -> Result<S::Response, S::Error> {
         (**self).call(request)
     }
 }

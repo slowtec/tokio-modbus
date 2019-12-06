@@ -12,12 +12,12 @@ impl Service for MbServer {
     type Response = Response;
     type Error = std::io::Error;
 
-    fn call(&self, req: Self::Request) -> Self::Response {
+    fn call(&self, req: Self::Request) -> Result<Self::Response, Self::Error> {
         match req {
             Request::ReadInputRegisters(_addr, cnt) => {
                 let mut registers = vec![0; cnt as usize];
                 registers[2] = 0x77;
-                Response::ReadInputRegisters(registers)
+                Ok(Response::ReadInputRegisters(registers))
             }
             _ => unimplemented!(),
         }

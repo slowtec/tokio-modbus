@@ -69,6 +69,7 @@ impl TcpServer {
             + Send
             + Sync
             + 'static,
+        S::Error: Into<std::io::Error>,
         S::Instance: 'static + Send + Sync,
     {
         self.serve_until(new_service, futures::future::pending())
@@ -83,6 +84,7 @@ impl TcpServer {
             + Send
             + Sync
             + 'static,
+        S::Error: Into<std::io::Error>,
         Sd: Future<Output = ()> + Send + Sync + Unpin + 'static,
         S::Instance: 'static + Send + Sync,
     {
@@ -103,6 +105,7 @@ impl TcpServer {
             + Send
             + Sync
             + 'static,
+        S::Error: Into<std::io::Error>,
         Sd: Future<Output = ()> + Send + Sync + Unpin + 'static,
         S::Instance: 'static + Send + Sync,
     {
@@ -121,6 +124,7 @@ where
         + Send
         + Sync
         + 'static,
+    S::Error: Into<std::io::Error>,
     S::Instance: 'static + Send + Sync,
     Sd: Future<Output = ()> + Unpin + Send + Sync + 'static,
 {
@@ -174,6 +178,7 @@ where
         + Send
         + Sync
         + 'static,
+    S::Error: Into<std::io::Error>
 {
     let mut framed = framed;
 
@@ -187,7 +192,7 @@ where
 
         let request = request.unwrap()?;
         let hdr = request.hdr;
-        let response = service.call(request.pdu.0);
+        let response = service.call(request.pdu.0).map_err(Into::into)?;
 
         framed
             .send(crate::frame::tcp::ResponseAdu {
