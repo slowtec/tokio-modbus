@@ -79,8 +79,8 @@ mod tests {
             type Response = Response;
             type Error = Error;
 
-            fn call(&self, _: Self::Request) -> Response {
-                self.response.clone()
+            fn call(&self, _: Self::Request) -> Result<Response, Error> {
+                Ok(self.response.clone())
             }
         }
 
@@ -89,7 +89,7 @@ mod tests {
         };
 
         let pdu = Request::ReadInputRegisters(0, 1);
-        let rsp_adu = service.call(pdu);
+        let rsp_adu = service.call(pdu).unwrap();
 
         assert_eq!(rsp_adu, service.response);
     }
