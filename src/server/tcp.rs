@@ -1,6 +1,6 @@
+use super::service::NewService;
 use crate::frame::*;
 use crate::server::tcp_server::TcpServer;
-use crate::NewService;
 use futures::{self, Future};
 use std::io::Error;
 use std::net::SocketAddr;
@@ -65,7 +65,7 @@ impl Server {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Service;
+    use crate::server::Service;
 
     #[test]
     fn service_wrapper() {

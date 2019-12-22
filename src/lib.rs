@@ -119,8 +119,6 @@ pub mod client;
 pub mod server;
 pub mod slave;
 
-pub use crate::service::{NewService, Service};
-
 mod codec;
 mod frame;
 mod service;

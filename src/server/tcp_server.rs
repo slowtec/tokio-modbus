@@ -1,5 +1,5 @@
 use crate::codec;
-use crate::{NewService, Service};
+use super::service::{NewService, Service};
 
 use futures::{future::Future, select};
 use futures_util::future::FutureExt;
