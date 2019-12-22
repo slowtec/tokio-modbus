@@ -2,6 +2,8 @@
 /// Modules
 ///////////////////////////////////////////////////////////////////
 pub use crate::client;
+
+#[cfg(feature = "server")]
 pub use crate::server;
 
 #[cfg(feature = "rtu")]
@@ -12,6 +14,8 @@ pub mod rtu {
 #[cfg(feature = "tcp")]
 pub mod tcp {
     pub use crate::client::tcp::*;
+
+    #[cfg(feature = "server")]
     pub use crate::server::tcp::*;
 }
 
