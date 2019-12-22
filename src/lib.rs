@@ -116,8 +116,10 @@
 pub mod prelude;
 
 pub mod client;
-pub mod server;
 pub mod slave;
+
+#[cfg(feature = "server")]
+pub mod server;
 
 mod codec;
 mod frame;

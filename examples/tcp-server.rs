@@ -1,31 +1,31 @@
-use std::thread;
-use std::time::Duration;
+#[cfg(all(feature = "tcp", feature = "server"))]
+fn main() {
+    use std::thread;
+    use std::time::Duration;
 
-use tokio_modbus::Service;
+    use tokio_modbus::server::Service;
 
-use tokio_modbus::prelude::*;
+    use tokio_modbus::prelude::*;
 
-struct MbServer;
+    struct MbServer;
 
-impl Service for MbServer {
-    type Request = Request;
-    type Response = Response;
-    type Error = std::io::Error;
+    impl Service for MbServer {
+        type Request = Request;
+        type Response = Response;
+        type Error = std::io::Error;
 
-    fn call(&self, req: Self::Request) -> Result<Self::Response, Self::Error> {
-        match req {
-            Request::ReadInputRegisters(_addr, cnt) => {
-                let mut registers = vec![0; cnt as usize];
-                registers[2] = 0x77;
-                Ok(Response::ReadInputRegisters(registers))
+        fn call(&self, req: Self::Request) -> Result<Self::Response, Self::Error> {
+            match req {
+                Request::ReadInputRegisters(_addr, cnt) => {
+                    let mut registers = vec![0; cnt as usize];
+                    registers[2] = 0x77;
+                    Ok(Response::ReadInputRegisters(registers))
+                }
+                _ => unimplemented!(),
             }
-            _ => unimplemented!(),
         }
     }
-}
 
-#[cfg(feature = "tcp")]
-fn main() {
     let socket_addr = "127.0.0.1:5502".parse().unwrap();
 
     println!("Starting up server...");
@@ -50,8 +50,8 @@ fn main() {
     rt.block_on(task).unwrap();
 }
 
-#[cfg(not(feature = "tcp"))]
+#[cfg(not(all(feature = "tcp", feature = "server")))]
 pub fn main() {
-    println!("feature `tcp` is required to run this example");
+    println!("both `tcp` and `server` features is required to run this example");
     std::process::exit(1);
 }

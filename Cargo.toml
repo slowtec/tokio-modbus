@@ -18,11 +18,12 @@ log = "0.4"
 smallvec = { version = "1", default-features = false }
 tokio = { version = "0.2", features = ["tcp", "rt-core"] }
 tokio-util = { version = "0.2", features = ["codec"] }
-net2 = "0.2"
 futures-util = "0.3"
 
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "4.3.3", optional = true, default-features = false }
+
+net2 = { version = "0.2", optional = true }
 
 [dev-dependencies]
 env_logger = "0.6"
@@ -32,6 +33,7 @@ default = ["tcp", "rtu", "sync"]
 rtu = ["tokio-serial"]
 tcp = []
 sync = []
+server = ["net2"]
 
 [badges]
 travis-ci = { repository = "slowtec/tokio-modbus" }
