@@ -48,17 +48,15 @@
 //! use futures::Future;
 //! use tokio_modbus::prelude::*;
 //!
-//! pub fn main() {
-//!     let mut rt = tokio::runtime::Runtime::new().unwrap();
+//! #[tokio::main]
+//! pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let socket_addr = "192.168.0.222:502".parse().unwrap();
 //!
-//!     let task = async {
-//!         let mut ctx = tcp::connect(socket_addr).await?;
-//!         let data = ctx.read_input_registers(0x1000, 7).await?;
-//!         println!("Response is '{:?}'", data);
-//!         Result::<_, std::io::Error>::Ok(())
-//!     };
-//!     rt.block_on(task).unwrap();
+//!     let mut ctx = tcp::connect(socket_addr).await?;
+//!     let data = ctx.read_input_registers(0x1000, 7).await?;
+//!     println!("Response is '{:?}'", data);
+//! 
+//!     Ok(())
 //! }
 //! ```
 //!
@@ -84,8 +82,8 @@
 //!
 //! use tokio_modbus::prelude::*;
 //!
-//! pub fn main() {
-//!     let mut rt = tokio::runtime::Runtime::new().unwrap();
+//! #[tokio::main]
+//! pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let tty_path = "/dev/ttyUSB0";
 //!     let slave = Slave(0x17);
 //!
@@ -93,15 +91,12 @@
 //!     settings.baud_rate = 19200;
 //!     let port = Serial::from_path(tty_path, &settings).unwrap();
 //!
-//!     let task = async {
-//!         let mut ctx = rtu::connect_slave(port, slave).await?;
-//!         println!("Reading a sensor value");
-//!         let rsp = ctx.read_holding_registers(0x082B, 2).await?;
-//!         println!("Sensor value is: {:?}", rsp);
-//!         Result::<_, std::io::Error>::Ok(())
-//!     };
+//!     let mut ctx = rtu::connect_slave(port, slave).await?;
+//!     println!("Reading a sensor value");
+//!     let rsp = ctx.read_holding_registers(0x082B, 2).await?;
+//!     println!("Sensor value is: {:?}", rsp);
 //!
-//!     rt.block_on(task).unwrap();
+//!     Ok(())
 //! }
 //! ```
 //!

@@ -18,12 +18,12 @@ use std::io::{Error, ErrorKind};
 use std::pin::Pin;
 
 /// A transport independent asynchronous client trait.
-pub trait Client: SlaveContext {
+pub trait Client: SlaveContext + Send {
     //fn call(&self, request: Request) -> Pin<Box<dyn Future<Output = Response>>>;
     fn call<'a>(
         &'a mut self,
         request: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>>;
 }
 
 /// An asynchronous Modbus reader.
@@ -32,25 +32,25 @@ pub trait Reader: Client {
         &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + Send + 'a>>;
 
     fn read_discrete_inputs<'a>(
         &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + Send + 'a>>;
 
     fn read_input_registers<'a>(
         &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>>;
 
     fn read_holding_registers<'a>(
         &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>>;
 
     fn read_write_multiple_registers<'a>(
         &'a mut self,
@@ -58,7 +58,7 @@ pub trait Reader: Client {
         _: Quantity,
         _: Address,
         _: &[Word],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>>;
 }
 
 /// An asynchronous Modbus writer.
@@ -67,25 +67,25 @@ pub trait Writer: Client {
         &'a mut self,
         _: Address,
         _: Coil,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
 
     fn write_multiple_coils<'a>(
         &'a mut self,
         _: Address,
         _: &[Coil],
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
 
     fn write_single_register<'a>(
         &'a mut self,
         _: Address,
         _: Word,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
 
     fn write_multiple_registers<'a>(
         &'a mut self,
         _: Address,
         _: &[Word],
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
 }
 
 /// An asynchronous Modbus client context.
@@ -123,7 +123,7 @@ impl Client for Context {
     fn call<'a>(
         &'a mut self,
         request: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
         self.client.call(request)
     }
 }
@@ -139,7 +139,7 @@ impl Reader for Context {
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + Send + 'a>> {
         let request = self.client.call(Request::ReadCoils(addr, cnt));
 
         Box::pin(async move {
@@ -159,7 +159,7 @@ impl Reader for Context {
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + Send + 'a>> {
         let request = self.client.call(Request::ReadDiscreteInputs(addr, cnt));
 
         Box::pin(async move {
@@ -179,7 +179,7 @@ impl Reader for Context {
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>> {
         let request = self.client.call(Request::ReadInputRegisters(addr, cnt));
 
         Box::pin(async move {
@@ -200,7 +200,7 @@ impl Reader for Context {
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>> {
         let request = self.client.call(Request::ReadHoldingRegisters(addr, cnt));
 
         Box::pin(async move {
@@ -223,7 +223,7 @@ impl Reader for Context {
         read_cnt: Quantity,
         write_addr: Address,
         write_data: &[Word],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>> {
         let request = self.client.call(Request::ReadWriteMultipleRegisters(
             read_addr,
             read_cnt,
@@ -250,7 +250,7 @@ impl Writer for Context {
         &'a mut self,
         addr: Address,
         coil: Coil,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         let request = self.client.call(Request::WriteSingleCoil(addr, coil));
 
         Box::pin(async move {
@@ -271,7 +271,7 @@ impl Writer for Context {
         &'a mut self,
         addr: Address,
         coils: &[Coil],
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         let cnt = coils.len();
         let request = self
             .client
@@ -295,7 +295,7 @@ impl Writer for Context {
         &'a mut self,
         addr: Address,
         data: Word,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         let request = self.client.call(Request::WriteSingleRegister(addr, data));
 
         Box::pin(async move {
@@ -316,7 +316,7 @@ impl Writer for Context {
         &'a mut self,
         addr: Address,
         data: &[Word],
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         let cnt = data.len();
         let request = self
             .client
@@ -343,12 +343,12 @@ mod tests {
 
     use futures::future;
 
-    use std::cell::RefCell;
+    use std::sync::Mutex;
 
     #[derive(Default, Debug)]
     pub struct ClientMock {
         slave: Option<Slave>,
-        last_request: RefCell<Option<Request>>,
+        last_request: Mutex<Option<Request>>,
         next_response: Option<Result<Response, Error>>,
     }
 
@@ -358,7 +358,7 @@ mod tests {
             self.slave
         }
 
-        pub fn last_request(&self) -> &RefCell<Option<Request>> {
+        pub fn last_request(&self) -> &Mutex<Option<Request>> {
             &self.last_request
         }
 
@@ -371,8 +371,8 @@ mod tests {
         fn call<'a>(
             &'a mut self,
             request: Request,
-        ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
-            self.last_request.replace(Some(request));
+        ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
+            *self.last_request.lock().unwrap() = Some(request);
             Box::pin(future::ready(match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
                 Err(err) => Err(Error::new(err.kind(), format!("{}", err))),

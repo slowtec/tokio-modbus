@@ -13,10 +13,9 @@ const SLAVE_1: Slave = Slave(0x01);
 const SLAVE_2: Slave = Slave(0x02);
 
 #[cfg(feature = "rtu")]
-pub fn main() {
+#[tokio::main]
+pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_serial::{Serial, SerialPortSettings};
-
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
 
     #[derive(Debug)]
     struct SerialConfig {
@@ -52,31 +51,27 @@ pub fn main() {
     )));
 
     // Reconnect for connecting an initial context
-    let task = async {
-        reconnect_shared_context(&shared_context).await?;
+    reconnect_shared_context(&shared_context).await?;
 
-        assert!(shared_context.borrow().is_connected());
-        println!("Connected");
+    assert!(shared_context.borrow().is_connected());
+    println!("Connected");
 
-        println!("Reading a sensor value from {:?}", SLAVE_1);
-        let context = shared_context.borrow().share_context().unwrap();
-        let mut context = context.borrow_mut();
-        context.set_slave(SLAVE_1);
-        let response = context.read_holding_registers(0x082B, 2).await?;
-        println!("Sensor value for device {:?} is: {:?}", SLAVE_1, response);
+    println!("Reading a sensor value from {:?}", SLAVE_1);
+    let context = shared_context.borrow().share_context().unwrap();
+    let mut context = context.borrow_mut();
+    context.set_slave(SLAVE_1);
+    let response = context.read_holding_registers(0x082B, 2).await?;
+    println!("Sensor value for device {:?} is: {:?}", SLAVE_1, response);
 
-        println!("Reading a sensor value from {:?}", SLAVE_2);
-        let context = shared_context.borrow().share_context().unwrap();
-        let mut context = context.borrow_mut();
-        context.set_slave(SLAVE_2);
-        let response = context.read_holding_registers(0x082B, 2).await?;
+    println!("Reading a sensor value from {:?}", SLAVE_2);
+    let context = shared_context.borrow().share_context().unwrap();
+    let mut context = context.borrow_mut();
+    context.set_slave(SLAVE_2);
+    let response = context.read_holding_registers(0x082B, 2).await?;
 
-        println!("Sensor value for device {:?} is: {:?}", SLAVE_2, response);
+    println!("Sensor value for device {:?} is: {:?}", SLAVE_2, response);
 
-        Result::<_, Error>::Ok(())
-    };
-
-    rt.block_on(task).unwrap();
+    Ok(())
 }
 
 #[cfg(not(feature = "rtu"))]

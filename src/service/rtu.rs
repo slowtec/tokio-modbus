@@ -83,11 +83,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin + 'static> SlaveContext for Context<T> {
     }
 }
 
-impl<T: AsyncRead + AsyncWrite + Unpin + 'static> Client for Context<T> {
+impl<T: AsyncRead + AsyncWrite + Unpin + Send + 'static> Client for Context<T> {
     fn call<'a>(
         &'a mut self,
         req: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
         Box::pin(self.call(req))
     }
 }
