@@ -1,5 +1,6 @@
 #[cfg(all(feature = "tcp", feature = "server"))]
-fn main() {
+#[tokio::main]
+pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::thread;
     use std::time::Duration;
 
@@ -35,19 +36,13 @@ fn main() {
     // Give the server some time for stating up
     thread::sleep(Duration::from_secs(1));
 
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
-
     println!("Connecting client...");
-    let task = async {
-        let mut ctx = tcp::connect(socket_addr).await?;
-        println!("Reading input registers...");
-        let rsp = ctx.read_input_registers(0x00, 7).await?;
-        println!("The result is '{:?}'", rsp);
+    let mut ctx = tcp::connect(socket_addr).await?;
+    println!("Reading input registers...");
+    let rsp = ctx.read_input_registers(0x00, 7).await?;
+    println!("The result is '{:?}'", rsp);
 
-        Result::<_, std::io::Error>::Ok(())
-    };
-
-    rt.block_on(task).unwrap();
+    Ok(())
 }
 
 #[cfg(not(all(feature = "tcp", feature = "server")))]

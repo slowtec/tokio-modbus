@@ -4,9 +4,9 @@ use crate::frame::{tcp::*, *};
 use crate::slave::*;
 
 use futures::Future;
-use std::cell::Cell;
 use std::io::{Error, ErrorKind};
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU16, Ordering};
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
@@ -36,7 +36,7 @@ const INITIAL_TRANSACTION_ID: TransactionId = 0;
 pub(crate) struct Context {
     service: Framed<TcpStream, codec::tcp::ClientCodec>,
     unit_id: UnitId,
-    transaction_id: Cell<TransactionId>,
+    transaction_id: AtomicU16,
 }
 
 impl Context {
@@ -44,13 +44,14 @@ impl Context {
         Self {
             service,
             unit_id,
-            transaction_id: Cell::new(INITIAL_TRANSACTION_ID),
+            transaction_id: AtomicU16::new(INITIAL_TRANSACTION_ID),
         }
     }
 
     fn next_transaction_id(&self) -> TransactionId {
-        let transaction_id = self.transaction_id.get();
-        self.transaction_id.set(transaction_id.wrapping_add(1));
+        let transaction_id = self.transaction_id.load(Ordering::Relaxed);
+        self.transaction_id
+            .store(transaction_id.wrapping_add(1), Ordering::Relaxed);
         transaction_id
     }
 
@@ -79,7 +80,11 @@ impl Context {
         let req_hdr = req_adu.hdr;
 
         self.service.send(req_adu).await?;
-        let res_adu = self.service.next().await.ok_or_else(Error::last_os_error)??;
+        let res_adu = self
+            .service
+            .next()
+            .await
+            .ok_or_else(Error::last_os_error)??;
 
         match res_adu.pdu {
             ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
@@ -111,7 +116,7 @@ impl Client for Context {
     fn call<'a>(
         &'a mut self,
         req: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
         Box::pin(Context::call(self, req))
     }
 }
