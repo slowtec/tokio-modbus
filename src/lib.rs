@@ -55,7 +55,7 @@
 //!     let mut ctx = tcp::connect(socket_addr).await?;
 //!     let data = ctx.read_input_registers(0x1000, 7).await?;
 //!     println!("Response is '{:?}'", data);
-//! 
+//!
 //!     Ok(())
 //! }
 //! ```

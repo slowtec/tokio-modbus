@@ -14,13 +14,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         type Request = Request;
         type Response = Response;
         type Error = std::io::Error;
+        type Future = futures::future::Ready<Result<Self::Response, Self::Error>>;
 
-        fn call(&self, req: Self::Request) -> Result<Self::Response, Self::Error> {
+        fn call(&self, req: Self::Request) -> Self::Future {
             match req {
                 Request::ReadInputRegisters(_addr, cnt) => {
                     let mut registers = vec![0; cnt as usize];
                     registers[2] = 0x77;
-                    Ok(Response::ReadInputRegisters(registers))
+                    futures::future::ready(Ok(Response::ReadInputRegisters(registers)))
                 }
                 _ => unimplemented!(),
             }

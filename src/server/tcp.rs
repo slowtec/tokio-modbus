@@ -67,8 +67,8 @@ mod tests {
     use super::*;
     use crate::server::Service;
 
-    #[test]
-    fn service_wrapper() {
+    #[tokio::test]
+    async fn service_wrapper() {
         #[derive(Clone)]
         struct DummyService {
             response: Response,
@@ -78,9 +78,10 @@ mod tests {
             type Request = Request;
             type Response = Response;
             type Error = Error;
+            type Future = futures::future::Ready<Result<Self::Response, Self::Error>>;
 
-            fn call(&self, _: Self::Request) -> Result<Response, Error> {
-                Ok(self.response.clone())
+            fn call(&self, _: Self::Request) -> Self::Future {
+                futures::future::ready(Ok(self.response.clone()))
             }
         }
 
@@ -89,7 +90,7 @@ mod tests {
         };
 
         let pdu = Request::ReadInputRegisters(0, 1);
-        let rsp_adu = service.call(pdu).unwrap();
+        let rsp_adu = service.call(pdu).await.unwrap();
 
         assert_eq!(rsp_adu, service.response);
     }
