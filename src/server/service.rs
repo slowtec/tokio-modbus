@@ -2,6 +2,8 @@ use std::io;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use std::future::Future;
+
 pub trait Service {
     /// Requests handled by the service.
     type Request;
@@ -12,8 +14,11 @@ pub trait Service {
     /// Errors produced by the service.
     type Error;
 
+    /// The future response value.
+    type Future: Future<Output = Result<Self::Response, Self::Error>> + Send + Sync + Unpin;
+
     /// Process the request and return the response asynchronously.
-    fn call(&self, req: Self::Request) -> Result<Self::Response, Self::Error>;
+    fn call(&self, req: Self::Request) -> Self::Future;
 }
 
 /// Creates new `Service` values.
@@ -71,32 +76,35 @@ impl<S: NewService + ?Sized> NewService for Rc<S> {
     }
 }
 
-impl<S: Service + ?Sized> Service for Box<S> {
+impl<S: Service + ?Sized + 'static> Service for Box<S> {
     type Request = S::Request;
     type Response = S::Response;
     type Error = S::Error;
+    type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> Result<S::Response, S::Error> {
+    fn call(&self, request: S::Request) -> Self::Future {
         (**self).call(request)
     }
 }
 
-impl<S: Service + ?Sized> Service for Rc<S> {
+impl<S: Service + ?Sized + 'static> Service for Rc<S> {
     type Request = S::Request;
     type Response = S::Response;
     type Error = S::Error;
+    type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> Result<S::Response, S::Error> {
+    fn call(&self, request: S::Request) -> Self::Future {
         (**self).call(request)
     }
 }
 
-impl<S: Service + ?Sized> Service for Arc<S> {
+impl<S: Service + ?Sized + 'static> Service for Arc<S> {
     type Request = S::Request;
     type Response = S::Response;
     type Error = S::Error;
+    type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> Result<S::Response, S::Error> {
+    fn call(&self, request: S::Request) -> Self::Future {
         (**self).call(request)
     }
 }
