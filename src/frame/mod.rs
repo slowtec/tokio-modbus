@@ -32,16 +32,59 @@ pub(crate) type Quantity = u16;
 /// A request represents a message from the client (master) to the server (slave).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
+
+    /// A request to read multiple coils.
+    /// The first parameter is the address of the first coil to read.
+    /// The second parameter is the number of coils to read.
     ReadCoils(Address, Quantity),
+
+    /// A request to read multiple discrete inputs
+    /// The first parameter is the address of the first discrete input to read.
+    /// The second parameter is the number of discrete inputs to read.
     ReadDiscreteInputs(Address, Quantity),
+
+    /// A request to write a single coil.
+    /// The first parameter is the address of the coil.
+    /// The second parameter is the value to write to the coil.
     WriteSingleCoil(Address, Coil),
+
+    /// A request to write multiple coils.
+    /// The first parameter is the address of the first coil to write.
+    /// The second parameter is the vector of values to write to the coils.
     WriteMultipleCoils(Address, Vec<Coil>),
+
+    /// A request to read multiple input registers.
+    /// The first parameter is the address of the first input register to read.
+    /// The second parameter is the number of input registers to read.
     ReadInputRegisters(Address, Quantity),
+
+    /// A request to read multiple holding registers.
+    /// The first parameter is the address of the first holding register to read.
+    /// The second parameter is the number of holding registers to read.
     ReadHoldingRegisters(Address, Quantity),
+
+    /// A request to write a single register.
+    /// The first parameter is the address of the register to read.
+    /// The second parameter is the value to write to the register.
     WriteSingleRegister(Address, Word),
+
+    /// A request to write to multiple registers.
+    /// The first parameter is the address of the first register to write.
+    /// The second parameter is the vector of values to write to the registers.
     WriteMultipleRegisters(Address, Vec<Word>),
+    
+    /// A request to simultaneously read multiple registers and write multiple registers.
+    /// The first parameter is the address of the first register to read.
+    /// The second parameter is the number of registers to read.
+    /// The third parameter is the address of the first register to write.
+    /// The fourth parameter is the vector of values to write to the registers.
     ReadWriteMultipleRegisters(Address, Quantity, Address, Vec<Word>),
+
+    /// A raw modbus request.
+    /// The first parameter is the modbus function code.
+    /// The second parameter is the raw bytes of the request.
     Custom(FunctionCode, Vec<u8>),
+
     /// A poison pill for stopping the client service and to release
     /// the underlying transport, e.g. for disconnecting from an
     /// exclusively used serial port.
