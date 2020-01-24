@@ -16,7 +16,8 @@ byteorder = "1"
 futures = "0.3"
 log = "0.4"
 smallvec = { version = "1", default-features = false }
-tokio = { version = "0.2", features = ["tcp", "rt-core"] }
+# rt-core should be enabled only with "server" feature. Waiting for https://github.com/rust-lang/cargo/issues/5954
+tokio = { version = "0.2", features = ["rt-core"] }
 tokio-util = { version = "0.2", features = ["codec"] }
 futures-util = "0.3"
 
@@ -27,7 +28,7 @@ net2 = { version = "0.2", optional = true }
 
 [dev-dependencies]
 env_logger = "0.6"
-tokio = { version = "0.2", features = ["tcp", "rt-core", "macros"] }
+tokio = { version = "0.2", features = ["tcp", "macros"] }
 
 [features]
 default = ["tcp", "rtu", "sync"]
