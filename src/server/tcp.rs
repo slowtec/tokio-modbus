@@ -1,9 +1,9 @@
 use super::service::NewService;
-use crate::frame::*;
-use crate::server::tcp_server::TcpServer;
+
+use crate::{frame::*, server::tcp_server::TcpServer};
+
 use futures::{self, Future};
-use std::io::Error;
-use std::net::SocketAddr;
+use std::{io::Error, net::SocketAddr};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Server {

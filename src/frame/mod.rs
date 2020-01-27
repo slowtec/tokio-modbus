@@ -32,7 +32,6 @@ pub(crate) type Quantity = u16;
 /// A request represents a message from the client (master) to the server (slave).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
-
     /// A request to read multiple coils.
     /// The first parameter is the address of the first coil to read.
     /// The second parameter is the number of coils to read.
@@ -72,7 +71,7 @@ pub enum Request {
     /// The first parameter is the address of the first register to write.
     /// The second parameter is the vector of values to write to the registers.
     WriteMultipleRegisters(Address, Vec<Word>),
-    
+
     /// A request to simultaneously read multiple registers and write multiple registers.
     /// The first parameter is the address of the first register to read.
     /// The second parameter is the number of registers to read.

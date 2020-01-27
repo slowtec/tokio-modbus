@@ -3,7 +3,6 @@
 use super::*;
 
 use futures::Future;
-
 use std::{cell::RefCell, io::Error, pin::Pin, rc::Rc};
 
 /// Helper for sharing a context between multiple clients,

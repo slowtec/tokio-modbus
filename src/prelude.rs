@@ -33,9 +33,7 @@ pub use crate::slave::{Slave, SlaveId};
 ///////////////////////////////////////////////////////////////////
 /// Traits
 ///////////////////////////////////////////////////////////////////
-pub use crate::client::Client;
-pub use crate::client::Reader;
-pub use crate::client::Writer;
+pub use crate::client::{Client, Reader, Writer};
 
 #[cfg(feature = "sync")]
 pub use crate::client::sync::Client as SyncClient;

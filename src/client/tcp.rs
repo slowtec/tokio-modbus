@@ -5,8 +5,7 @@ use super::*;
 use crate::service;
 
 use futures::Future;
-use std::io::Error;
-use std::net::SocketAddr;
+use std::{io::Error, net::SocketAddr};
 
 /// Establish a direct connection to a Modbus TCP coupler.
 pub fn connect(socket_addr: SocketAddr) -> impl Future<Output = Result<Context, Error>> {

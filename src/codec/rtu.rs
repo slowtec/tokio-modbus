@@ -1,7 +1,6 @@
 use super::*;
 
-use crate::frame::rtu::*;
-use crate::slave::SlaveId;
+use crate::{frame::rtu::*, slave::SlaveId};
 
 use byteorder::BigEndian;
 use bytes::{Buf, BufMut, Bytes, BytesMut};

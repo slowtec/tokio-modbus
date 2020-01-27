@@ -2,14 +2,10 @@ use super::service::{NewService, Service};
 use crate::codec;
 
 use futures::{future::Future, select};
-use futures_util::future::FutureExt;
-use futures_util::sink::SinkExt;
-use futures_util::stream::StreamExt;
+use futures_util::{future::FutureExt, sink::SinkExt, stream::StreamExt};
 use log::{error, trace};
 use net2;
-use std::io;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{io, net::SocketAddr, sync::Arc};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
 

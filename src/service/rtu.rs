@@ -1,16 +1,18 @@
-use crate::client::Client;
-use crate::codec;
-use crate::frame::{rtu::*, *};
-use crate::slave::*;
+use crate::{
+    client::Client,
+    codec,
+    frame::{rtu::*, *},
+    slave::*,
+};
 
 use futures::{future, Future};
-use std::io::{Error, ErrorKind};
-use std::pin::Pin;
+use futures_util::{sink::SinkExt, stream::StreamExt};
+use std::{
+    io::{Error, ErrorKind},
+    pin::Pin,
+};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
-
-use futures_util::sink::SinkExt;
-use futures_util::stream::StreamExt;
 
 pub(crate) fn connect_slave<T>(
     transport: T,

@@ -1,8 +1,4 @@
-use std::io;
-use std::rc::Rc;
-use std::sync::Arc;
-
-use std::future::Future;
+use std::{future::Future, io, rc::Rc, sync::Arc};
 
 pub trait Service {
     /// Requests handled by the service.

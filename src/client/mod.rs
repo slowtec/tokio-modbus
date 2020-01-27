@@ -9,17 +9,16 @@ pub mod tcp;
 
 pub mod util;
 
-use crate::frame::*;
-use crate::slave::*;
+use crate::{frame::*, slave::*};
 
 use futures::prelude::*;
-use std::io::{Error, ErrorKind};
-
-use std::pin::Pin;
+use std::{
+    io::{Error, ErrorKind},
+    pin::Pin,
+};
 
 /// A transport independent asynchronous client trait.
 pub trait Client: SlaveContext + Send {
-    //fn call(&self, request: Request) -> Pin<Box<dyn Future<Output = Response>>>;
     fn call<'a>(
         &'a mut self,
         request: Request,
@@ -340,9 +339,7 @@ impl Writer for Context {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use futures::future;
-
     use std::sync::Mutex;
 
     #[derive(Default, Debug)]

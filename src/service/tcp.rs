@@ -1,19 +1,20 @@
-use crate::client::Client;
-use crate::codec;
-use crate::frame::{tcp::*, *};
-use crate::slave::*;
+use crate::{
+    client::Client,
+    codec,
+    frame::{tcp::*, *},
+    slave::*,
+};
 
 use futures::Future;
-use std::io::{Error, ErrorKind};
-use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU16, Ordering};
+use futures_util::{sink::SinkExt, stream::StreamExt};
+use std::{
+    io::{Error, ErrorKind},
+    net::SocketAddr,
+    pin::Pin,
+    sync::atomic::{AtomicU16, Ordering},
+};
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
-
-use futures_util::sink::SinkExt;
-use futures_util::stream::StreamExt;
-
-use std::pin::Pin;
 
 pub(crate) fn connect_slave(
     socket_addr: SocketAddr,
