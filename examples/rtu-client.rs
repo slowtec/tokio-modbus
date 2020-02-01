@@ -64,8 +64,6 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Sensor value for device {:?} is: {:?}", SLAVE_1, response);
 
     println!("Reading a sensor value from {:?}", SLAVE_2);
-    let context = shared_context.borrow().share_context().unwrap();
-    let mut context = context.borrow_mut();
     context.set_slave(SLAVE_2);
     let response = context.read_holding_registers(0x082B, 2).await?;
 
