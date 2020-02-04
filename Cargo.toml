@@ -13,7 +13,7 @@ edition = "2018"
 [dependencies]
 bytes = "0.5"
 byteorder = "1"
-futures = "0.3"
+futures = { version = "0.3", optional = true }
 log = "0.4"
 smallvec = { version = "1", default-features = false }
 # rt-core should be enabled only with "server" feature. Waiting for https://github.com/rust-lang/cargo/issues/5954
@@ -24,10 +24,11 @@ futures-util = { version = "0.3", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "4.3.3", optional = true, default-features = false }
 
-net2 = { version = "0.2", optional = true }
+net2 = { version = "0.2", optional = true, default-features = false }
 
 [dev-dependencies]
 env_logger = "0.7"
+futures = "0.3"
 tokio = { version = "0.2", features = ["tcp", "macros"] }
 
 [features]
@@ -35,7 +36,7 @@ default = ["tcp", "rtu", "sync"]
 rtu = ["tokio-serial"]
 tcp = []
 sync = []
-server = ["net2"]
+server = ["net2", "futures"]
 
 [badges]
 travis-ci = { repository = "slowtec/tokio-modbus" }
