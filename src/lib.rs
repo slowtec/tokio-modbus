@@ -44,12 +44,13 @@
 //! ## TCP client
 //!
 //! ```rust,no_run
-//! use std::future::Future;
-//! use tokio::runtime::Runtime;
-//! use tokio_modbus::prelude::*;
-//!
+//! #[cfg(feature = "tcp")]
 //! #[tokio::main]
 //! pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     use std::future::Future;
+//!     use tokio::runtime::Runtime;
+//!     use tokio_modbus::prelude::*;
+//!
 //!     let socket_addr = "192.168.0.222:502".parse().unwrap();
 //!
 //!     let mut ctx = tcp::connect(socket_addr).await?;
@@ -63,10 +64,10 @@
 //! ## Sync TCP client
 //!
 //! ```rust,no_run
-//! use std::error::Error;
-//! use tokio_modbus::prelude::*;
+//! #[cfg(all(feature = "tcp", feature = "sync"))]
+//! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     use tokio_modbus::prelude::*;
 //!
-//! pub fn main() -> Result<(), Box<dyn Error>> {
 //!     let socket_addr = "192.168.0.222:502".parse()?;
 //!     let mut client = client::sync::tcp::connect(socket_addr)?;
 
@@ -80,14 +81,15 @@
 //! ## RTU client
 //!
 //! ```rust,no_run
-//! use std::{error::Error, future::Future};
-//! use tokio::runtime::Runtime;
-//! use tokio_serial::{Serial, SerialPortSettings};
-//!
-//! use tokio_modbus::prelude::*;
-//!
+//! #[cfg(feature = "rtu")]
 //! #[tokio::main]
-//! pub async fn main() -> Result<(), Box<dyn Error>> {
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     use std::future::Future;
+//!     use tokio::runtime::Runtime;
+//!     use tokio_serial::{Serial, SerialPortSettings};
+//!
+//!     use tokio_modbus::prelude::*;
+//!
 //!     let tty_path = "/dev/ttyUSB0";
 //!     let slave = Slave(0x17);
 //!

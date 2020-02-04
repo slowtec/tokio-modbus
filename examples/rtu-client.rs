@@ -1,19 +1,18 @@
-use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
-
-use tokio_modbus::client::{
-    rtu,
-    util::{reconnect_shared_context, NewContext, SharedContext},
-    Context,
-};
-use tokio_modbus::prelude::*;
-
-const SLAVE_1: Slave = Slave(0x01);
-const SLAVE_2: Slave = Slave(0x02);
-
 #[cfg(feature = "rtu")]
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
+
+    use tokio_modbus::client::{
+        rtu,
+        util::{reconnect_shared_context, NewContext, SharedContext},
+        Context,
+    };
+    use tokio_modbus::prelude::*;
     use tokio_serial::{Serial, SerialPortSettings};
+
+    const SLAVE_1: Slave = Slave(0x01);
+    const SLAVE_2: Slave = Slave(0x02);
 
     #[derive(Debug)]
     struct SerialConfig {
