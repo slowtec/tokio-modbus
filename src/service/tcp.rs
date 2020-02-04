@@ -5,9 +5,9 @@ use crate::{
     slave::*,
 };
 
-use futures::Future;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use std::{
+    future::Future,
     io::{Error, ErrorKind},
     net::SocketAddr,
     pin::Pin,

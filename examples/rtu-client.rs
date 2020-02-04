@@ -1,13 +1,11 @@
-use futures::Future;
+use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
 
-use std::{cell::RefCell, io::Error, rc::Rc};
-
-use std::pin::Pin;
-use tokio_modbus::client::{rtu, Context};
-use tokio_modbus::prelude::{
-    client::util::{reconnect_shared_context, NewContext, SharedContext},
-    *,
+use tokio_modbus::client::{
+    rtu,
+    util::{reconnect_shared_context, NewContext, SharedContext},
+    Context,
 };
+use tokio_modbus::prelude::*;
 
 const SLAVE_1: Slave = Slave(0x01);
 const SLAVE_2: Slave = Slave(0x02);

@@ -1,12 +1,11 @@
 #[cfg(all(feature = "tcp", feature = "server"))]
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use std::thread;
-    use std::time::Duration;
-
-    use tokio_modbus::server::Service;
+    use futures::future;
+    use std::{thread, time::Duration};
 
     use tokio_modbus::prelude::*;
+    use tokio_modbus::server::Service;
 
     struct MbServer;
 
@@ -14,14 +13,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         type Request = Request;
         type Response = Response;
         type Error = std::io::Error;
-        type Future = futures::future::Ready<Result<Self::Response, Self::Error>>;
+        type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
         fn call(&self, req: Self::Request) -> Self::Future {
             match req {
                 Request::ReadInputRegisters(_addr, cnt) => {
                     let mut registers = vec![0; cnt as usize];
                     registers[2] = 0x77;
-                    futures::future::ready(Ok(Response::ReadInputRegisters(registers)))
+                    future::ready(Ok(Response::ReadInputRegisters(registers)))
                 }
                 _ => unimplemented!(),
             }

@@ -5,9 +5,10 @@ use crate::{
     slave::*,
 };
 
-use futures::{future, Future};
+use futures::future;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use std::{
+    future::Future,
     io::{Error, ErrorKind},
     pin::Pin,
 };

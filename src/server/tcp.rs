@@ -2,8 +2,8 @@ use super::service::NewService;
 
 use crate::{frame::*, server::tcp_server::TcpServer};
 
-use futures::{self, Future};
-use std::{io::Error, net::SocketAddr};
+use futures::future;
+use std::{future::Future, io::Error, net::SocketAddr};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Server {
@@ -38,7 +38,7 @@ impl Server {
         S::Error: Into<Error>,
         S::Instance: Send + Sync + 'static,
     {
-        self.serve_until(service, futures::future::pending());
+        self.serve_until(service, future::pending());
     }
 
     /// Start a Modbus TCP server that blocks the current thread.
@@ -67,6 +67,8 @@ mod tests {
     use super::*;
     use crate::server::Service;
 
+    use futures::future;
+
     #[tokio::test]
     async fn service_wrapper() {
         #[derive(Clone)]
@@ -78,10 +80,10 @@ mod tests {
             type Request = Request;
             type Response = Response;
             type Error = Error;
-            type Future = futures::future::Ready<Result<Self::Response, Self::Error>>;
+            type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
-                futures::future::ready(Ok(self.response.clone()))
+                future::ready(Ok(self.response.clone()))
             }
         }
 

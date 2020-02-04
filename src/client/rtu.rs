@@ -4,8 +4,7 @@ use super::*;
 
 use crate::service;
 
-use futures::Future;
-use std::io::Error;
+use std::{future::Future, io::Error};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 /// Connect to no particular Modbus slave device for sending

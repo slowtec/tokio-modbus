@@ -44,8 +44,8 @@
 //! ## TCP client
 //!
 //! ```rust,no_run
+//! use std::future::Future;
 //! use tokio::runtime::Runtime;
-//! use futures::Future;
 //! use tokio_modbus::prelude::*;
 //!
 //! #[tokio::main]
@@ -76,14 +76,14 @@
 //! ## RTU client
 //!
 //! ```rust,no_run
+//! use std::{error::Error, future::Future};
 //! use tokio::runtime::Runtime;
-//! use futures::Future;
 //! use tokio_serial::{Serial, SerialPortSettings};
 //!
 //! use tokio_modbus::prelude::*;
 //!
 //! #[tokio::main]
-//! pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! pub async fn main() -> Result<(), Box<dyn Error>> {
 //!     let tty_path = "/dev/ttyUSB0";
 //!     let slave = Slave(0x17);
 //!

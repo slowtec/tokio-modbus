@@ -1,11 +1,11 @@
 use super::service::{NewService, Service};
 use crate::codec;
 
-use futures::{future::Future, select};
+use futures::{future, select};
 use futures_util::{future::FutureExt, sink::SinkExt, stream::StreamExt};
 use log::{error, trace};
 use net2;
-use std::{io, net::SocketAddr, sync::Arc};
+use std::{future::Future, io, net::SocketAddr, sync::Arc};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
 
@@ -68,7 +68,7 @@ impl TcpServer {
         S::Error: Into<std::io::Error>,
         S::Instance: 'static + Send + Sync,
     {
-        self.serve_until(new_service, futures::future::pending())
+        self.serve_until(new_service, future::pending())
     }
 
     /// Start up the server, providing the given service on it.

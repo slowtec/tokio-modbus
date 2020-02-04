@@ -2,8 +2,7 @@
 
 use super::*;
 
-use futures::Future;
-use std::{cell::RefCell, io::Error, pin::Pin, rc::Rc};
+use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
 
 /// Helper for sharing a context between multiple clients,
 /// i.e. when addressing multiple slave devices in turn.
@@ -121,9 +120,10 @@ pub async fn reconnect_shared_context(
 
 #[cfg(test)]
 mod tests {
+    use super::super::tests::*;
     use super::*;
 
-    use super::super::tests::*;
+    use futures::future;
 
     struct NewContextMock;
 

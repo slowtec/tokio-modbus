@@ -11,8 +11,8 @@ pub mod util;
 
 use crate::{frame::*, slave::*};
 
-use futures::prelude::*;
 use std::{
+    future::Future,
     io::{Error, ErrorKind},
     pin::Pin,
 };
@@ -340,7 +340,7 @@ impl Writer for Context {
 mod tests {
     use super::*;
     use futures::future;
-    use std::sync::Mutex;
+    use std::{future::Future, sync::Mutex};
 
     #[derive(Default, Debug)]
     pub struct ClientMock {
