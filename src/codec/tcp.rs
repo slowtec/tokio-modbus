@@ -282,7 +282,7 @@ mod tests {
                 pdu,
                 disconnect: false,
             };
-            codec.encode(adu.clone(), &mut buf).unwrap();
+            codec.encode(adu, &mut buf).unwrap();
             // header
             assert_eq!(buf[0], TRANSACTION_ID_HI);
             assert_eq!(buf[1], TRANSACTION_ID_LO);
@@ -314,7 +314,7 @@ mod tests {
             unsafe {
                 buf.set_len(29);
             }
-            assert!(codec.encode(adu.clone(), &mut buf).is_ok());
+            assert!(codec.encode(adu, &mut buf).is_ok());
         }
     }
 }

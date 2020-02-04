@@ -742,7 +742,7 @@ mod tests {
             let mut codec = ClientCodec::default();
             let mut buf = BytesMut::new();
             let req = Request::ReadHoldingRegisters(0x082b, 2);
-            let pdu = req.clone().into();
+            let pdu = req.into();
             let slave_id = 0x01;
             let hdr = Header { slave_id };
             let adu = RequestAdu {
@@ -750,7 +750,7 @@ mod tests {
                 pdu,
                 disconnect: false,
             };
-            codec.encode(adu.clone(), &mut buf).unwrap();
+            codec.encode(adu, &mut buf).unwrap();
 
             assert_eq!(
                 buf,
@@ -762,7 +762,7 @@ mod tests {
         fn encode_with_limited_buf_capacity() {
             let mut codec = ClientCodec::default();
             let req = Request::ReadHoldingRegisters(0x082b, 2);
-            let pdu = req.clone().into();
+            let pdu = req.into();
             let slave_id = 0x01;
             let hdr = Header { slave_id };
             let adu = RequestAdu {
