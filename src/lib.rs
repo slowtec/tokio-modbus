@@ -63,13 +63,17 @@
 //! ## Sync TCP client
 //!
 //! ```rust,no_run
+//! use std::error::Error;
 //! use tokio_modbus::prelude::*;
 //!
-//! pub fn main() {
-//!     let socket_addr = "192.168.0.222:502".parse().unwrap();
-//!     let mut client = client::sync::tcp::connect(socket_addr).unwrap();
-//!     let data = client.read_input_registers(0x1000, 7).unwrap();
+//! pub fn main() -> Result<(), Box<dyn Error>> {
+//!     let socket_addr = "192.168.0.222:502".parse()?;
+//!     let mut client = client::sync::tcp::connect(socket_addr)?;
+
+//!     let data = client.read_input_registers(0x1000, 7)?;
 //!     println!("Response is '{:?}'", data);
+//!
+//!     Ok(())
 //! }
 //! ```
 //!
