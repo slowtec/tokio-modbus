@@ -255,8 +255,8 @@ impl Writer for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::WriteSingleCoil(rsp_addr) = rsp {
-                if rsp_addr != addr {
+            if let Response::WriteSingleCoil(rsp_addr, rsp_coil) = rsp {
+                if rsp_addr != addr || rsp_coil != coil  {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                 }
                 Ok(())

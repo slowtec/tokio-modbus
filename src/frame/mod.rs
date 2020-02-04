@@ -106,7 +106,7 @@ pub enum Request {
 pub enum Response {
     ReadCoils(Vec<Coil>),
     ReadDiscreteInputs(Vec<Coil>),
-    WriteSingleCoil(Address),
+    WriteSingleCoil(Address, Coil),
     WriteMultipleCoils(Address, Quantity),
     ReadInputRegisters(Vec<Word>),
     ReadHoldingRegisters(Vec<Word>),
