@@ -872,8 +872,8 @@ mod tests {
             assert_eq!(bytes[0], 5);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x33);
-            assert_eq!(bytes[2], 0xFF);
-            assert_eq!(bytes[2], 0x00);
+            assert_eq!(bytes[3], 0xFF);
+            assert_eq!(bytes[4], 0x00);
         }
 
         #[test]
