@@ -33,7 +33,7 @@ tokio = { version = "0.2", features = ["tcp", "macros"] }
 
 [features]
 default = ["tcp", "rtu", "sync"]
-rtu = ["tokio-serial"]
+rtu = ["tokio-serial", "futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 sync = []
 server = ["net2", "futures"]
