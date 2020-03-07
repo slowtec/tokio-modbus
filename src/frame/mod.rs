@@ -118,7 +118,7 @@ pub enum Response {
 
 /// A server (slave) exception.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Exception {
+pub enum Exception {
     IllegalFunction = 0x01,
     IllegalDataAddress = 0x02,
     IllegalDataValue = 0x03,
@@ -150,9 +150,9 @@ impl Exception {
 
 /// A server (slave) exception response.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ExceptionResponse {
-    pub(crate) function: FunctionCode,
-    pub(crate) exception: Exception,
+pub struct ExceptionResponse {
+    pub function: FunctionCode,
+    pub exception: Exception,
 }
 
 /// Represents a message from the client (slave) to the server (master).
