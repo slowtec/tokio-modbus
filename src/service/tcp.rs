@@ -76,6 +76,7 @@ impl Context {
     }
 
     pub async fn call(&mut self, req: Request) -> Result<Response, Error> {
+        log::debug!("Call {:?}", req);
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
