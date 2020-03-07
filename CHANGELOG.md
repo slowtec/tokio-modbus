@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.4.0 (unreleased)
+
+- New public API: moved to async/await and tokio v0.2.x
+- Make `Exception` and `ExceptionResponse` public
+- Fixed `WriteSingleCoil` reponse to include data
+- Hide server traits `Service`/`NewService` traits behind `server` feature
+- Hide TCP server implementation behind `tcp-server-unstable` feature
+- Improved documentation
+
 ## v0.3.5 (2019-09-17)
 
 - Added missing implementation of `disconnect()` for TCP clients
