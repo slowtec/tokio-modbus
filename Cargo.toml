@@ -37,6 +37,7 @@ rtu = ["tokio-serial", "futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 sync = []
 server = ["net2", "futures"]
+tcp-server-unstable = ["server"]
 
 [badges]
 travis-ci = { repository = "slowtec/tokio-modbus" }

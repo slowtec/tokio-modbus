@@ -1,5 +1,6 @@
 use std::{future::Future, io, rc::Rc, sync::Arc};
 
+/// A modbus server service.
 pub trait Service {
     /// Requests handled by the service.
     type Request;

@@ -16,7 +16,7 @@ pub mod tcp {
     pub use crate::client::tcp::*;
 
     #[cfg(feature = "server")]
-    pub use crate::server::tcp::*;
+    pub use crate::server::*;
 }
 
 #[cfg(feature = "sync")]
