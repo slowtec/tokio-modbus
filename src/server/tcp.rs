@@ -1,18 +1,18 @@
-use super::service::{NewService, Service};
-use crate::codec;
-use crate::frame::*;
+use crate::{
+    codec,
+    frame::*,
+    server::service::{NewService, Service},
+};
 
 use futures::{self, future, select, Future};
-use std::io::Error;
-use std::net::SocketAddr;
-
-use futures_util::future::FutureExt;
-use futures_util::sink::SinkExt;
-use futures_util::stream::StreamExt;
+use futures_util::{future::FutureExt, sink::SinkExt, stream::StreamExt};
 use log::{error, trace};
 use net2;
-use std::io;
-use std::sync::Arc;
+use std::{
+    io::{self, Error},
+    net::SocketAddr,
+    sync::Arc,
+};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
 
@@ -40,10 +40,7 @@ impl Server {
     /// Start a Modbus TCP server that blocks the current thread.
     pub fn serve<S>(self, service: S)
     where
-        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
-            + Send
-            + Sync
-            + 'static,
+        S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
         S::Request: From<Request>,
         S::Response: Into<Response>,
         S::Error: Into<Error>,
@@ -55,10 +52,7 @@ impl Server {
     /// Start a Modbus TCP server that blocks the current thread.
     pub fn serve_until<S, Sd>(self, service: S, shutdown_signal: Sd)
     where
-        S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
-            + Send
-            + Sync
-            + 'static,
+        S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
         Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
         S::Request: From<Request>,
         S::Response: Into<Response>,
@@ -82,11 +76,8 @@ impl Server {
 /// until shutdown signal will be triggered in shutdown_signal future
 fn serve_until<S, Sd>(addr: SocketAddr, workers: usize, new_service: S, shutdown_signal: Sd)
 where
-    S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
-        + Send
-        + Sync
-        + 'static,
-    S::Error: Into<std::io::Error>,
+    S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
+    S::Error: Into<Error>,
     S::Instance: 'static + Send + Sync,
     Sd: Future<Output = ()> + Unpin + Send + Sync + 'static,
 {
@@ -112,7 +103,7 @@ where
 
         // the only way found to specify the "task" future error type
         #[allow(unreachable_code)]
-        Result::<(), std::io::Error>::Ok(())
+        io::Result::<()>::Ok(())
     };
 
     let mut server = Box::pin(server.fuse());
@@ -135,13 +126,10 @@ where
 async fn process<S>(
     framed: Framed<TcpStream, codec::tcp::ServerCodec>,
     service: S,
-) -> Result<(), std::io::Error>
+) -> io::Result<()>
 where
-    S: Service<Request = crate::frame::Request, Response = crate::frame::Response>
-        + Send
-        + Sync
-        + 'static,
-    S::Error: Into<std::io::Error>,
+    S: Service<Request = Request, Response = Response> + Send + Sync + 'static,
+    S::Error: Into<Error>,
 {
     let mut framed = framed;
 
@@ -158,7 +146,7 @@ where
         let response = service.call(request.pdu.0).await.map_err(Into::into)?;
 
         framed
-            .send(crate::frame::tcp::ResponseAdu {
+            .send(tcp::ResponseAdu {
                 hdr,
                 pdu: response.into(),
             })
