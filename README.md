@@ -51,8 +51,9 @@ tokio-modbus = { version = "*", default-features = false, features = ["tcp", "se
 ## Examples
 
 Various examples for Modbus RTU and TCP using either the asynchronous
-or synchronous API can be found in the [examples]
-(https://github.com/slowtec/tokio-modbus/tree/master/examples) folder.
+or synchronous API can be found in the
+[examples](https://github.com/slowtec/tokio-modbus/tree/master/examples)
+folder.
 
 ## Protocol-Specification
 
