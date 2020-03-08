@@ -5,7 +5,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{thread, time::Duration};
 
     use tokio_modbus::prelude::*;
-    use tokio_modbus::server::Service;
+    use tokio_modbus::server::{self, Service};
 
     struct MbServer;
 
