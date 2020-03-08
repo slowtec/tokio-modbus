@@ -3,6 +3,7 @@
 ## v0.4.0 (unreleased)
 
 - New public API: moved to async/await and tokio v0.2.x
+- Removed unmaintained dependency `tokio-proto`
 - Make `Exception` and `ExceptionResponse` public
 - Fixed `WriteSingleCoil` reponse to include data
 - Hide server traits `Service`/`NewService` traits behind `server` feature
