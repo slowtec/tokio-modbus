@@ -31,7 +31,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Starting up server...");
     let _server = thread::spawn(move || {
-        tcp::Server::new(socket_addr).serve(|| Ok(MbServer));
+        server::tcp::Server::new(socket_addr).serve(|| Ok(MbServer));
     });
     // Give the server some time for stating up
     thread::sleep(Duration::from_secs(1));
