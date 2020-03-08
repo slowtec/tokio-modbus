@@ -1,9 +1,20 @@
-use super::service::NewService;
+use super::service::{NewService, Service};
+use crate::codec;
+use crate::frame::*;
 
-use crate::{frame::*, server::tcp_server::TcpServer};
+use futures::{self, future, select, Future};
+use std::io::Error;
+use std::net::SocketAddr;
 
-use futures::future;
-use std::{future::Future, io::Error, net::SocketAddr};
+use futures_util::future::FutureExt;
+use futures_util::sink::SinkExt;
+use futures_util::stream::StreamExt;
+use log::{error, trace};
+use net2;
+use std::io;
+use std::sync::Arc;
+use tokio::net::{TcpListener, TcpStream};
+use tokio_util::codec::Framed;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Server {
@@ -54,12 +65,134 @@ impl Server {
         S::Error: Into<Error>,
         S::Instance: Send + Sync + 'static,
     {
-        let mut server = TcpServer::new(self.socket_addr);
+        let mut server = Server::new(self.socket_addr);
         if let Some(threads) = self.threads {
-            server.threads(threads);
+            server = server.threads(threads);
         }
-        server.serve_until(service, shutdown_signal);
+        serve_until(
+            server.socket_addr,
+            server.threads.unwrap_or(1),
+            service,
+            shutdown_signal,
+        );
     }
+}
+
+/// Will start a TCP listener and will serve data with service providen
+/// until shutdown signal will be triggered in shutdown_signal future
+fn serve_until<S, Sd>(addr: SocketAddr, workers: usize, new_service: S, shutdown_signal: Sd)
+where
+    S: NewService<Request = crate::frame::Request, Response = crate::frame::Response>
+        + Send
+        + Sync
+        + 'static,
+    S::Error: Into<std::io::Error>,
+    S::Instance: 'static + Send + Sync,
+    Sd: Future<Output = ()> + Unpin + Send + Sync + 'static,
+{
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
+
+    let new_service = Arc::new(new_service);
+
+    let server = async {
+        let mut listener = listener(&addr, workers).unwrap();
+
+        loop {
+            let (stream, _) = listener.accept().await?;
+            let framed = Framed::new(stream, codec::tcp::ServerCodec::default());
+
+            let new_service = new_service.clone();
+            tokio::spawn(Box::pin(async move {
+                let service = new_service.new_service().unwrap();
+                let future = process(framed, service);
+
+                future.await.unwrap();
+            }));
+        }
+
+        // the only way found to specify the "task" future error type
+        #[allow(unreachable_code)]
+        Result::<(), std::io::Error>::Ok(())
+    };
+
+    let mut server = Box::pin(server.fuse());
+    let mut shutdown_signal = shutdown_signal.fuse();
+
+    let task = async {
+        select! {
+            res = server => match res {
+                Err(e) => error!("error: {}", e),
+                _ => {}
+            },
+            _ = shutdown_signal => { trace!("Shutdown signal received") }
+        }
+    };
+
+    rt.block_on(task);
+}
+
+/// The request-response loop spawned by serve_until for each client
+async fn process<S>(
+    framed: Framed<TcpStream, codec::tcp::ServerCodec>,
+    service: S,
+) -> Result<(), std::io::Error>
+where
+    S: Service<Request = crate::frame::Request, Response = crate::frame::Response>
+        + Send
+        + Sync
+        + 'static,
+    S::Error: Into<std::io::Error>,
+{
+    let mut framed = framed;
+
+    loop {
+        let request = framed.next().await;
+
+        // tcp socket closed
+        if request.is_none() {
+            break;
+        }
+
+        let request = request.unwrap()?;
+        let hdr = request.hdr;
+        let response = service.call(request.pdu.0).await.map_err(Into::into)?;
+
+        framed
+            .send(crate::frame::tcp::ResponseAdu {
+                hdr,
+                pdu: response.into(),
+            })
+            .await?;
+    }
+    Ok(())
+}
+
+/// Start TCP listener - configure and open TCP socket
+fn listener(addr: &SocketAddr, workers: usize) -> io::Result<TcpListener> {
+    let listener = match *addr {
+        SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?,
+        SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?,
+    };
+    configure_tcp(workers, &listener)?;
+    listener.reuse_address(true)?;
+    listener.bind(addr)?;
+    listener.listen(1024).and_then(TcpListener::from_std)
+}
+
+#[cfg(unix)]
+fn configure_tcp(workers: usize, tcp: &net2::TcpBuilder) -> io::Result<()> {
+    use net2::unix::*;
+
+    if workers > 1 {
+        tcp.reuse_port(true)?;
+    }
+
+    Ok(())
+}
+
+#[cfg(windows)]
+fn configure_tcp(_workers: usize, _tcp: &net2::TcpBuilder) -> io::Result<()> {
+    Ok(())
 }
 
 #[cfg(test)]
