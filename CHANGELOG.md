@@ -9,6 +9,25 @@
 - Hide TCP server implementation behind `tcp-server-unstable` feature
 - Improved documentation
 
+### Breaking Changes
+
+Due to the move to async/await and tokio v0.2.x you'll need to adjust
+your current code.
+Here are some lines as example:
+
+```diff
+-let mut core = Core::new().unwrap();
+-let handle = core.handle();
+ let socket_addr = "127.0.0.1:5502".parse().unwrap();
+-let task = tcp::connect(&handle, socket_addr).and_then(move |ctx|
+-    ctx.read_input_registers(0x1000, 7).and_then(move |data|
+-        // ...
+-  	 )
+-);
++let mut ctx = tcp::connect(socket_addr).await?;
++let data = ctx.read_input_registers(0x1000, 7).await?;
+```
+
 ## v0.3.5 (2019-09-17)
 
 - Added missing implementation of `disconnect()` for TCP clients

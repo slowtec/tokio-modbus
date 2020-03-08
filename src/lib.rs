@@ -39,6 +39,13 @@
 //! tokio-modbus = { version = "*", default-features = false, features = ["rtu"] }
 //! ```
 //!
+//! If you like to build a TCP server:
+//!
+//! ```toml
+//! [dependencies]
+//! tokio-modbus = { version = "*", default-features = false, features = ["tcp", "server"] }
+//! ```
+//!
 //! # Examples
 //!
 //! ## TCP client
