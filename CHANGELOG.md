@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.4.0 (unreleased)
+## v0.4.0 (2020-03-13)
 
 - New public API: moved to async/await and tokio v0.2.x
 - Removed unmaintained dependency `tokio-proto`

@@ -14,17 +14,15 @@ edition = "2018"
 bytes = "0.5"
 byteorder = "1"
 futures = { version = "0.3", optional = true }
+futures-util = { version = "0.3", default-features = false }
 log = "0.4"
+net2 = { version = "0.2", optional = true, default-features = false }
 smallvec = { version = "1", default-features = false }
 # rt-core should be enabled only with "server" feature. Waiting for https://github.com/rust-lang/cargo/issues/5954
 tokio = { version = "0.2", features = ["rt-core"] }
 tokio-util = { version = "0.2", features = ["codec"] }
-futures-util = { version = "0.3", default-features = false }
-
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "4.3.3", optional = true, default-features = false }
-
-net2 = { version = "0.2", optional = true, default-features = false }
 
 [dev-dependencies]
 env_logger = "0.7"
