@@ -199,7 +199,7 @@ fn calc_crc(data: &[u8]) -> u16 {
             }
         }
     }
-    (crc << 8 | crc >> 8)
+    crc << 8 | crc >> 8
 }
 
 fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
