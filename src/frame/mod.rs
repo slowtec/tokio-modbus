@@ -34,6 +34,22 @@ pub(crate) type Word = u16;
 /// Number of items to process.
 pub type Quantity = u16;
 
+pub(crate) type ReadDeviceIdCode = u8;
+
+pub(crate) type ObjectId = u8;
+
+pub(crate) type ConformityLevel = u8;
+
+pub(crate) type MoreFollows = bool;
+
+pub(crate) type NextObjectId = u8;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadDevIdObject {
+    pub id: u8,
+    pub value: String,
+}
+
 /// A request represents a message from the client (master) to the server (slave).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
@@ -90,8 +106,10 @@ pub enum Request {
     /// The fourth parameter is the vector of values to write to the registers.
     ReadWriteMultipleRegisters(Address, Quantity, Address, Vec<Word>),
 
-    /// A raw Modbus request.
-    /// The first parameter is the Modbus function code.
+    ReadDeviceIdentification(ReadDeviceIdCode, ObjectId),
+
+    /// A raw modbus request.
+    /// The first parameter is the modbus function code.
     /// The second parameter is the raw bytes of the request.
     Custom(FunctionCode, Vec<u8>),
 
@@ -172,6 +190,14 @@ pub enum Response {
     /// Response to a ReadWriteMultipleRegisters request
     /// The parameter contains the register values that have been read as part of the read instruction
     ReadWriteMultipleRegisters(Vec<Word>),
+
+    ReadDeviceIdentification(
+        ReadDeviceIdCode,
+        ConformityLevel,
+        MoreFollows,
+        NextObjectId,
+        Vec<ReadDevIdObject>,
+    ),
 
     /// Response to a raw Modbus request
     /// The first parameter contains the returned Modbus function code

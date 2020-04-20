@@ -12,7 +12,7 @@ use crate::frame::*;
 
 use byteorder::{BigEndian, ReadBytesExt as _};
 use bytes::{BufMut, Bytes, BytesMut};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::io::{self, Cursor, Error, ErrorKind};
 
 #[allow(clippy::cast_possible_truncation)]
@@ -93,6 +93,11 @@ impl TryFrom<Request> for Bytes {
                     data.put_u16(w);
                 }
             }
+            ReadDeviceIdentification(read_device_id_code, object_id) => {
+                data.put_u8(0x0e);
+                data.put_u8(read_device_id_code);
+                data.put_u8(object_id);
+            }
             Custom(_, custom_data) => {
                 for d in custom_data {
                     data.put_u8(d);
@@ -150,6 +155,26 @@ impl From<Response> for Bytes {
                 data.put_u16(address);
                 data.put_u16(and_mask);
                 data.put_u16(or_mask);
+            }
+            ReadDeviceIdentification(
+                read_device_id_code,
+                conformity_level,
+                more_follows,
+                next_object_id,
+                device_id_objects,
+            ) => {
+                data.put_u8(0x0e);
+                data.put_u8(read_device_id_code);
+                data.put_u8(conformity_level);
+                data.put_u8(if more_follows { 0xff } else { 0x00 });
+                data.put_u8(next_object_id);
+                for dio in device_id_objects {
+                    data.put_u8(dio.id);
+                    data.put_u8(dio.value.bytes().len().try_into().unwrap());
+                    for b in dio.value.bytes() {
+                        data.put_u8(b);
+                    }
+                }
             }
             Custom(_, custom_data) => {
                 for d in custom_data {
@@ -240,6 +265,17 @@ impl TryFrom<Bytes> for Request {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
                 ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data)
+            }
+            0x2b if rdr.read_u8()? == 0x0e => {
+                let read_device_id_code = rdr.read_u8()?;
+                let object_id = rdr.read_u8()?;
+                if read_device_id_code < 1 && read_device_id_code > 4 {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Invalid Read device ID code",
+                    ));
+                }
+                ReadDeviceIdentification(read_device_id_code, object_id)
             }
             fn_code if fn_code < 0x80 => Custom(fn_code, bytes[1..].into()),
             fn_code => {
@@ -444,6 +480,7 @@ fn req_to_fn_code(req: &Request) -> u8 {
         WriteMultipleRegisters(_, _) => 0x10,
         MaskWriteRegister(_, _, _) => 0x16,
         ReadWriteMultipleRegisters(_, _, _, _) => 0x17,
+        ReadDeviceIdentification(_, _) => 0x2b,
         Custom(code, _) => code,
         Disconnect => unreachable!(),
     }
@@ -462,6 +499,7 @@ fn rsp_to_fn_code(rsp: &Response) -> u8 {
         WriteMultipleRegisters(_, _) => 0x10,
         MaskWriteRegister(_, _, _) => 0x16,
         ReadWriteMultipleRegisters(_) => 0x17,
+        ReadDeviceIdentification(_, _, _, _, _) => 0x2b,
         Custom(code, _) => code,
     }
 }
@@ -479,6 +517,7 @@ fn request_byte_count(req: &Request) -> usize {
         WriteMultipleRegisters(_, ref data) => 6 + data.len() * 2,
         MaskWriteRegister(_, _, _) => 7,
         ReadWriteMultipleRegisters(_, _, _, ref data) => 10 + data.len() * 2,
+        ReadDeviceIdentification(_, _) => 4,
         Custom(_, ref data) => 1 + data.len(),
         Disconnect => unreachable!(),
     }
@@ -496,6 +535,9 @@ fn response_byte_count(rsp: &Response) -> usize {
         | ReadHoldingRegisters(ref data)
         | ReadWriteMultipleRegisters(ref data) => 2 + data.len() * 2,
         MaskWriteRegister(_, _, _) => 7,
+        ReadDeviceIdentification(_, _, _, _, ref data) => {
+            7 + data.iter().fold(0, |acc, o| acc + 2 + o.value.len())
+        }
         Custom(_, ref data) => 1 + data.len(),
     }
 }
@@ -558,6 +600,7 @@ mod tests {
             req_to_fn_code(&ReadWriteMultipleRegisters(0, 0, 0, vec![])),
             0x17
         );
+        assert_eq!(req_to_fn_code(&ReadDeviceIdentification(1, 2)), 0x2b);
         assert_eq!(req_to_fn_code(&Custom(88, vec![])), 88);
     }
 
@@ -574,6 +617,10 @@ mod tests {
         assert_eq!(rsp_to_fn_code(&WriteMultipleRegisters(0, 0)), 0x10);
         assert_eq!(rsp_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
         assert_eq!(rsp_to_fn_code(&ReadWriteMultipleRegisters(vec![])), 0x17);
+        assert_eq!(
+            rsp_to_fn_code(&ReadDeviceIdentification(0, 0, false, 0, vec![])),
+            0x2b
+        );
         assert_eq!(rsp_to_fn_code(&Custom(99, vec![])), 99);
     }
 
@@ -809,6 +856,17 @@ mod tests {
         }
 
         #[test]
+        fn read_device_identification() {
+            let bytes: Bytes = Request::ReadDeviceIdentification(0x01, 0x23)
+                .try_into()
+                .unwrap();
+            assert_eq!(bytes[0], 0x2b);
+            assert_eq!(bytes[1], 0x0e);
+            assert_eq!(bytes[2], 0x01);
+            assert_eq!(bytes[3], 0x23);
+        }
+
+        #[test]
         fn custom() {
             let bytes: Bytes = Request::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF])
                 .try_into()
@@ -935,6 +993,13 @@ mod tests {
                 req,
                 Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, data)
             );
+        }
+
+        #[test]
+        fn read_device_identification() {
+            let bytes = Bytes::from(vec![0x2b, 0x0e, 0x01, 0x00]);
+            let req = Request::try_from(bytes).unwrap();
+            assert_eq!(req, Request::ReadDeviceIdentification(0x01, 0x00));
         }
 
         #[test]
