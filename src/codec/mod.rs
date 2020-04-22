@@ -14,6 +14,7 @@ use byteorder::{BigEndian, ReadBytesExt as _};
 use bytes::{BufMut, Bytes, BytesMut};
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Cursor, Error, ErrorKind};
+use std::str::from_utf8;
 
 #[allow(clippy::cast_possible_truncation)]
 fn u16_len(len: usize) -> u16 {
@@ -168,6 +169,8 @@ impl From<Response> for Bytes {
                 data.put_u8(conformity_level);
                 data.put_u8(if more_follows { 0xff } else { 0x00 });
                 data.put_u8(next_object_id);
+                /* TODO: do not panic! */
+                data.put_u8(device_id_objects.len().try_into().unwrap());
                 for dio in device_id_objects {
                     data.put_u8(dio.id);
                     data.put_u8(dio.value.bytes().len().try_into().unwrap());
@@ -364,6 +367,36 @@ impl TryFrom<Bytes> for Response {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
                 ReadWriteMultipleRegisters(data)
+            }
+            0x2b if rdr.read_u8()? == 0x0e => {
+                let read_dev_id_code = rdr.read_u8()?;
+                let conformity_level = rdr.read_u8()?;
+                let more_follows = rdr.read_u8()? == 0xff;
+                let next_object_id = rdr.read_u8()?;
+                let count = rdr.read_u8()?;
+                let mut objects = vec![];
+                for _ in 0..count {
+                    let id = rdr.read_u8()?;
+                    let len = rdr.read_u8()?;
+                    let mut ascii = vec![];
+                    for _ in 0..len {
+                        ascii.push(rdr.read_u8()?);
+                    }
+                    let value = match from_utf8(&ascii) {
+                        Ok(v) => v.to_string(),
+                        Err(_) => {
+                            return Err(Error::new(ErrorKind::InvalidData, "Utf8 decode error"))
+                        }
+                    };
+                    objects.push(ReadDevIdObject { id, value });
+                }
+                ReadDeviceIdentification(
+                    read_dev_id_code,
+                    conformity_level,
+                    more_follows,
+                    next_object_id,
+                    objects,
+                )
             }
             _ => Custom(fn_code, bytes[1..].into()),
         };
@@ -1116,6 +1149,38 @@ mod tests {
         }
 
         #[test]
+        fn read_device_identification() {
+            let resp: Bytes = Response::ReadDeviceIdentification(
+                1,
+                1,
+                true,
+                0,
+                vec![
+                    ReadDevIdObject {
+                        id: 0,
+                        value: "Company identification".to_string(),
+                    },
+                    ReadDevIdObject {
+                        id: 1,
+                        value: "Product code XX".to_string(),
+                    },
+                    ReadDevIdObject {
+                        id: 2,
+                        value: "V2.11".to_string(),
+                    },
+                ],
+            )
+            .into();
+            let bytes = Bytes::from(vec![
+                0x2b, 0x0e, 0x01, 0x01, 0xff, 0x00, 0x03, 0x00, 0x16, 0x43, 0x6f, 0x6d, 0x70, 0x61,
+                0x6e, 0x79, 0x20, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74,
+                0x69, 0x6f, 0x6e, 0x01, 0x0f, 0x50, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x20, 0x63,
+                0x6f, 0x64, 0x65, 0x20, 0x58, 0x58, 0x02, 0x05, 0x56, 0x32, 0x2e, 0x31, 0x31,
+            ]);
+            assert_eq!(resp, bytes);
+        }
+
+        #[test]
         fn custom() {
             let bytes: Bytes = Response::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF]).into();
             assert_eq!(bytes[0], 0x55);
@@ -1233,6 +1298,40 @@ mod tests {
             let bytes = Bytes::from(vec![0x17, 0x02, 0x12, 0x34]);
             let rsp = Response::try_from(bytes).unwrap();
             assert_eq!(rsp, Response::ReadWriteMultipleRegisters(vec![0x1234]));
+        }
+
+        #[test]
+        fn read_device_identification() {
+            let bytes = Bytes::from(vec![
+                0x2b, 0x0e, 0x01, 0x01, 0x00, 0x00, 0x03, 0x00, 0x16, 0x43, 0x6f, 0x6d, 0x70, 0x61,
+                0x6e, 0x79, 0x20, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74,
+                0x69, 0x6f, 0x6e, 0x01, 0x0f, 0x50, 0x72, 0x6f, 0x64, 0x75, 0x63, 0x74, 0x20, 0x63,
+                0x6f, 0x64, 0x65, 0x20, 0x58, 0x58, 0x02, 0x05, 0x56, 0x32, 0x2e, 0x31, 0x31,
+            ]);
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(
+                rsp,
+                Response::ReadDeviceIdentification(
+                    1,
+                    1,
+                    false,
+                    0,
+                    vec![
+                        ReadDevIdObject {
+                            id: 0,
+                            value: "Company identification".to_string()
+                        },
+                        ReadDevIdObject {
+                            id: 1,
+                            value: "Product code XX".to_string()
+                        },
+                        ReadDevIdObject {
+                            id: 2,
+                            value: "V2.11".to_string()
+                        },
+                    ]
+                )
+            );
         }
 
         #[test]
