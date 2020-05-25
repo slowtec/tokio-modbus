@@ -91,8 +91,6 @@
 //! #[cfg(feature = "rtu")]
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     use std::future::Future;
-//!     use tokio::runtime::Runtime;
 //!     use tokio_serial::{Serial, SerialPortSettings};
 //!
 //!     use tokio_modbus::prelude::*;
