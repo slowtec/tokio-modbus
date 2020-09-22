@@ -676,7 +676,7 @@ mod tests {
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
-            if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
+            if let Ok(Some(Response::ReadHoldingRegisters(data))) = pdu.into() {
                 assert_eq!(data.len(), 2);
                 assert_eq!(data, vec![0x8902, 0x42C7]);
             } else {
@@ -707,7 +707,7 @@ mod tests {
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
-            if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
+            if let Ok(Some(Response::ReadHoldingRegisters(data))) = pdu.into() {
                 assert_eq!(data.len(), 2);
                 assert_eq!(data, vec![0x8902, 0x42C7]);
             } else {

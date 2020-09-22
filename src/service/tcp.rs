@@ -75,7 +75,7 @@ impl Context {
         }
     }
 
-    pub async fn call(&mut self, req: Request) -> Result<Response, Error> {
+    pub async fn call(&mut self, req: Request) -> Result<Option<Response>, Error> {
         log::debug!("Call {:?}", req);
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
@@ -118,7 +118,7 @@ impl Client for Context {
     fn call<'a>(
         &'a mut self,
         req: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Response>, Error>> + Send + 'a>> {
         Box::pin(Context::call(self, req))
     }
 }

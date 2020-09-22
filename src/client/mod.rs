@@ -22,7 +22,7 @@ pub trait Client: SlaveContext + Send {
     fn call<'a>(
         &'a mut self,
         request: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Response>, Error>> + Send + 'a>>;
 }
 
 /// An asynchronous Modbus reader.
@@ -122,7 +122,7 @@ impl Client for Context {
     fn call<'a>(
         &'a mut self,
         request: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Response>, Error>> + Send + 'a>> {
         self.client.call(request)
     }
 }
@@ -144,7 +144,7 @@ impl Reader for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::ReadCoils(mut coils) = rsp {
+            if let Some(Response::ReadCoils(mut coils)) = rsp {
                 debug_assert!(coils.len() >= cnt as usize);
                 coils.truncate(cnt as usize);
                 Ok(coils)
@@ -164,7 +164,7 @@ impl Reader for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::ReadDiscreteInputs(mut coils) = rsp {
+            if let Some(Response::ReadDiscreteInputs(mut coils)) = rsp {
                 debug_assert!(coils.len() >= cnt as usize);
                 coils.truncate(cnt as usize);
                 Ok(coils)
@@ -184,7 +184,7 @@ impl Reader for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::ReadInputRegisters(rsp) = rsp {
+            if let Some(Response::ReadInputRegisters(rsp)) = rsp {
                 if rsp.len() != cnt as usize {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                 }
@@ -205,7 +205,7 @@ impl Reader for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::ReadHoldingRegisters(rsp) = rsp {
+            if let Some(Response::ReadHoldingRegisters(rsp)) = rsp {
                 if rsp.len() != cnt as usize {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                 }
@@ -232,7 +232,7 @@ impl Reader for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::ReadWriteMultipleRegisters(rsp) = rsp {
+            if let Some(Response::ReadWriteMultipleRegisters(rsp)) = rsp {
                 if rsp.len() != read_cnt as usize {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                 }
@@ -255,7 +255,7 @@ impl Writer for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::WriteSingleCoil(rsp_addr, rsp_coil) = rsp {
+            if let Some(Response::WriteSingleCoil(rsp_addr, rsp_coil)) = rsp {
                 if rsp_addr != addr || rsp_coil != coil {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                 }
@@ -279,7 +279,7 @@ impl Writer for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
+            if let Some(Response::WriteMultipleCoils(rsp_addr, rsp_cnt)) = rsp {
                 if rsp_addr != addr || rsp_cnt as usize != cnt {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                 }
@@ -300,7 +300,7 @@ impl Writer for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::WriteSingleRegister(rsp_addr, rsp_word) = rsp {
+            if let Some(Response::WriteSingleRegister(rsp_addr, rsp_word)) = rsp {
                 if rsp_addr != addr || rsp_word != data {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                 }
@@ -324,7 +324,7 @@ impl Writer for Context {
         Box::pin(async move {
             let rsp = request.await?;
 
-            if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
+            if let Some(Response::WriteMultipleRegisters(rsp_addr, rsp_cnt)) = rsp {
                 if rsp_addr != addr || rsp_cnt as usize != cnt {
                     return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
                 }
@@ -346,7 +346,7 @@ mod tests {
     pub struct ClientMock {
         slave: Option<Slave>,
         last_request: Mutex<Option<Request>>,
-        next_response: Option<Result<Response, Error>>,
+        next_response: Option<Result<Option<Response>, Error>>,
     }
 
     #[allow(dead_code)]
@@ -359,7 +359,7 @@ mod tests {
             &self.last_request
         }
 
-        pub fn set_next_response(&mut self, next_response: Result<Response, Error>) {
+        pub fn set_next_response(&mut self, next_response: Result<Option<Response>, Error>) {
             self.next_response = Some(next_response);
         }
     }
@@ -368,7 +368,7 @@ mod tests {
         fn call<'a>(
             &'a mut self,
             request: Request,
-        ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
+        ) -> Pin<Box<dyn Future<Output = Result<Option<Response>, Error>> + Send + 'a>> {
             *self.last_request.lock().unwrap() = Some(request);
             Box::pin(future::ready(match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
@@ -390,7 +390,7 @@ mod tests {
         let response_coils = [true, false, false, true, false, true, false, true].to_vec();
         for num_coils in 1usize..8usize {
             let mut client = Box::new(ClientMock::default());
-            client.set_next_response(Ok(Response::ReadCoils(response_coils.clone())));
+            client.set_next_response(Ok(Some(Response::ReadCoils(response_coils.clone()))));
             let mut context = Context { client };
             context.set_slave(Slave(1));
             let coils =
@@ -406,7 +406,9 @@ mod tests {
         let response_inputs = [true, false, false, true, false, true, false, true].to_vec();
         for num_inputs in 1usize..8usize {
             let mut client = Box::new(ClientMock::default());
-            client.set_next_response(Ok(Response::ReadDiscreteInputs(response_inputs.clone())));
+            client.set_next_response(Ok(Some(Response::ReadDiscreteInputs(
+                response_inputs.clone(),
+            ))));
             let mut context = Context { client };
             context.set_slave(Slave(1));
             let inputs =

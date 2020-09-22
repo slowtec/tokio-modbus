@@ -138,7 +138,9 @@ impl From<ExceptionResponse> for Bytes {
 impl From<ResponsePdu> for Bytes {
     fn from(pdu: ResponsePdu) -> Bytes {
         // TODO: Replace with Result::map_or_else() when available
-        pdu.0.map(Into::into).unwrap_or_else(Into::into)
+        pdu.0
+            .map(|opt| opt.expect("Response can not be None").into())
+            .unwrap_or_else(Into::into)
     }
 }
 
