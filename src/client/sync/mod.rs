@@ -18,7 +18,7 @@ use std::io::Result;
 
 /// A transport independent synchronous client trait.
 pub trait Client: SlaveContext {
-    fn call(&mut self, req: Request) -> Result<Response>;
+    fn call(&mut self, req: Request) -> Result<Option<Response>>;
 }
 
 /// A transport independent synchronous reader trait.
@@ -51,7 +51,7 @@ pub struct Context {
 }
 
 impl Client for Context {
-    fn call(&mut self, req: Request) -> Result<Response> {
+    fn call(&mut self, req: Request) -> Result<Option<Response>> {
         self.core.block_on(self.async_ctx.call(req))
     }
 }

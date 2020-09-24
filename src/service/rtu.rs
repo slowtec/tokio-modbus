@@ -51,13 +51,22 @@ impl<T: AsyncRead + AsyncWrite + Unpin + 'static> Context<T> {
         }
     }
 
-    async fn call(&mut self, req: Request) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request) -> Result<Option<Response>, Error> {
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
 
         self.service.send(req_adu).await?;
-        let res_adu = self.service.next().await.unwrap()?;
+
+        if self.slave_id == Slave::broadcast().0 {
+            return Ok(None);
+        }
+
+        let res_adu = self
+            .service
+            .next()
+            .await
+            .ok_or_else(|| Error::new(ErrorKind::Other, "No response from request"))??;
 
         match res_adu.pdu {
             ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
@@ -89,7 +98,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send + 'static> Client for Context<T> {
     fn call<'a>(
         &'a mut self,
         req: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Response>, Error>> + Send + 'a>> {
         Box::pin(self.call(req))
     }
 }

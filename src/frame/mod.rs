@@ -173,11 +173,11 @@ impl From<RequestPdu> for Request {
 
 /// Represents a message from the server (slave) to the client (master).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ResponsePdu(pub(crate) Result<Response, ExceptionResponse>);
+pub(crate) struct ResponsePdu(pub(crate) Result<Option<Response>, ExceptionResponse>);
 
 impl From<Response> for ResponsePdu {
     fn from(from: Response) -> Self {
-        ResponsePdu(Ok(from))
+        ResponsePdu(Ok(Some(from)))
     }
 }
 
@@ -187,13 +187,13 @@ impl From<ExceptionResponse> for ResponsePdu {
     }
 }
 
-impl From<Result<Response, ExceptionResponse>> for ResponsePdu {
-    fn from(from: Result<Response, ExceptionResponse>) -> Self {
+impl From<Result<Option<Response>, ExceptionResponse>> for ResponsePdu {
+    fn from(from: Result<Option<Response>, ExceptionResponse>) -> Self {
         ResponsePdu(from.map(Into::into).map_err(Into::into))
     }
 }
 
-impl From<ResponsePdu> for Result<Response, ExceptionResponse> {
+impl From<ResponsePdu> for Result<Option<Response>, ExceptionResponse> {
     fn from(from: ResponsePdu) -> Self {
         from.0
     }
