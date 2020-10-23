@@ -297,7 +297,7 @@ impl Decoder for ClientCodec {
                     Ok(None)
                 }
             })
-            .or_else(|_| {
+            .map_err(|_| {
                 // Decoding the transport frame is non-destructive and must
                 // never fail!
                 unreachable!();
@@ -335,7 +335,7 @@ impl Decoder for ServerCodec {
                     Ok(None)
                 }
             })
-            .or_else(|_| {
+            .map_err(|_| {
                 // Decoding the transport frame is non-destructive and must
                 // never fail!
                 unreachable!();
