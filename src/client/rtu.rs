@@ -4,28 +4,26 @@ use super::*;
 
 use crate::service;
 
-use std::{future::Future, io::Error};
+use std::io::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 /// Connect to no particular Modbus slave device for sending
 /// broadcast messages.
-pub fn connect<T>(transport: T) -> impl Future<Output = Result<Context, Error>>
+pub async fn connect<T>(transport: T) -> Result<Context, Error>
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    connect_slave(transport, Slave::broadcast())
+    connect_slave(transport, Slave::broadcast()).await
 }
 
 /// Connect to any kind of Modbus slave device.
-pub fn connect_slave<T>(transport: T, slave: Slave) -> impl Future<Output = Result<Context, Error>>
+pub async fn connect_slave<T>(transport: T, slave: Slave) -> Result<Context, Error>
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    async move {
-        let client = service::rtu::connect_slave(transport, slave).await?;
+    let client = service::rtu::connect_slave(transport, slave).await?;
 
-        Ok(Context {
-            client: Box::new(client),
-        })
-    }
+    Ok(Context {
+        client: Box::new(client),
+    })
 }
