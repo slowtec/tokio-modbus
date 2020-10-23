@@ -27,7 +27,7 @@ tokio-serial = { version = "4.3.3", optional = true, default-features = false }
 [dev-dependencies]
 env_logger = "0.7"
 futures = "0.3"
-tokio = { version = "0.2", features = ["tcp", "macros"] }
+tokio = { version = "0.2", features = ["tcp", "macros", "io-util"] }
 
 [features]
 default = ["tcp", "rtu", "sync"]

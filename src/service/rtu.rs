@@ -57,7 +57,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin + 'static> Context<T> {
         let req_hdr = req_adu.hdr;
 
         self.service.send(req_adu).await?;
-        let res_adu = self.service.next().await.unwrap()?;
+        let res_adu = self
+            .service
+            .next()
+            .await
+            .unwrap_or_else(|| Err(Error::from(ErrorKind::BrokenPipe)))?;
 
         match res_adu.pdu {
             ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
@@ -91,5 +95,58 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send + 'static> Client for Context<T> {
         req: Request,
     ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
         Box::pin(self.call(req))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use core::{
+        pin::Pin,
+        task::{Context, Poll},
+    };
+    use tokio::io::{AsyncRead, AsyncWrite, Result};
+
+    struct MockTransport;
+
+    impl Unpin for MockTransport {}
+
+    #[tokio::test]
+    async fn handle_broken_pipe() {
+        impl AsyncRead for MockTransport {
+            fn poll_read(
+                self: Pin<&mut Self>,
+                _: &mut Context,
+                _: &mut [u8],
+            ) -> Poll<Result<usize>> {
+                Poll::Ready(Ok(0))
+            }
+        }
+
+        impl AsyncWrite for MockTransport {
+            fn poll_write(self: Pin<&mut Self>, _: &mut Context, _: &[u8]) -> Poll<Result<usize>> {
+                Poll::Ready(Ok(2))
+            }
+
+            fn poll_flush(self: Pin<&mut Self>, _: &mut Context) -> Poll<Result<()>> {
+                Poll::Ready(Ok(()))
+            }
+
+            fn poll_shutdown(self: Pin<&mut Self>, _: &mut Context) -> Poll<Result<()>> {
+                unimplemented!()
+            }
+        }
+
+        let transport = MockTransport {};
+        let mut ctx =
+            crate::service::rtu::connect_slave(transport, crate::service::rtu::Slave::broadcast())
+                .await
+                .unwrap();
+        let res = ctx
+            .call(crate::service::rtu::Request::ReadCoils(0x00, 5))
+            .await;
+        assert!(res.is_err());
+        let err = res.err().unwrap();
+        assert_eq!(err.kind(), std::io::ErrorKind::BrokenPipe);
     }
 }
