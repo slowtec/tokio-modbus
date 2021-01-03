@@ -1,5 +1,5 @@
 #[cfg(feature = "rtu")]
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
 

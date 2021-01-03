@@ -7,7 +7,6 @@ use crate::{
 use futures::{self, future, select, Future};
 use futures_util::{future::FutureExt, sink::SinkExt, stream::StreamExt};
 use log::{error, trace};
-use net2;
 use std::{
     io::{self, Error},
     net::SocketAddr,
@@ -81,12 +80,14 @@ where
     S::Instance: 'static + Send + Sync,
     Sd: Future<Output = ()> + Unpin + Send + Sync + 'static,
 {
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
 
     let new_service = Arc::new(new_service);
 
     let server = async {
-        let mut listener = listener(&addr, workers).unwrap();
+        let listener = listener(&addr, workers).unwrap();
 
         loop {
             let (stream, _) = listener.accept().await?;
@@ -111,11 +112,10 @@ where
 
     let task = async {
         select! {
-            res = server => match res {
-                Err(e) => error!("error: {}", e),
-                _ => {}
+            res = server => if let Err(e) = res {
+                error!("error: {}", e)
             },
-            _ = shutdown_signal => { trace!("Shutdown signal received") }
+            _ = shutdown_signal => trace!("Shutdown signal received")
         }
     };
 

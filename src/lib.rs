@@ -52,7 +52,7 @@
 //!
 //! ```rust,no_run
 //! #[cfg(feature = "tcp")]
-//! #[tokio::main]
+//! #[tokio::main(flavor = "current_thread")]
 //! pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     use std::future::Future;
 //!     use tokio::runtime::Runtime;
@@ -89,7 +89,7 @@
 //!
 //! ```rust,no_run
 //! #[cfg(feature = "rtu")]
-//! #[tokio::main]
+//! #[tokio::main(flavor = "current_thread")]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     use tokio_serial::{Serial, SerialPortSettings};
 //!

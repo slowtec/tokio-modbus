@@ -1,5 +1,5 @@
 #[cfg(all(feature = "tcp", feature = "server"))]
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use futures::future;
     use std::{thread, time::Duration};
