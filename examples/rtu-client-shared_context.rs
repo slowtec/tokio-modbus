@@ -1,5 +1,6 @@
 #[cfg(feature = "rtu")]
 #[tokio::main(flavor = "current_thread")]
+#[allow(clippy::await_holding_refcell_ref)]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
 
