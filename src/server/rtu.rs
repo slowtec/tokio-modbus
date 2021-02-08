@@ -28,16 +28,16 @@ impl Server {
         }
     }
 
-    pub fn serve_forever<S>(self, new_service: S)
+    pub async fn serve_forever<S>(self, new_service: S)
         where
             S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
             S::Error: Into<Error>,
             S::Instance: 'static + Send + Sync,
     {
-        self.serve_until(new_service, futures::future::pending())
+        self.serve_until(new_service, futures::future::pending()).await;
     }
 
-    pub fn serve_until<S, Sd>(self, new_service: S, shutdown_signal: Sd)
+    pub async fn serve_until<S, Sd>(self, new_service: S, shutdown_signal: Sd)
     where
         S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
         Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
@@ -46,7 +46,6 @@ impl Server {
         S::Error: Into<Error>,
         S::Instance: Send + Sync + 'static,
     {
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
         let framed = Framed::new(self.serial, codec::rtu::ServerCodec::default());
         let service = new_service.new_service().unwrap();
         let future = process(framed, service);
@@ -54,7 +53,7 @@ impl Server {
         let mut server = Box::pin(future).fuse();
         let mut shutdown = shutdown_signal.fuse();
 
-        let task = async {
+        async {
             select!{
                 res = server => match res {
                     Err(e) => println!("error: {}", e),
@@ -62,9 +61,7 @@ impl Server {
                 },
                 _ = shutdown => { println!("Shutdown signal received")  }
             }
-        };
-
-        rt.block_on(task);
+        }.await;
     }
 }
 
@@ -77,11 +74,12 @@ async fn process<S>(
         S::Error: Into<Error>,
 {
     loop {
-        let request = framed.next().await;
-        if request.is_none() {
-            break;
-        }
-        let request = request.unwrap()?;
+        let request = match framed.next().await {
+            // Stream is exhausted
+            None => break,
+            Some(request) => request,
+        }?;
+
         let hdr = request.hdr;
         let response = service.call(request.pdu.0).await.map_err(Into::into)?;
         framed.send(

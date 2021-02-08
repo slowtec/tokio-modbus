@@ -1,3 +1,5 @@
+use tokio_serial::SerialPort;
+
 #[cfg(all(feature = "rtu", feature = "server"))]
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,11 +30,11 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let (client_serial, server_serial) = tokio_serial::Serial::pair().unwrap();
-
     println!("Starting up server...");
     let _server = thread::spawn(move || {
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
         let server = server::rtu::Server::new(server_serial);
-        server.serve_forever(|| Ok(MbServer));
+        rt.block_on(async {server.serve_forever(|| Ok(MbServer)).await;});
     });
 
     // Give the server some time for stating up
@@ -42,7 +44,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx = rtu::connect(client_serial).await?;
     println!("Reading input registers...");
     let rsp = ctx.read_input_registers(0x00, 7).await?;
-    println!("The result is '{:?}'", rsp);
+    println!("The result is '{:#x?}'", rsp); // The result is '[0x0,0x0,0x77,0x0,0x0,0x0,0x0,]'
 
     Ok(())
 }
