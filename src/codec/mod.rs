@@ -469,8 +469,8 @@ mod tests {
     #[test]
     fn convert_booleans_to_bytes() {
         assert_eq!(pack_coils(&[]), &[]);
-        assert_eq!(pack_coils(&[true]), &[0b_1]);
-        assert_eq!(pack_coils(&[false]), &[0b_0]);
+        assert_eq!(pack_coils(&[true]), &[0b1]);
+        assert_eq!(pack_coils(&[false]), &[0b0]);
         assert_eq!(pack_coils(&[true, false]), &[0b_01]);
         assert_eq!(pack_coils(&[false, true]), &[0b_10]);
         assert_eq!(pack_coils(&[true, true]), &[0b_11]);

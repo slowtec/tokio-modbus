@@ -7,7 +7,6 @@ use crate::{
 use futures::{self, future, select, Future};
 use futures_util::{future::FutureExt, sink::SinkExt, stream::StreamExt};
 use log::{error, trace};
-use net2;
 use std::{
     io::{self, Error},
     net::SocketAddr,
@@ -111,11 +110,8 @@ where
 
     let task = async {
         select! {
-            res = server => match res {
-                Err(e) => error!("error: {}", e),
-                _ => {}
-            },
-            _ = shutdown_signal => { trace!("Shutdown signal received") }
+            res = server => if let Err(e) = res { error!("error: {}", e) },
+            _ = shutdown_signal => trace!("Shutdown signal received")
         }
     };
 

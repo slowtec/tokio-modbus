@@ -112,9 +112,9 @@ impl From<Box<dyn Client>> for Context {
     }
 }
 
-impl Into<Box<dyn Client>> for Context {
-    fn into(self) -> Box<dyn Client> {
-        self.client
+impl From<Context> for Box<dyn Client> {
+    fn from(val: Context) -> Self {
+        val.client
     }
 }
 
