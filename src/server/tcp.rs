@@ -96,7 +96,9 @@ where
                 let service = new_service.new_service().unwrap();
                 let future = process(framed, service);
 
-                future.await.unwrap();
+                if let Err(err) = future.await {
+                    eprintln!("{:?}", err);
+                }
             }));
         }
 
