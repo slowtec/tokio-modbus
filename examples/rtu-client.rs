@@ -1,5 +1,5 @@
 #[cfg(feature = "rtu")]
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_serial::{Serial, SerialPortSettings};
 

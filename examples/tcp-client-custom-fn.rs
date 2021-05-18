@@ -1,5 +1,5 @@
 #[cfg(feature = "tcp")]
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_modbus::prelude::*;
 

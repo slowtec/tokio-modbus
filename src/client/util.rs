@@ -20,6 +20,7 @@ impl SharedContextHolder {
     }
 
     /// Disconnect and drop the wrapped context reference.
+    #[allow(clippy::await_holding_refcell_ref)]
     async fn disconnect(&mut self) -> Result<(), Error> {
         if let Some(context) = self.context.take() {
             let mut context = context.borrow_mut();
@@ -84,6 +85,7 @@ impl SharedContext {
 }
 
 /// Asynchronously (disconnect and) reconnect the shared context.
+#[allow(clippy::await_holding_refcell_ref)]
 pub async fn reconnect_shared_context(
     shared_context: &Rc<RefCell<SharedContext>>,
 ) -> Result<(), Error> {

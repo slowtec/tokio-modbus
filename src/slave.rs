@@ -71,8 +71,8 @@ impl FromStr for Slave {
         let slave_id = match u8::from_str_radix(s, 10) {
             Ok(slave_id) => Ok(slave_id),
             Err(err) => {
-                if s.starts_with("0x") {
-                    u8::from_str_radix(&s[2..], 16)
+                if let Some(s) = s.strip_prefix("0x") {
+                    u8::from_str_radix(s, 16)
                 } else {
                     Err(err)
                 }
