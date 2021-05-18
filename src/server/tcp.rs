@@ -71,7 +71,7 @@ impl Server {
     }
 }
 
-/// Will start a TCP listener and will serve data with service providen
+/// Will start a TCP listener and will serve data with service provided
 /// until shutdown signal will be triggered in shutdown_signal future
 fn serve_until<S, Sd>(addr: SocketAddr, workers: usize, new_service: S, shutdown_signal: Sd)
 where
