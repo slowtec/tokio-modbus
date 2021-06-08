@@ -68,7 +68,7 @@ impl FromStr for Slave {
     type Err = ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let slave_id = match u8::from_str_radix(s, 10) {
+        let slave_id = match s.parse::<u8>() {
             Ok(slave_id) => Ok(slave_id),
             Err(err) => {
                 if let Some(stripped) = s.strip_prefix("0x") {
