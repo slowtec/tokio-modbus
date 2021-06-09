@@ -98,7 +98,9 @@ where
                 let service = new_service.new_service().unwrap();
                 let future = process(framed, service);
 
-                future.await.unwrap();
+                if let Err(err) = future.await {
+                    eprintln!("{:?}", err);
+                }
             }));
         }
 
@@ -112,9 +114,7 @@ where
 
     let task = async {
         select! {
-            res = server => if let Err(e) = res {
-                error!("error: {}", e)
-            },
+            res = server => if let Err(e) = res { error!("error: {}", e) },
             _ = shutdown_signal => trace!("Shutdown signal received")
         }
     };
