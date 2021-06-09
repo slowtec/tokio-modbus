@@ -58,6 +58,27 @@ pub trait Reader: Client {
         _: Address,
         _: &[Word],
     ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>>;
+
+    fn read_device_identification<'a>(
+        &'a mut self,
+        _: ReadDeviceIdCode,
+        _: ObjectId,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        (
+                            ConformityLevel,
+                            MoreFollows,
+                            NextObjectId,
+                            Vec<ReadDevIdObject>,
+                        ),
+                        Error,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    >;
 }
 
 /// An asynchronous Modbus writer.
@@ -242,6 +263,56 @@ impl Reader for Context {
             }
         })
     }
+
+    fn read_device_identification<'a>(
+        &'a mut self,
+        read_device_id_code: ReadDeviceIdCode,
+        object_id: ObjectId,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        (
+                            ConformityLevel,
+                            MoreFollows,
+                            NextObjectId,
+                            Vec<ReadDevIdObject>,
+                        ),
+                        Error,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
+        let request = self.client.call(Request::ReadDeviceIdentification(
+            read_device_id_code,
+            object_id,
+        ));
+        Box::pin(async move {
+            let rsp = request.await?;
+
+            if let Response::ReadDeviceIdentification(
+                resp_read_device_id_code,
+                resp_conformity_level,
+                resp_more_follows,
+                resp_next_object_id,
+                resp_objects,
+            ) = rsp
+            {
+                if resp_read_device_id_code != read_device_id_code {
+                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+                }
+                Ok((
+                    resp_conformity_level,
+                    resp_more_follows,
+                    resp_next_object_id,
+                    resp_objects,
+                ))
+            } else {
+                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+            }
+        })
+    }
 }
 
 impl Writer for Context {
@@ -414,5 +485,31 @@ mod tests {
                     .unwrap();
             assert_eq!(&response_inputs[0..num_inputs], &inputs[..]);
         }
+    }
+
+    #[test]
+    fn read_some_device_identification() {
+        let objs = vec![
+            ReadDevIdObject {
+                id: 0,
+                value: "Company identification".to_string(),
+            },
+            ReadDevIdObject {
+                id: 1,
+                value: "Product code XX".to_string(),
+            },
+            ReadDevIdObject {
+                id: 2,
+                value: "V2.11".to_string(),
+            },
+        ];
+        let response = Response::ReadDeviceIdentification(1, 1, true, 0, objs.clone());
+
+        let mut client = Box::new(ClientMock::default());
+        client.set_next_response(Ok(response.clone()));
+        let mut context = Context { client };
+        context.set_slave(Slave(1));
+        let resp = futures::executor::block_on(context.read_device_identification(1, 1)).unwrap();
+        assert_eq!((1, true, 0, objs), resp);
     }
 }
