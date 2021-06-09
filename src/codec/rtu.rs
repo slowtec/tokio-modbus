@@ -343,8 +343,7 @@ impl Decoder for ServerCodec {
     }
 }
 
-impl Encoder for ClientCodec {
-    type Item = RequestAdu;
+impl Encoder<RequestAdu> for ClientCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: RequestAdu, buf: &mut BytesMut) -> Result<()> {
@@ -369,8 +368,7 @@ impl Encoder for ClientCodec {
     }
 }
 
-impl Encoder for ServerCodec {
-    type Item = ResponseAdu;
+impl Encoder<ResponseAdu> for ServerCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: ResponseAdu, buf: &mut BytesMut) -> Result<()> {

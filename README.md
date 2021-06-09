@@ -5,7 +5,6 @@ A [tokio](https://tokio.rs)-based modbus library.
 [![Crates.io version](https://img.shields.io/crates/v/tokio-modbus.svg)](https://crates.io/crates/tokio-modbus)
 [![Docs](https://docs.rs/tokio-modbus/badge.svg)](https://docs.rs/tokio-modbus/)
 [![Build Status](https://travis-ci.org/slowtec/tokio-modbus.svg?branch=master)](https://travis-ci.org/slowtec/tokio-modbus)
-[![Build status](https://ci.appveyor.com/api/projects/status/dw7jfj7hcbmykqh0/branch/master?svg=true)](https://ci.appveyor.com/project/flosse/tokio-modbus/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/slowtec/tokio-modbus/badge.svg?branch=master)](https://coveralls.io/github/slowtec/tokio-modbus?branch=master)
 
 ## Features

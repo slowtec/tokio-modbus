@@ -17,7 +17,7 @@ pub fn connect_slave(
     settings: &SerialPortSettings,
     slave: Slave,
 ) -> Result<Context> {
-    let mut rt = tokio::runtime::Runtime::new()?;
+    let rt = tokio::runtime::Builder::new_current_thread().build()?;
     let serial = Serial::from_path(tty_path, settings)?;
     let async_ctx = rt.block_on(async_connect_slave(serial, slave))?;
     let sync_ctx = Context {

@@ -71,7 +71,7 @@ impl Server {
     }
 }
 
-/// Will start a TCP listener and will serve data with service providen
+/// Will start a TCP listener and will serve data with service provided
 /// until shutdown signal will be triggered in shutdown_signal future
 fn serve_until<S, Sd>(addr: SocketAddr, workers: usize, new_service: S, shutdown_signal: Sd)
 where
@@ -80,12 +80,14 @@ where
     S::Instance: 'static + Send + Sync,
     Sd: Future<Output = ()> + Unpin + Send + Sync + 'static,
 {
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
 
     let new_service = Arc::new(new_service);
 
     let server = async {
-        let mut listener = listener(&addr, workers).unwrap();
+        let listener = listener(&addr, workers).unwrap();
 
         loop {
             let (stream, _) = listener.accept().await?;
