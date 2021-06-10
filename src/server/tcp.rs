@@ -80,12 +80,15 @@ where
     S::Instance: 'static + Send + Sync,
     Sd: Future<Output = ()> + Unpin + Send + Sync + 'static,
 {
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_io()
+        .build()
+        .unwrap();
 
     let new_service = Arc::new(new_service);
 
     let server = async {
-        let mut listener = listener(&addr, workers).unwrap();
+        let listener = listener(&addr, workers).unwrap();
 
         loop {
             let (stream, _) = listener.accept().await?;
@@ -193,7 +196,7 @@ mod tests {
         #[derive(Clone)]
         struct DummyService {
             response: Response,
-        };
+        }
 
         impl Service for DummyService {
             type Request = Request;
