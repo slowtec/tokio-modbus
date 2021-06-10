@@ -1,5 +1,4 @@
-#[cfg(feature = "tcp")]
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_modbus::prelude::*;
 
@@ -15,15 +14,9 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Result for function {} is '{:?}'", f, rsp);
         }
         _ => {
-            panic!("unexpeted result");
+            panic!("unexpected result");
         }
     }
 
     Ok(())
-}
-
-#[cfg(not(feature = "tcp"))]
-pub fn main() {
-    println!("feature `tcp` is required to run this example");
-    std::process::exit(1);
 }

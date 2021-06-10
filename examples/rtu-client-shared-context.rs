@@ -1,28 +1,26 @@
-#[cfg(feature = "rtu")]
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
 
+    use serial_io::{build, AsyncSerial, SerialPortBuilder};
     use tokio_modbus::client::{
         rtu,
         util::{reconnect_shared_context, NewContext, SharedContext},
         Context,
     };
     use tokio_modbus::prelude::*;
-    use tokio_serial::{Serial, SerialPortSettings};
 
     const SLAVE_1: Slave = Slave(0x01);
     const SLAVE_2: Slave = Slave(0x02);
 
     #[derive(Debug)]
     struct SerialConfig {
-        path: String,
-        settings: SerialPortSettings,
+        builder: SerialPortBuilder,
     }
 
     impl NewContext for SerialConfig {
         fn new_context(&self) -> Pin<Box<dyn Future<Output = Result<Context, Error>>>> {
-            let serial = Serial::from_path(&self.path, &self.settings);
+            let serial = AsyncSerial::from_builder(&self.builder);
             Box::pin(async {
                 let port = serial?;
                 rtu::connect(port).await
@@ -31,11 +29,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let serial_config = SerialConfig {
-        path: "/dev/ttyUSB0".into(),
-        settings: SerialPortSettings {
-            baud_rate: 19200,
-            ..Default::default()
-        },
+        builder: build("/dev/ttyUSB0", 19200),
     };
     println!("Configuration: {:?}", serial_config);
 
@@ -67,10 +61,4 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Sensor value for device {:?} is: {:?}", SLAVE_2, response);
 
     Ok(())
-}
-
-#[cfg(not(feature = "rtu"))]
-pub fn main() {
-    println!("feature `rtu` is required to run this example");
-    std::process::exit(1);
 }

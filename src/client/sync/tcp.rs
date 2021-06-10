@@ -13,7 +13,9 @@ pub fn connect(socket_addr: SocketAddr) -> Result<Context> {
 /// gateway that is forwarding messages to/from the corresponding unit identified
 /// by the slave parameter.
 pub fn connect_slave(socket_addr: SocketAddr, slave: Slave) -> Result<Context> {
-    let mut rt = tokio::runtime::Runtime::new()?;
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
+        .build()?;
     let async_ctx = rt.block_on(async_connect_slave(socket_addr, slave))?;
     let sync_ctx = Context {
         core: rt,

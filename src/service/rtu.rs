@@ -105,7 +105,7 @@ mod tests {
         pin::Pin,
         task::{Context, Poll},
     };
-    use tokio::io::{AsyncRead, AsyncWrite, Result};
+    use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
     struct MockTransport;
 
@@ -117,9 +117,9 @@ mod tests {
             fn poll_read(
                 self: Pin<&mut Self>,
                 _: &mut Context,
-                _: &mut [u8],
-            ) -> Poll<Result<usize>> {
-                Poll::Ready(Ok(0))
+                _: &mut ReadBuf,
+            ) -> Poll<Result<()>> {
+                Poll::Ready(Ok(()))
             }
         }
 

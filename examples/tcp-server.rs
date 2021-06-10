@@ -1,5 +1,4 @@
-#[cfg(all(feature = "tcp", feature = "server"))]
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use futures::future;
     use std::{thread, time::Duration};
@@ -43,10 +42,4 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("The result is '{:?}'", rsp);
 
     Ok(())
-}
-
-#[cfg(not(all(feature = "tcp", feature = "server")))]
-pub fn main() {
-    println!("both `tcp` and `server` features is required to run this example");
-    std::process::exit(1);
 }

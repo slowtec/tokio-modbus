@@ -51,8 +51,8 @@
 //! ## TCP client
 //!
 //! ```rust,no_run
-//! #[cfg(feature = "tcp")]
-//! #[tokio::main]
+//! # #[cfg(feature = "tcp")]
+//! #[tokio::main(flavor = "current_thread")]
 //! pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     use std::future::Future;
 //!     use tokio::runtime::Runtime;
@@ -71,7 +71,7 @@
 //! ## Sync TCP client
 //!
 //! ```rust,no_run
-//! #[cfg(all(feature = "tcp", feature = "sync"))]
+//! # #[cfg(all(feature = "tcp", feature = "sync"))]
 //! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     use tokio_modbus::prelude::*;
 //!
@@ -88,23 +88,45 @@
 //! ## RTU client
 //!
 //! ```rust,no_run
-//! #[cfg(feature = "rtu")]
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     use tokio_serial::{Serial, SerialPortSettings};
+//! # #[cfg(feature = "rtu")]
+//! #[tokio::main(flavor = "current_thread")]
+//! pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     use serial_io::{build, AsyncSerial};
 //!
 //!     use tokio_modbus::prelude::*;
 //!
 //!     let tty_path = "/dev/ttyUSB0";
 //!     let slave = Slave(0x17);
 //!
-//!     let mut settings = SerialPortSettings::default();
-//!     settings.baud_rate = 19200;
-//!     let port = Serial::from_path(tty_path, &settings).unwrap();
+//!     let builder = build(tty_path, 19200);
+//!     let port = AsyncSerial::from_builder(&builder).unwrap();
 //!
 //!     let mut ctx = rtu::connect_slave(port, slave).await?;
 //!     println!("Reading a sensor value");
 //!     let rsp = ctx.read_holding_registers(0x082B, 2).await?;
+//!     println!("Sensor value is: {:?}", rsp);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Sync RTU client
+//!
+//! ```rust,no_run
+//! # #[cfg(all(feature = "rtu", feature = "sync"))]
+//! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     use serial_io::{build, AsyncSerial};
+//!
+//!     use tokio_modbus::prelude::*;
+//!
+//!     let tty_path = "/dev/ttyUSB0";
+//!     let slave = Slave(0x17);
+//!
+//!     let builder = build(tty_path, 19200);
+//!
+//!     let mut ctx = sync::rtu::connect_slave(&builder, slave)?;
+//!     println!("Reading a sensor value");
+//!     let rsp = ctx.read_holding_registers(0x082B, 2)?;
 //!     println!("Sensor value is: {:?}", rsp);
 //!
 //!     Ok(())
