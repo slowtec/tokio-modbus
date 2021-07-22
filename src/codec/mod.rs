@@ -462,8 +462,8 @@ mod tests {
 
     #[test]
     fn convert_coil_to_bool() {
-        assert_eq!(coil_to_bool(0xFF00).unwrap(), true);
-        assert_eq!(coil_to_bool(0x0000).unwrap(), false);
+        assert!(coil_to_bool(0xFF00).unwrap());
+        assert!(!coil_to_bool(0x0000).unwrap());
     }
 
     #[test]
