@@ -22,16 +22,16 @@ smallvec = { version = "1", default-features = false }
 tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
 tokio-util = { version = "0.6", features = ["codec"] }
 # Disable default-features to exclude unused dependency on libudev
-serial-io = { version = "0.3", features = ["tokio"], optional = true, default-features = false }
+tokio-serial = { version = "5.4.0-beta1", optional = true, default-features = false }
 
 [dev-dependencies]
-env_logger = "0.7"
+env_logger = "0.9"
 futures = "0.3"
 tokio = { version = "1", features = ["net", "macros", "io-util"] }
 
 [features]
 default = ["tcp", "rtu", "sync"]
-rtu = ["serial-io", "futures-util/sink"]
+rtu = ["tokio-serial", "futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 sync = []
 server = ["net2", "futures"]

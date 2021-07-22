@@ -79,8 +79,8 @@ pub enum Request {
     /// The fourth parameter is the vector of values to write to the registers.
     ReadWriteMultipleRegisters(Address, Quantity, Address, Vec<Word>),
 
-    /// A raw modbus request.
-    /// The first parameter is the modbus function code.
+    /// A raw Modbus request.
+    /// The first parameter is the Modbus function code.
     /// The second parameter is the raw bytes of the request.
     Custom(FunctionCode, Vec<u8>),
 
@@ -96,7 +96,7 @@ pub enum Request {
     Disconnect,
 }
 
-/// The data of a successfull request.
+/// The data of a successful request.
 ///
 /// ReadCoils/ReadDiscreteInputs: The length of the result Vec is always a
 /// multiple of 8. Only the values of the first bits/coils that have actually
@@ -104,15 +104,51 @@ pub enum Request {
 /// server implementation and those coils should be should be ignored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Response {
+    /// Response to a ReadCoils request
+    /// The parameter contains the coil values that have been read
+    /// See also the note above regarding the vector length
     ReadCoils(Vec<Coil>),
+
+    /// Response to a ReadDiscreteInputs request
+    /// The parameter contains the discrete input values that have been read
+    /// See also the note above regarding the vector length
     ReadDiscreteInputs(Vec<Coil>),
+
+    /// Response to a WriteSingleCoil request
+    /// The first parameter contains the address of the coil that has been written to
+    /// The second parameter contains the value that has been written to the coil the given address
     WriteSingleCoil(Address, Coil),
+
+    /// Response to a WriteMultipleCoils request
+    /// The first parameter contains the address at the start of the range that has been written to
+    /// The second parameter contains the amount of values that have been written
     WriteMultipleCoils(Address, Quantity),
+
+    /// Response to a ReadInputRegisters request
+    /// The parameter contains the register values that have been read
     ReadInputRegisters(Vec<Word>),
+
+    /// Response to a ReadHoldingRegisters request
+    /// The parameter contains the register values that have been read
     ReadHoldingRegisters(Vec<Word>),
+
+    /// Response to a WriteSingleRegister request
+    /// The first parameter contains the address of the register that has been written to
+    /// The second parameter contains the value that has been written to the register at the given address
     WriteSingleRegister(Address, Word),
+
+    /// Response to a WriteMultipleRegisters request
+    /// The first parameter contains the address at the start of the register range that has been written to
+    /// The second parameter contains the amount of register that have been written
     WriteMultipleRegisters(Address, Quantity),
+
+    /// Response to a ReadWriteMultipleRegisters request
+    /// The parameter contains the register values that have been read as part of the read instruction
     ReadWriteMultipleRegisters(Vec<Word>),
+
+    /// Response to a raw Modbus request
+    /// The first parameter contains the returned Modbus function code
+    /// The second parameter contains the bytes read following the function code
     Custom(FunctionCode, Vec<u8>),
 }
 

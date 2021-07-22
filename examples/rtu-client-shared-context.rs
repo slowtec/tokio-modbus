@@ -2,13 +2,13 @@
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
 
-    use serial_io::{build, AsyncSerial, SerialPortBuilder};
     use tokio_modbus::client::{
         rtu,
         util::{reconnect_shared_context, NewContext, SharedContext},
         Context,
     };
     use tokio_modbus::prelude::*;
+    use tokio_serial::{SerialPortBuilder, SerialStream};
 
     const SLAVE_1: Slave = Slave(0x01);
     const SLAVE_2: Slave = Slave(0x02);
@@ -20,7 +20,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     impl NewContext for SerialConfig {
         fn new_context(&self) -> Pin<Box<dyn Future<Output = Result<Context, Error>>>> {
-            let serial = AsyncSerial::from_builder(&self.builder);
+            let serial = SerialStream::open(&self.builder);
             Box::pin(async {
                 let port = serial?;
                 rtu::connect(port).await
@@ -29,7 +29,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let serial_config = SerialConfig {
-        builder: build("/dev/ttyUSB0", 19200),
+        builder: tokio_serial::new("/dev/ttyUSB0", 19200),
     };
     println!("Configuration: {:?}", serial_config);
 

@@ -91,15 +91,15 @@
 //! # #[cfg(feature = "rtu")]
 //! #[tokio::main(flavor = "current_thread")]
 //! pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     use serial_io::{build, AsyncSerial};
+//!     use tokio_serial::SerialStream;
 //!
 //!     use tokio_modbus::prelude::*;
 //!
 //!     let tty_path = "/dev/ttyUSB0";
 //!     let slave = Slave(0x17);
 //!
-//!     let builder = build(tty_path, 19200);
-//!     let port = AsyncSerial::from_builder(&builder).unwrap();
+//!     let builder = tokio_serial::new(tty_path, 19200);
+//!     let port = SerialStream::open(&builder).unwrap();
 //!
 //!     let mut ctx = rtu::connect_slave(port, slave).await?;
 //!     println!("Reading a sensor value");
@@ -115,14 +115,12 @@
 //! ```rust,no_run
 //! # #[cfg(all(feature = "rtu", feature = "sync"))]
 //! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     use serial_io::{build, AsyncSerial};
-//!
 //!     use tokio_modbus::prelude::*;
 //!
 //!     let tty_path = "/dev/ttyUSB0";
 //!     let slave = Slave(0x17);
 //!
-//!     let builder = build(tty_path, 19200);
+//!     let builder = tokio_serial::new(tty_path, 19200);
 //!
 //!     let mut ctx = sync::rtu::connect_slave(&builder, slave)?;
 //!     println!("Reading a sensor value");
