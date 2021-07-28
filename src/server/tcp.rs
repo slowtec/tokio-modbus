@@ -7,6 +7,7 @@ use crate::{
 use futures::{self, future, select, Future};
 use futures_util::{future::FutureExt, sink::SinkExt, stream::StreamExt};
 use log::{error, trace};
+use socket2::{Domain, Socket, Type};
 use std::{
     io::{self, Error},
     net::SocketAddr,
@@ -88,7 +89,7 @@ where
     let new_service = Arc::new(new_service);
 
     let server = async {
-        let listener = listener(&addr, workers).unwrap();
+        let listener = listener(addr, workers).unwrap();
 
         loop {
             let (stream, _) = listener.accept().await?;
@@ -157,30 +158,28 @@ where
 }
 
 /// Start TCP listener - configure and open TCP socket
-fn listener(addr: &SocketAddr, workers: usize) -> io::Result<TcpListener> {
-    let listener = match *addr {
-        SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?,
-        SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?,
+fn listener(addr: SocketAddr, workers: usize) -> io::Result<TcpListener> {
+    let listener = match addr {
+        SocketAddr::V4(_) => Socket::new(Domain::IPV4, Type::STREAM, None)?,
+        SocketAddr::V6(_) => Socket::new(Domain::IPV6, Type::STREAM, None)?,
     };
     configure_tcp(workers, &listener)?;
-    listener.reuse_address(true)?;
-    listener.bind(addr)?;
-    listener.listen(1024).and_then(TcpListener::from_std)
+    listener.reuse_address()?;
+    listener.bind(&addr.into())?;
+    listener.listen(1024)?;
+    TcpListener::from_std(listener.into())
 }
 
 #[cfg(unix)]
-fn configure_tcp(workers: usize, tcp: &net2::TcpBuilder) -> io::Result<()> {
-    use net2::unix::*;
-
+fn configure_tcp(workers: usize, tcp: &Socket) -> io::Result<()> {
     if workers > 1 {
-        tcp.reuse_port(true)?;
+        tcp.reuse_port()?;
     }
-
     Ok(())
 }
 
 #[cfg(windows)]
-fn configure_tcp(_workers: usize, _tcp: &net2::TcpBuilder) -> io::Result<()> {
+fn configure_tcp(_workers: usize, _tcp: &Socket) -> io::Result<()> {
     Ok(())
 }
 

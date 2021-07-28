@@ -16,7 +16,7 @@ byteorder = "1"
 futures = { version = "0.3", optional = true }
 futures-util = { version = "0.3", default-features = false }
 log = "0.4"
-net2 = { version = "0.2", optional = true, default-features = false }
+socket2 = { version = "0.4", optional = true, features = ["all"]}
 smallvec = { version = "1", default-features = false }
 # rt should be enabled only with "server" feature. Waiting for https://github.com/rust-lang/cargo/issues/5954
 tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
@@ -34,7 +34,7 @@ default = ["tcp", "rtu", "sync"]
 rtu = ["tokio-serial", "futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 sync = []
-server = ["net2", "futures"]
+server = ["socket2", "futures"]
 tcp-server-unstable = ["server"]
 
 [badges]
