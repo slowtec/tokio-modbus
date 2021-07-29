@@ -1,18 +1,5 @@
-# Cargo artefacts
+# Cargo artifacts
 Cargo.lock
 
-# Build directory (or a symbolic link to it)
+# Build directory (without a trailing slash to allow using symbolic links)
 /target
-
-# Backup files
-**/*~
-**/*.rs.bk
-
-# macOS
-.DS_Store
-
-# vi files
-*.swp
-
-# VS Code config files
-/.vscode
