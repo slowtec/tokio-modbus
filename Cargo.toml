@@ -17,7 +17,7 @@ futures = { version = "0.3", optional = true }
 futures-util = { version = "0.3", optional = true, default-features = false }
 log = "0.4"
 smallvec = { version = "1", default-features = false }
-socket2 = { version = "0.4", optional = true, features = ["all"]}
+socket2 = { version = "0.4", optional = true, default-features = false }
 tokio = { version = "1", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4.0-beta4", optional = true, default-features = false }
@@ -33,7 +33,7 @@ default = ["tcp", "rtu", "sync"]
 rtu = ["tokio-serial", "futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 sync = []
-server = ["socket2", "futures", "tokio/rt", "tokio/rt-multi-thread"]
+server = ["futures", "socket2/all", "tokio/rt", "tokio/rt-multi-thread"]
 tcp-server-unstable = ["server"]
 
 [badges]
