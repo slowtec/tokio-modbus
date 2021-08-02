@@ -7,43 +7,38 @@ use crate::{
     frame::*,
     server::service::{NewService, Service},
 };
-use std::{
-    io::{Error},
-    path::Path
-};
-use tokio_util::codec::Framed;
 use futures::{select, Future, FutureExt};
-use futures_util::{StreamExt, SinkExt};
-use tokio_serial::{SerialStream};
+use futures_util::{SinkExt, StreamExt};
+use std::{io::Error, path::Path};
+use tokio_serial::SerialStream;
+use tokio_util::codec::Framed;
 
 pub struct Server {
-    serial: SerialStream
+    serial: SerialStream,
 }
 
 impl Server {
     /// set up a new Server instance from an interface path and baud rate
     pub fn new_from_path<P: AsRef<Path>>(p: P, baud_rate: u32) -> Result<Self, Error> {
-        let serial = SerialStream::open(&tokio_serial::new(p.as_ref().to_string_lossy(), baud_rate))?;
-        Ok(Server {
-            serial
-        })
+        let serial =
+            SerialStream::open(&tokio_serial::new(p.as_ref().to_string_lossy(), baud_rate))?;
+        Ok(Server { serial })
     }
 
     /// set up a new Server instance based on a pre-configured SerialStream instance
     pub fn new(serial: SerialStream) -> Self {
-        Server {
-            serial
-        }
+        Server { serial }
     }
 
     /// serve Modbus RTU requests based on the provided service until it finishes
     pub async fn serve_forever<S>(self, new_service: S)
-        where
-            S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
-            S::Error: Into<Error>,
-            S::Instance: 'static + Send + Sync,
+    where
+        S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
+        S::Error: Into<Error>,
+        S::Instance: 'static + Send + Sync,
     {
-        self.serve_until(new_service, futures::future::pending()).await;
+        self.serve_until(new_service, futures::future::pending())
+            .await;
     }
 
     /// serve Modbus RTU requests based on the provided service until it finishes or a shutdown signal is received
@@ -64,13 +59,14 @@ impl Server {
         let mut shutdown = shutdown_signal.fuse();
 
         async {
-            select!{
+            select! {
                 res = server => if let Err(e) = res {
                     println!("error: {}", e);
                 },
                 _ = shutdown => println!("Shutdown signal received")
             }
-        }.await;
+        }
+        .await;
     }
 }
 
@@ -79,9 +75,9 @@ async fn process<S>(
     mut framed: Framed<SerialStream, codec::rtu::ServerCodec>,
     service: S,
 ) -> Result<(), Error>
-    where
-        S: Service<Request = Request, Response = Response> + Send + Sync + 'static,
-        S::Error: Into<Error>,
+where
+    S: Service<Request = Request, Response = Response> + Send + Sync + 'static,
+    S::Error: Into<Error>,
 {
     loop {
         let request = match framed.next().await {
@@ -92,12 +88,12 @@ async fn process<S>(
 
         let hdr = request.hdr;
         let response = service.call(request.pdu.0).await.map_err(Into::into)?;
-        framed.send(
-            rtu::ResponseAdu {
+        framed
+            .send(rtu::ResponseAdu {
                 hdr,
                 pdu: response.into(),
-            }
-        ).await?;
+            })
+            .await?;
     }
     Ok(())
 }

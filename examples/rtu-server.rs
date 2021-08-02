@@ -31,7 +31,9 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _server = thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let server = server::rtu::Server::new(server_serial);
-        rt.block_on(async {server.serve_forever(|| Ok(MbServer)).await;});
+        rt.block_on(async {
+            server.serve_forever(|| Ok(MbServer)).await;
+        });
     });
 
     // Give the server some time for stating up

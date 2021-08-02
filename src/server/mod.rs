@@ -1,7 +1,7 @@
-#[cfg(feature = "tcp-server-unstable")]
-pub mod tcp;
 #[cfg(feature = "rtu")]
 pub mod rtu;
+#[cfg(feature = "tcp-server-unstable")]
+pub mod tcp;
 
 mod service;
 
