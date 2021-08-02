@@ -9,7 +9,6 @@ use futures_util::{future, sink::SinkExt, stream::StreamExt};
 use std::{
     future::Future,
     io::{Error, ErrorKind},
-    pin::Pin,
 };
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
@@ -89,12 +88,10 @@ impl<T: AsyncRead + AsyncWrite + Unpin + 'static> SlaveContext for Context<T> {
     }
 }
 
+#[async_trait::async_trait]
 impl<T: AsyncRead + AsyncWrite + Unpin + Send + 'static> Client for Context<T> {
-    fn call<'a>(
-        &'a mut self,
-        req: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
-        Box::pin(self.call(req))
+    async fn call<'a>(&'a mut self, req: Request) -> Result<Response, Error> {
+        self.call(req).await
     }
 }
 

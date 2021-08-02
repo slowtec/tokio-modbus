@@ -11,80 +11,62 @@ pub mod util;
 
 use crate::{frame::*, slave::*};
 
-use std::{
-    future::Future,
-    io::{Error, ErrorKind},
-    pin::Pin,
-};
+use std::io::{Error, ErrorKind};
+
+use async_trait::async_trait;
 
 /// A transport independent asynchronous client trait.
+#[async_trait]
 pub trait Client: SlaveContext + Send {
-    fn call<'a>(
-        &'a mut self,
-        request: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>>;
+    async fn call<'a>(&'a mut self, request: Request) -> Result<Response, Error>;
 }
 
 /// An asynchronous Modbus reader.
+#[async_trait]
 pub trait Reader: Client {
-    fn read_coils<'a>(
+    async fn read_coils<'a>(&'a mut self, _: Address, _: Quantity) -> Result<Vec<Coil>, Error>;
+
+    async fn read_discrete_inputs<'a>(
         &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + Send + 'a>>;
+    ) -> Result<Vec<Coil>, Error>;
 
-    fn read_discrete_inputs<'a>(
+    async fn read_input_registers<'a>(
         &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + Send + 'a>>;
+    ) -> Result<Vec<Word>, Error>;
 
-    fn read_input_registers<'a>(
+    async fn read_holding_registers<'a>(
         &'a mut self,
         _: Address,
         _: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>>;
+    ) -> Result<Vec<Word>, Error>;
 
-    fn read_holding_registers<'a>(
-        &'a mut self,
-        _: Address,
-        _: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>>;
-
-    fn read_write_multiple_registers<'a>(
+    async fn read_write_multiple_registers<'a>(
         &'a mut self,
         _: Address,
         _: Quantity,
         _: Address,
         _: &[Word],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>>;
+    ) -> Result<Vec<Word>, Error>;
 }
 
 /// An asynchronous Modbus writer.
+#[async_trait]
 pub trait Writer: Client {
-    fn write_single_coil<'a>(
-        &'a mut self,
-        _: Address,
-        _: Coil,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
+    async fn write_single_coil<'a>(&'a mut self, _: Address, _: Coil) -> Result<(), Error>;
 
-    fn write_multiple_coils<'a>(
-        &'a mut self,
-        _: Address,
-        _: &[Coil],
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
+    async fn write_multiple_coils<'a>(&'a mut self, _: Address, _: &[Coil]) -> Result<(), Error>;
 
-    fn write_single_register<'a>(
-        &'a mut self,
-        _: Address,
-        _: Word,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
+    async fn write_single_register<'a>(&'a mut self, _: Address, _: Word) -> Result<(), Error>;
 
-    fn write_multiple_registers<'a>(
+    async fn write_multiple_registers<'a>(
         &'a mut self,
         _: Address,
         _: &[Word],
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
+    ) -> Result<(), Error>;
 }
 
 /// An asynchronous Modbus client context.
@@ -118,12 +100,10 @@ impl From<Context> for Box<dyn Client> {
     }
 }
 
+#[async_trait]
 impl Client for Context {
-    fn call<'a>(
-        &'a mut self,
-        request: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
-        self.client.call(request)
+    async fn call<'a>(&'a mut self, request: Request) -> Result<Response, Error> {
+        self.client.call(request).await
     }
 }
 
@@ -133,214 +113,196 @@ impl SlaveContext for Context {
     }
 }
 
+#[async_trait]
 impl Reader for Context {
-    fn read_coils<'a>(
+    async fn read_coils<'a>(
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + Send + 'a>> {
-        let request = self.client.call(Request::ReadCoils(addr, cnt));
+    ) -> Result<Vec<Coil>, Error> {
+        let rsp = self.client.call(Request::ReadCoils(addr, cnt)).await?;
 
-        Box::pin(async move {
-            let rsp = request.await?;
-
-            if let Response::ReadCoils(mut coils) = rsp {
-                debug_assert!(coils.len() >= cnt as usize);
-                coils.truncate(cnt as usize);
-                Ok(coils)
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-            }
-        })
+        if let Response::ReadCoils(mut coils) = rsp {
+            debug_assert!(coils.len() >= cnt as usize);
+            coils.truncate(cnt as usize);
+            Ok(coils)
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
     }
 
-    fn read_discrete_inputs<'a>(
+    async fn read_discrete_inputs<'a>(
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Coil>, Error>> + Send + 'a>> {
-        let request = self.client.call(Request::ReadDiscreteInputs(addr, cnt));
+    ) -> Result<Vec<Coil>, Error> {
+        let rsp = self
+            .client
+            .call(Request::ReadDiscreteInputs(addr, cnt))
+            .await?;
 
-        Box::pin(async move {
-            let rsp = request.await?;
-
-            if let Response::ReadDiscreteInputs(mut coils) = rsp {
-                debug_assert!(coils.len() >= cnt as usize);
-                coils.truncate(cnt as usize);
-                Ok(coils)
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-            }
-        })
+        if let Response::ReadDiscreteInputs(mut coils) = rsp {
+            debug_assert!(coils.len() >= cnt as usize);
+            coils.truncate(cnt as usize);
+            Ok(coils)
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
     }
 
-    fn read_input_registers<'a>(
+    async fn read_input_registers<'a>(
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>> {
-        let request = self.client.call(Request::ReadInputRegisters(addr, cnt));
+    ) -> Result<Vec<Word>, Error> {
+        let rsp = self
+            .client
+            .call(Request::ReadInputRegisters(addr, cnt))
+            .await?;
 
-        Box::pin(async move {
-            let rsp = request.await?;
-
-            if let Response::ReadInputRegisters(rsp) = rsp {
-                if rsp.len() != cnt as usize {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                }
-                Ok(rsp)
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        if let Response::ReadInputRegisters(rsp) = rsp {
+            if rsp.len() != cnt as usize {
+                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
-        })
+            Ok(rsp)
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
     }
 
-    fn read_holding_registers<'a>(
+    async fn read_holding_registers<'a>(
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>> {
-        let request = self.client.call(Request::ReadHoldingRegisters(addr, cnt));
+    ) -> Result<Vec<Word>, Error> {
+        let rsp = self
+            .client
+            .call(Request::ReadHoldingRegisters(addr, cnt))
+            .await?;
 
-        Box::pin(async move {
-            let rsp = request.await?;
-
-            if let Response::ReadHoldingRegisters(rsp) = rsp {
-                if rsp.len() != cnt as usize {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                }
-                Ok(rsp)
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        if let Response::ReadHoldingRegisters(rsp) = rsp {
+            if rsp.len() != cnt as usize {
+                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
-        })
+            Ok(rsp)
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
     }
 
-    fn read_write_multiple_registers<'a>(
+    async fn read_write_multiple_registers<'a>(
         &'a mut self,
         read_addr: Address,
         read_cnt: Quantity,
         write_addr: Address,
         write_data: &[Word],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Word>, Error>> + Send + 'a>> {
-        let request = self.client.call(Request::ReadWriteMultipleRegisters(
-            read_addr,
-            read_cnt,
-            write_addr,
-            write_data.to_vec(),
-        ));
-        Box::pin(async move {
-            let rsp = request.await?;
+    ) -> Result<Vec<Word>, Error> {
+        let rsp = self
+            .client
+            .call(Request::ReadWriteMultipleRegisters(
+                read_addr,
+                read_cnt,
+                write_addr,
+                write_data.to_vec(),
+            ))
+            .await?;
 
-            if let Response::ReadWriteMultipleRegisters(rsp) = rsp {
-                if rsp.len() != read_cnt as usize {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                }
-                Ok(rsp)
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        if let Response::ReadWriteMultipleRegisters(rsp) = rsp {
+            if rsp.len() != read_cnt as usize {
+                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
-        })
+            Ok(rsp)
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
     }
 }
 
+#[async_trait]
 impl Writer for Context {
-    fn write_single_coil<'a>(
-        &'a mut self,
-        addr: Address,
-        coil: Coil,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
-        let request = self.client.call(Request::WriteSingleCoil(addr, coil));
+    async fn write_single_coil<'a>(&'a mut self, addr: Address, coil: Coil) -> Result<(), Error> {
+        let rsp = self
+            .client
+            .call(Request::WriteSingleCoil(addr, coil))
+            .await?;
 
-        Box::pin(async move {
-            let rsp = request.await?;
-
-            if let Response::WriteSingleCoil(rsp_addr, rsp_coil) = rsp {
-                if rsp_addr != addr || rsp_coil != coil {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                }
-                Ok(())
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        if let Response::WriteSingleCoil(rsp_addr, rsp_coil) = rsp {
+            if rsp_addr != addr || rsp_coil != coil {
+                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
-        })
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
     }
 
-    fn write_multiple_coils<'a>(
+    async fn write_multiple_coils<'a>(
         &'a mut self,
         addr: Address,
         coils: &[Coil],
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
+    ) -> Result<(), Error> {
         let cnt = coils.len();
-        let request = self
+        let rsp = self
             .client
-            .call(Request::WriteMultipleCoils(addr, coils.to_vec()));
+            .call(Request::WriteMultipleCoils(addr, coils.to_vec()))
+            .await?;
 
-        Box::pin(async move {
-            let rsp = request.await?;
-
-            if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
-                if rsp_addr != addr || rsp_cnt as usize != cnt {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                }
-                Ok(())
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
+            if rsp_addr != addr || rsp_cnt as usize != cnt {
+                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
-        })
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
     }
 
-    fn write_single_register<'a>(
+    async fn write_single_register<'a>(
         &'a mut self,
         addr: Address,
         data: Word,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
-        let request = self.client.call(Request::WriteSingleRegister(addr, data));
+    ) -> Result<(), Error> {
+        let rsp = self
+            .client
+            .call(Request::WriteSingleRegister(addr, data))
+            .await?;
 
-        Box::pin(async move {
-            let rsp = request.await?;
-
-            if let Response::WriteSingleRegister(rsp_addr, rsp_word) = rsp {
-                if rsp_addr != addr || rsp_word != data {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                }
-                Ok(())
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        if let Response::WriteSingleRegister(rsp_addr, rsp_word) = rsp {
+            if rsp_addr != addr || rsp_word != data {
+                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
-        })
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
     }
 
-    fn write_multiple_registers<'a>(
+    async fn write_multiple_registers<'a>(
         &'a mut self,
         addr: Address,
         data: &[Word],
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
+    ) -> Result<(), Error> {
         let cnt = data.len();
-        let request = self
+        let rsp = self
             .client
-            .call(Request::WriteMultipleRegisters(addr, data.to_vec()));
+            .call(Request::WriteMultipleRegisters(addr, data.to_vec()))
+            .await?;
 
-        Box::pin(async move {
-            let rsp = request.await?;
-
-            if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
-                if rsp_addr != addr || rsp_cnt as usize != cnt {
-                    return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-                }
-                Ok(())
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
+            if rsp_addr != addr || rsp_cnt as usize != cnt {
+                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
-        })
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::future;
-    use std::{future::Future, sync::Mutex};
+    use std::sync::Mutex;
 
     #[derive(Default, Debug)]
     pub struct ClientMock {
@@ -364,16 +326,14 @@ mod tests {
         }
     }
 
+    #[async_trait]
     impl Client for ClientMock {
-        fn call<'a>(
-            &'a mut self,
-            request: Request,
-        ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
+        async fn call<'a>(&'a mut self, request: Request) -> Result<Response, Error> {
             *self.last_request.lock().unwrap() = Some(request);
-            Box::pin(future::ready(match self.next_response.as_ref().unwrap() {
+            match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
                 Err(err) => Err(Error::new(err.kind(), format!("{}", err))),
-            }))
+            }
         }
     }
 

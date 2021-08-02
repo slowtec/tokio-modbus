@@ -206,7 +206,7 @@ fn calc_crc(data: &[u8]) -> u16 {
 }
 
 fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
-    let actual_crc = calc_crc(&adu_data);
+    let actual_crc = calc_crc(adu_data);
     if expected_crc != actual_crc {
         return Err(Error::new(
             ErrorKind::InvalidData,

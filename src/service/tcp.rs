@@ -10,7 +10,6 @@ use std::{
     future::Future,
     io::{Error, ErrorKind},
     net::SocketAddr,
-    pin::Pin,
     sync::atomic::{AtomicU16, Ordering},
 };
 use tokio::net::TcpStream;
@@ -114,11 +113,9 @@ impl SlaveContext for Context {
     }
 }
 
+#[async_trait::async_trait]
 impl Client for Context {
-    fn call<'a>(
-        &'a mut self,
-        req: Request,
-    ) -> Pin<Box<dyn Future<Output = Result<Response, Error>> + Send + 'a>> {
-        Box::pin(Context::call(self, req))
+    async fn call<'a>(&'a mut self, req: Request) -> Result<Response, Error> {
+        Context::call(self, req).await
     }
 }
