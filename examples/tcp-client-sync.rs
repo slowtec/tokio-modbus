@@ -1,4 +1,3 @@
-#[cfg(all(feature = "tcp", feature = "sync"))]
 pub fn main() {
     use tokio_modbus::prelude::*;
 
@@ -6,10 +5,4 @@ pub fn main() {
     let mut ctx = sync::tcp::connect(socket_addr).unwrap();
     let buff = ctx.read_input_registers(0x1000, 7).unwrap();
     println!("Response is '{:?}'", buff);
-}
-
-#[cfg(not(all(feature = "tcp", feature = "sync")))]
-pub fn main() {
-    println!("features `tcp` and `sync` are required to run this example");
-    std::process::exit(1);
 }
