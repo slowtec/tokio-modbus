@@ -11,6 +11,7 @@ repository = "https://github.com/slowtec/tokio-modbus"
 edition = "2018"
 
 [dependencies]
+async-trait = "0.1"
 byteorder = "1"
 bytes = "1"
 futures = { version = "0.3", optional = true }

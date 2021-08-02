@@ -2,7 +2,7 @@
 
 use super::*;
 
-use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
+use std::{cell::RefCell, io::Error, rc::Rc};
 
 /// Helper for sharing a context between multiple clients,
 /// i.e. when addressing multiple slave devices in turn.
@@ -46,9 +46,10 @@ impl SharedContextHolder {
 /// Trait for (re-)creating new contexts on demand.
 ///
 /// Implement this trait for reconnecting a `SharedContext` on demand.
+#[async_trait::async_trait]
 pub trait NewContext {
     /// Create a new context.
-    fn new_context(&self) -> Pin<Box<dyn Future<Output = Result<Context, Error>>>>;
+    async fn new_context(&self) -> Result<Context, Error>;
 }
 
 /// Reconnectable environment with a shared context.
@@ -123,14 +124,13 @@ mod tests {
     use super::super::tests::*;
     use super::*;
 
-    use futures::future;
-
     struct NewContextMock;
 
+    #[async_trait::async_trait]
     impl NewContext for NewContextMock {
-        fn new_context(&self) -> Pin<Box<dyn Future<Output = Result<Context, Error>>>> {
+        async fn new_context(&self) -> Result<Context, Error> {
             let client: Box<dyn Client> = Box::new(ClientMock::default());
-            Box::pin(future::ok(Context::from(client)))
+            Ok(Context::from(client))
         }
     }
 

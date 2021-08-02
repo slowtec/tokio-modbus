@@ -1,6 +1,6 @@
 #[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use std::{cell::RefCell, future::Future, io::Error, pin::Pin, rc::Rc};
+    use std::{cell::RefCell, io::Error, rc::Rc};
 
     use tokio_modbus::client::{
         rtu,
@@ -18,13 +18,12 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         builder: SerialPortBuilder,
     }
 
+    #[async_trait::async_trait]
     impl NewContext for SerialConfig {
-        fn new_context(&self) -> Pin<Box<dyn Future<Output = Result<Context, Error>>>> {
+        async fn new_context(&self) -> Result<Context, Error> {
             let serial = SerialStream::open(&self.builder);
-            Box::pin(async {
-                let port = serial?;
-                rtu::connect(port).await
-            })
+            let port = serial?;
+            rtu::connect(port).await
         }
     }
 
