@@ -970,6 +970,18 @@ mod tests {
         }
 
         #[test]
+        fn read_coils_max_quantity() {
+            let quantity = 2000;
+            let byte_count = quantity / 8;
+            let mut raw: Vec<u8> = vec![1, byte_count as u8];
+            let mut values: Vec<u8> = (0..byte_count).map(|_| 0b_1111_1111).collect();
+            raw.append(&mut values);
+            let bytes = Bytes::from(raw);
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::ReadCoils(vec![true; quantity]));
+        }
+
+        #[test]
         fn read_discrete_inputs() {
             let bytes = Bytes::from(vec![2, 1, 0b_0000_1001]);
             let rsp = Response::try_from(bytes).unwrap();
@@ -979,6 +991,18 @@ mod tests {
                     true, false, false, true, false, false, false, false,
                 ],)
             );
+        }
+
+        #[test]
+        fn read_discrete_inputs_max_quantity() {
+            let quantity = 2000;
+            let byte_count = quantity / 8;
+            let mut raw: Vec<u8> = vec![2, byte_count as u8];
+            let mut values: Vec<u8> = (0..byte_count).map(|_| 0b_1111_1111).collect();
+            raw.append(&mut values);
+            let bytes = Bytes::from(raw);
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::ReadDiscreteInputs(vec![true; quantity]));
         }
 
         #[test]
