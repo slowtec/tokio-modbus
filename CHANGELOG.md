@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.0 (Unreleased)
+
+- Upgraded [tokio](https://tokio.rs/) version from 0.2 to 1
+- Switched from deprecated [net2](https://github.com/deprecrated/net2-rs) to [socket2](https://github.com/rust-lang/socket2)
+
 ## v0.4.0 (2020-03-13)
 
 - New public API: moved to async/await and tokio v0.2.x
