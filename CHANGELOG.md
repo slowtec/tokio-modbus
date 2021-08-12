@@ -12,7 +12,7 @@
 - New public API: moved to async/await and tokio v0.2.x
 - Removed unmaintained dependency `tokio-proto`
 - Make `Exception` and `ExceptionResponse` public
-- Fixed `WriteSingleCoil` reponse to include data
+- Fixed `WriteSingleCoil` response to include data
 - Hide server traits `Service`/`NewService` traits behind `server` feature
 - Hide TCP server implementation behind `tcp-server-unstable` feature
 - Improved documentation
