@@ -1,0 +1,31 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.0.1
+  hooks:
+  - id: check-case-conflict
+  - id: check-json
+  - id: check-merge-conflict
+  - id: check-symlinks
+  - id: check-toml
+  - id: check-xml
+  - id: check-yaml
+  - id: destroyed-symlinks
+  - id: detect-private-key
+  - id: end-of-file-fixer
+  - id: fix-byte-order-marker
+  - id: forbid-new-submodules
+  - id: mixed-line-ending
+    args: [--fix, 'no']
+  - id: trailing-whitespace
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.1.0
+  hooks:
+  - id: codespell
+    args: [ --ignore-words=.codespellignore ]
+- repo: https://github.com/doublify/pre-commit-rust
+  rev: v1.0
+  hooks:
+  - id: fmt
+  - id: cargo-check
+  - id: clippy
+    args: [--all-targets, --all-features, --, -D, warnings]
