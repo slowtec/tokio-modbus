@@ -1,0 +1,39 @@
+name: pre-commit
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  pre-commit:
+    name: Detecting code style issues
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+
+    - name: Setup Python
+      uses: actions/setup-python@v2
+
+    - name: Install Rust toolchain
+      id: rust-toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        components: rustfmt, clippy
+
+    - name: Detect code style issues (push)
+      uses: pre-commit/action@v2.0.3
+      if: github.event_name == 'push'
+
+    - name: Detect code style issues (pull_request)
+      uses: pre-commit/action@v2.0.3
+      if: github.event_name == 'pull_request'
+      env:
+        SKIP: no-commit-to-branch
