@@ -36,28 +36,15 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          components: rustfmt, clippy
 
-      - name: Check code formatting
+      - name: Test project with all features
         uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: --all -- --check
+          command: test
+          args: --all --all-features
 
-      - name: Check for linter warnings
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
-
-      - name: Build project
+      - name: Build project with default features
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release
-
-      - name: Test project
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all
