@@ -21,7 +21,7 @@ smallvec = { version = "1", default-features = false }
 socket2 = { version = "0.4", optional = true, default-features = false }
 tokio = { version = "1", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
-tokio-serial = { version = "5.4.1", optional = true, default-features = false }
+tokio-serial = { version = "5.4", optional = true, default-features = false }
 tokio-util = { version = "0.6", features = ["codec"] }
 
 [dev-dependencies]
