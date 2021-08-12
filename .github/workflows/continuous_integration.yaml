@@ -41,10 +41,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-features
+          args: --workspace --locked --all-features
 
       - name: Build project with default features
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release
+          args: --release --locked
