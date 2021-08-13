@@ -10,6 +10,9 @@ homepage = "https://github.com/slowtec/tokio-modbus"
 repository = "https://github.com/slowtec/tokio-modbus"
 edition = "2018"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
 async-trait = "0.1"
 byteorder = "1"
