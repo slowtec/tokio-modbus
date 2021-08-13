@@ -65,4 +65,4 @@ folder.
 
 Copyright 2017 - 2021 [slowtec GmbH](https://www.slowtec.de)
 
-MIT/Apache-2.0
+[MIT](LICENSE-MIT)/[Apache-2.0](LICENSE-APACHE)
