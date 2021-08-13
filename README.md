@@ -4,8 +4,8 @@ A [tokio](https://tokio.rs)-based modbus library.
 
 [![Crates.io](https://img.shields.io/crates/v/tokio-modbus.svg)](https://crates.io/crates/tokio-modbus)
 [![Docs.rs](https://docs.rs/tokio-modbus/badge.svg)](https://docs.rs/tokio-modbus/)
-[![Security audit](https://github.com/github/docs/actions/workflows/security_audit.yaml/badge.svg?branch=master)](https://github.com/slowtec/tokio-modbus/actions/workflows/security_audit.yaml)
-[![Continuous integration](https://github.com/github/docs/actions/workflows/continuous_integration.yaml/badge.svg?branch=master)](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous_integration.yaml)
+[![Security audit](https://github.com/slowtec/tokio-modbus/actions/workflows/security_audit.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/security_audit.yaml)
+[![Continuous integration](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous_integration.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous_integration.yaml)
 [![Test coverage](https://coveralls.io/repos/github/slowtec/tokio-modbus/badge.svg?branch=master)](https://coveralls.io/github/slowtec/tokio-modbus?branch=master)
 
 ## Features
