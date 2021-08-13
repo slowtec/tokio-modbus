@@ -38,8 +38,6 @@ server = ["futures", "socket2/all", "tokio/rt", "tokio/rt-multi-thread"]
 tcp-server-unstable = ["server"]
 
 [badges]
-travis-ci = { repository = "slowtec/tokio-modbus" }
-coveralls = { repository = "slowtec/tokio-modbus", branch = "master", service = "github" }
 maintenance = { status = "actively-developed" }
 
 [[example]]
