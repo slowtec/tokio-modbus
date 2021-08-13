@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.1 (Unreleased)
+
+- Fixed handling of *broken pipe* errors in RTU service
+- Fixed multiplication overflow for function 1 and 2 [#87](https://github.com/slowtec/tokio-modbus/pull/87)
+
 ## v0.4.0 (2020-03-13)
 
 - New public API: moved to async/await and tokio v0.2.x
