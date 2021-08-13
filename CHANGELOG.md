@@ -2,6 +2,7 @@
 
 ## v0.5.0 (Unreleased)
 
+- Removed `sync` from default features
 - Upgraded [tokio](https://tokio.rs/) version from 0.2 to 1
 - Switched from deprecated [net2](https://github.com/deprecrated/net2-rs) to [socket2](https://github.com/rust-lang/socket2)
 

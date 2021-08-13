@@ -30,7 +30,7 @@ futures = "0.3"
 tokio = { version = "1", features = ["net", "macros", "io-util", "rt"] }
 
 [features]
-default = ["tcp", "rtu", "sync"]
+default = ["tcp", "rtu"]
 rtu = ["tokio-serial", "futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 sync = []

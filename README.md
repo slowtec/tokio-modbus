@@ -54,6 +54,19 @@ or synchronous API can be found in the
 [examples](https://github.com/slowtec/tokio-modbus/tree/master/examples)
 folder.
 
+## Testing
+
+The workspace contains documentation, tests, and examples for all available
+features. Running the tests for the whole workspace only succeeds with all
+features enabled:
+
+```sh
+cargo test --workspace --all-features
+```
+
+Otherwise some *doctests* that require non-default features like `sync`
+are expected to fail.
+
 ## Protocol-Specification
 
 - [MODBUS Application Protocol Specification v1.1b3 (PDF)](http://modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf)
