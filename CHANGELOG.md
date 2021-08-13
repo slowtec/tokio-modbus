@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.4.1 (Unreleased)
+## v0.4.1 (2021-08-13)
 
 - Fixed handling of *broken pipe* errors in RTU service
 - Fixed multiplication overflow for function 1 and 2 [#87](https://github.com/slowtec/tokio-modbus/pull/87)
