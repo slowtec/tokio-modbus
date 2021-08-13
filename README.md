@@ -62,6 +62,6 @@ folder.
 
 ## License
 
-Copyright 2017 - 2020 [slowtec GmbH](https://www.slowtec.de)
+Copyright 2017 - 2021 [slowtec GmbH](https://www.slowtec.de)
 
 MIT/Apache-2.0
