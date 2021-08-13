@@ -9,13 +9,14 @@ A [tokio](https://tokio.rs)-based modbus library.
 
 ## Features
 
-- pure Rust library
-- async (non-blocking)
-- sync (blocking)
-- Modbus TCP
-- Modbus RTU
-- Client & Server
-- Open Source (MIT/Apache-2.0)
+- Pure Rust library
+- Modbus TCP or RTU at your choice
+- Both `async` (non-blocking, default) and `sync` (blocking, optional)
+- Client API
+- Server implementations
+  - for *out-of-the-box* usage or
+  - as a starting point for a customized implementation
+- Open source (MIT/Apache-2.0)
 
 ## Installation
 
