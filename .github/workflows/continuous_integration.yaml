@@ -43,8 +43,14 @@ jobs:
           command: test
           args: --workspace --all-features
 
-      - name: Build project with default features
+      - name: Build workspace documentation with all features enabled
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --workspace --all-features
+
+      - name: Build workspace in release mode with default features
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release
+          args: --workspace --release
