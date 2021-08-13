@@ -6,7 +6,6 @@ A [tokio](https://tokio.rs)-based modbus library.
 [![Docs.rs](https://docs.rs/tokio-modbus/badge.svg)](https://docs.rs/tokio-modbus/)
 [![Security audit](https://github.com/slowtec/tokio-modbus/actions/workflows/security_audit.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/security_audit.yaml)
 [![Continuous integration](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous_integration.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous_integration.yaml)
-[![Test coverage](https://coveralls.io/repos/github/slowtec/tokio-modbus/badge.svg?branch=master)](https://coveralls.io/github/slowtec/tokio-modbus?branch=master)
 
 ## Features
 
