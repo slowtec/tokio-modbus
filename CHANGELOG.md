@@ -4,6 +4,8 @@
 
 - Upgraded [tokio](https://tokio.rs/) version from 0.2 to 1
 - Switched from deprecated [net2](https://github.com/deprecrated/net2-rs) to [socket2](https://github.com/rust-lang/socket2)
+- Fixed handling of *broken pipe* errors in RTU service
+- Fixed multiplication overflow for function 1 and 2 [#87](https://github.com/slowtec/tokio-modbus/pull/87)
 
 ## v0.4.0 (2020-03-13)
 
