@@ -11,13 +11,16 @@ pub mod util;
 
 use crate::{frame::*, slave::*};
 
-use std::io::{Error, ErrorKind};
+use std::{
+    fmt::Debug,
+    io::{Error, ErrorKind},
+};
 
 use async_trait::async_trait;
 
 /// A transport independent asynchronous client trait.
 #[async_trait]
-pub trait Client: SlaveContext + Send {
+pub trait Client: SlaveContext + Send + Debug {
     async fn call<'a>(&'a mut self, request: Request) -> Result<Response, Error>;
 }
 
@@ -70,6 +73,7 @@ pub trait Writer: Client {
 }
 
 /// An asynchronous Modbus client context.
+#[derive(Debug)]
 pub struct Context {
     client: Box<dyn Client>,
 }

@@ -33,6 +33,7 @@ pub(crate) fn connect_slave(
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
 
 /// Modbus TCP client
+#[derive(Debug)]
 pub(crate) struct Context {
     service: Framed<TcpStream, codec::tcp::ClientCodec>,
     unit_id: UnitId,

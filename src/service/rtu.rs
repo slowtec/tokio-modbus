@@ -7,6 +7,7 @@ use crate::{
 
 use futures_util::{future, sink::SinkExt, stream::StreamExt};
 use std::{
+    fmt::Debug,
     future::Future,
     io::{Error, ErrorKind},
 };
@@ -18,7 +19,7 @@ pub(crate) fn connect_slave<T>(
     slave: Slave,
 ) -> impl Future<Output = Result<Context<T>, Error>>
 where
-    T: AsyncRead + AsyncWrite + Unpin + 'static,
+    T: AsyncRead + AsyncWrite + Debug + Unpin + 'static,
 {
     let framed = Framed::new(transport, codec::rtu::ClientCodec::default());
 
@@ -30,12 +31,13 @@ where
 }
 
 /// Modbus RTU client
-pub(crate) struct Context<T: AsyncRead + AsyncWrite + Unpin + 'static> {
+#[derive(Debug)]
+pub(crate) struct Context<T: AsyncRead + AsyncWrite + Debug + Unpin + 'static> {
     service: Framed<T, codec::rtu::ClientCodec>,
     slave_id: SlaveId,
 }
 
-impl<T: AsyncRead + AsyncWrite + Unpin + 'static> Context<T> {
+impl<T: AsyncRead + AsyncWrite + Unpin + Debug + 'static> Context<T> {
     fn next_request_adu<R>(&self, req: R, disconnect: bool) -> RequestAdu
     where
         R: Into<RequestPdu>,
@@ -82,14 +84,14 @@ fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error>
     Ok(())
 }
 
-impl<T: AsyncRead + AsyncWrite + Unpin + 'static> SlaveContext for Context<T> {
+impl<T: AsyncRead + AsyncWrite + Debug + Unpin + 'static> SlaveContext for Context<T> {
     fn set_slave(&mut self, slave: Slave) {
         self.slave_id = slave.into();
     }
 }
 
 #[async_trait::async_trait]
-impl<T: AsyncRead + AsyncWrite + Unpin + Send + 'static> Client for Context<T> {
+impl<T: AsyncRead + AsyncWrite + Debug + Unpin + Send + 'static> Client for Context<T> {
     async fn call<'a>(&'a mut self, req: Request) -> Result<Response, Error> {
         self.call(req).await
     }
@@ -104,6 +106,7 @@ mod tests {
     };
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
+    #[derive(Debug)]
     struct MockTransport;
 
     impl Unpin for MockTransport {}
