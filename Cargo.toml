@@ -44,11 +44,6 @@ tcp-server-unstable = ["server"]
 maintenance = { status = "actively-developed" }
 
 [[example]]
-name = "rtu-client-shared-context"
-path = "examples/rtu-client-shared-context.rs"
-required-features = ["rtu"]
-
-[[example]]
 name = "rtu-client-sync"
 path = "examples/rtu-client-sync.rs"
 required-features = ["rtu", "sync"]
