@@ -72,6 +72,7 @@
 //!
 //! ```rust,no_run
 //! # #[cfg(all(feature = "tcp", feature = "sync"))]
+//! # //FIXME: Run doc tests with `--features sync` to fix failure
 //! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     use tokio_modbus::prelude::*;
 //!
@@ -114,6 +115,7 @@
 //!
 //! ```rust,no_run
 //! # #[cfg(all(feature = "rtu", feature = "sync"))]
+//! # //FIXME: Run doc tests with `--features sync` to fix failure
 //! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     use tokio_modbus::prelude::*;
 //!
