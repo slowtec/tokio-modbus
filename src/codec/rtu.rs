@@ -191,14 +191,10 @@ fn calc_crc(data: &[u8]) -> u16 {
     for x in data {
         crc ^= u16::from(*x);
         for _ in 0..8 {
-            // if we followed clippy's suggestion to move out the crc >>= 1, the condition may not be met any more
-            // the recommended action therefore makes no sense and it is better to allow this lint
-            #[allow(clippy::branches_sharing_code)]
-            if (crc & 0x0001) != 0 {
-                crc >>= 1;
+            let crc_odd = (crc & 0x0001) != 0;
+            crc >>= 1;
+            if crc_odd {
                 crc ^= 0xA001;
-            } else {
-                crc >>= 1;
             }
         }
     }

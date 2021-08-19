@@ -116,7 +116,7 @@ impl SlaveContext for Context {
 
 #[async_trait::async_trait]
 impl Client for Context {
-    async fn call<'a>(&'a mut self, req: Request) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request) -> Result<Response, Error> {
         Context::call(self, req).await
     }
 }
