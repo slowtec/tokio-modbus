@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.5.0 (Unreleased)
+## v0.5.0 (2021-08-20)
 
 - Removed `sync` from default features
 - Derived `Debug` for client-side RTU/TCP `Context`
