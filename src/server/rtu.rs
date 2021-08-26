@@ -87,7 +87,10 @@ where
         }?;
 
         let hdr = request.hdr;
-        let response = service.call(request.pdu.0).await.map_err(Into::into)?;
+        let response = service
+            .call(request.hdr.slave_id.into(), request.pdu.0)
+            .await
+            .map_err(Into::into)?;
         framed
             .send(rtu::ResponseAdu {
                 hdr,

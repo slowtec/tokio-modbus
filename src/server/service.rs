@@ -1,3 +1,4 @@
+use crate::slave::Slave;
 use std::{future::Future, io, rc::Rc, sync::Arc};
 
 /// A Modbus server service.
@@ -15,7 +16,7 @@ pub trait Service {
     type Future: Future<Output = Result<Self::Response, Self::Error>> + Send + Sync + Unpin;
 
     /// Process the request and return the response asynchronously.
-    fn call(&self, req: Self::Request) -> Self::Future;
+    fn call(&self, slave: Slave, req: Self::Request) -> Self::Future;
 }
 
 /// Creates new `Service` values.
@@ -79,8 +80,8 @@ impl<S: Service + ?Sized + 'static> Service for Box<S> {
     type Error = S::Error;
     type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> Self::Future {
-        (**self).call(request)
+    fn call(&self, slave: Slave, request: S::Request) -> Self::Future {
+        (**self).call(slave, request)
     }
 }
 
@@ -90,8 +91,8 @@ impl<S: Service + ?Sized + 'static> Service for Rc<S> {
     type Error = S::Error;
     type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> Self::Future {
-        (**self).call(request)
+    fn call(&self, slave: Slave, request: S::Request) -> Self::Future {
+        (**self).call(slave, request)
     }
 }
 
@@ -101,7 +102,7 @@ impl<S: Service + ?Sized + 'static> Service for Arc<S> {
     type Error = S::Error;
     type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> Self::Future {
-        (**self).call(request)
+    fn call(&self, slave: Slave, request: S::Request) -> Self::Future {
+        (**self).call(slave, request)
     }
 }

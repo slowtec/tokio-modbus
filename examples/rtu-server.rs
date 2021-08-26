@@ -14,7 +14,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         type Error = std::io::Error;
         type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
-        fn call(&self, req: Self::Request) -> Self::Future {
+        fn call(&self, _: Slave, req: Self::Request) -> Self::Future {
             match req {
                 Request::ReadInputRegisters(_addr, cnt) => {
                     let mut registers = vec![0; cnt as usize];

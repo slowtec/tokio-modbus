@@ -145,7 +145,10 @@ where
 
         let request = request.unwrap()?;
         let hdr = request.hdr;
-        let response = service.call(request.pdu.0).await.map_err(Into::into)?;
+        let response = service
+            .call(request.hdr.unit_id.into(), request.pdu.0)
+            .await
+            .map_err(Into::into)?;
 
         framed
             .send(tcp::ResponseAdu {
@@ -187,6 +190,7 @@ fn configure_tcp(_workers: usize, _tcp: &Socket) -> io::Result<()> {
 mod tests {
     use super::*;
     use crate::server::Service;
+    use crate::slave::Slave;
 
     use futures::future;
 
@@ -203,7 +207,7 @@ mod tests {
             type Error = Error;
             type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
-            fn call(&self, _: Self::Request) -> Self::Future {
+            fn call(&self, _: Slave, _: Self::Request) -> Self::Future {
                 future::ready(Ok(self.response.clone()))
             }
         }
@@ -212,8 +216,9 @@ mod tests {
             response: Response::ReadInputRegisters(vec![0x33]),
         };
 
+        let slave = Slave(1);
         let pdu = Request::ReadInputRegisters(0, 1);
-        let rsp_adu = service.call(pdu).await.unwrap();
+        let rsp_adu = service.call(slave, pdu).await.unwrap();
 
         assert_eq!(rsp_adu, service.response);
     }
