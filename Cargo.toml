@@ -30,7 +30,7 @@ tokio-util = { version = "0.6", features = ["codec"] }
 [dev-dependencies]
 env_logger = "0.9"
 futures = "0.3"
-tokio = { version = "1", features = ["net", "macros", "io-util", "rt"] }
+tokio = { version = "1", features = ["net", "macros", "io-util", "rt", "time"] }
 
 [features]
 default = ["tcp", "rtu"]

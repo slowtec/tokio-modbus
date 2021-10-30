@@ -4,7 +4,7 @@ use crate::{
     server::service::{NewService, Service},
 };
 
-use futures::{self, future, select, Future};
+use futures::{self, Future};
 use futures_util::{future::FutureExt, sink::SinkExt, stream::StreamExt};
 use log::{error, trace};
 use socket2::{Domain, Socket, Type};
@@ -19,7 +19,6 @@ use tokio_util::codec::Framed;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Server {
     socket_addr: SocketAddr,
-    threads: Option<usize>,
 }
 
 impl Server {
@@ -27,18 +26,11 @@ impl Server {
     pub fn new(socket_addr: SocketAddr) -> Self {
         Self {
             socket_addr,
-            threads: None,
         }
     }
 
-    /// Set the number of threads running simultaneous event loops (optional, Unix only).
-    pub fn threads(mut self, threads: usize) -> Self {
-        self.threads = Some(threads);
-        self
-    }
-
-    /// Start a Modbus TCP server that blocks the current thread.
-    pub fn serve<S>(self, service: S)
+    /// Start an async Modbus TCP server task.
+    pub async fn serve<S>(&self, service: S) -> Result<(), std::io::Error>
     where
         S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
         S::Request: From<Request>,
@@ -46,10 +38,24 @@ impl Server {
         S::Error: Into<Error>,
         S::Instance: Send + Sync + 'static,
     {
-        self.serve_until(service, future::pending());
+        let service = Arc::new(service);
+        let listener = TcpListener::bind(self.socket_addr).await?;
+
+        loop {
+            let (stream, _) = listener.accept().await?;
+            let framed = Framed::new(stream, codec::tcp::ServerCodec::default());
+            let new_service = service.clone();
+
+            tokio::spawn(Box::pin(async move {
+                let service = new_service.new_service().unwrap();
+                if let Err(err) = process(framed, service).await {
+                    eprintln!("{:?}", err);
+                }
+            }));
+        }
     }
 
-    /// Start a Modbus TCP server that blocks the current thread.
+    /// Start a Modbus TCP server that blocks the current thread until a shutdown is requested
     pub fn serve_until<S, Sd>(self, service: S, shutdown_signal: Sd)
     where
         S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
@@ -59,69 +65,30 @@ impl Server {
         S::Error: Into<Error>,
         S::Instance: Send + Sync + 'static,
     {
-        let mut server = Server::new(self.socket_addr);
-        if let Some(threads) = self.threads {
-            server = server.threads(threads);
-        }
-        serve_until(
-            server.socket_addr,
-            server.threads.unwrap_or(1),
-            service,
-            shutdown_signal,
-        );
+        let shutdown_signal = shutdown_signal.fuse();
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_io()
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            tokio::select! {
+                res = self.serve(service) => if let Err(e) = res { error!("error: {}", e) },
+                _ = shutdown_signal => trace!("Shutdown signal received")
+            }
+        })
     }
-}
 
-/// Will start a TCP listener and will serve data with service provided
-/// until shutdown signal will be triggered in shutdown_signal future
-fn serve_until<S, Sd>(addr: SocketAddr, workers: usize, new_service: S, shutdown_signal: Sd)
-where
-    S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
-    S::Error: Into<Error>,
-    S::Instance: 'static + Send + Sync,
-    Sd: Future<Output = ()> + Unpin + Send + Sync + 'static,
-{
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_io()
-        .build()
-        .unwrap();
-
-    let new_service = Arc::new(new_service);
-
-    let server = async {
-        let listener = listener(addr, workers).unwrap();
-
-        loop {
-            let (stream, _) = listener.accept().await?;
-            let framed = Framed::new(stream, codec::tcp::ServerCodec::default());
-
-            let new_service = new_service.clone();
-            tokio::spawn(Box::pin(async move {
-                let service = new_service.new_service().unwrap();
-                let future = process(framed, service);
-
-                if let Err(err) = future.await {
-                    eprintln!("{:?}", err);
-                }
-            }));
-        }
-
-        // the only way found to specify the "task" future error type
-        #[allow(unreachable_code)]
-        io::Result::<()>::Ok(())
-    };
-
-    let mut server = Box::pin(server.fuse());
-    let mut shutdown_signal = shutdown_signal.fuse();
-
-    let task = async {
-        select! {
-            res = server => if let Err(e) = res { error!("error: {}", e) },
-            _ = shutdown_signal => trace!("Shutdown signal received")
-        }
-    };
-
-    rt.block_on(task);
+    pub fn serve_forever<S>(self, service: S)
+    where
+        S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
+        S::Request: From<Request>,
+        S::Response: Into<Response>,
+        S::Error: Into<Error>,
+        S::Instance: Send + Sync + 'static,
+    {
+        self.serve_until(service, futures::future::pending())
+    }
 }
 
 /// The request-response loop spawned by serve_until for each client
