@@ -36,7 +36,7 @@ tokio = { version = "1", features = ["net", "macros", "io-util", "rt", "time"] }
 default = ["tcp", "rtu"]
 rtu = ["tokio-serial", "futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
-sync = []
+sync = ["tokio/rt"]
 server = ["futures", "socket2/all", "tokio/rt", "tokio/rt-multi-thread"]
 tcp-server-unstable = ["server"]
 
