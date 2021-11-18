@@ -24,9 +24,7 @@ pub struct Server {
 impl Server {
     /// Set the address for the server (mandatory).
     pub fn new(socket_addr: SocketAddr) -> Self {
-        Self {
-            socket_addr,
-        }
+        Self { socket_addr }
     }
 
     /// Start an async Modbus TCP server task.
@@ -125,6 +123,7 @@ where
 }
 
 /// Start TCP listener - configure and open TCP socket
+#[allow(unused)]
 fn listener(addr: SocketAddr, workers: usize) -> io::Result<TcpListener> {
     let listener = match addr {
         SocketAddr::V4(_) => Socket::new(Domain::IPV4, Type::STREAM, None)?,
@@ -138,6 +137,7 @@ fn listener(addr: SocketAddr, workers: usize) -> io::Result<TcpListener> {
 }
 
 #[cfg(unix)]
+#[allow(unused)]
 fn configure_tcp(workers: usize, tcp: &Socket) -> io::Result<()> {
     if workers > 1 {
         tcp.reuse_port()?;
@@ -146,6 +146,7 @@ fn configure_tcp(workers: usize, tcp: &Socket) -> io::Result<()> {
 }
 
 #[cfg(windows)]
+#[allow(unused)]
 fn configure_tcp(_workers: usize, _tcp: &Socket) -> io::Result<()> {
     Ok(())
 }
