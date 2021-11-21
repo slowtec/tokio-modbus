@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.1 (2021-11-21)
+
+- Fix: require tokio/rt for sync feature
+- Changed: Update methods on TCP server to be async (only concerns `tcp-server-unstable` feature)
+
 ## v0.5.0 (2021-08-20)
 
 - Removed `sync` from default features
