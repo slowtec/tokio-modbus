@@ -123,8 +123,8 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
         0x01..=0x06 => Some(5),
         0x07 | 0x0B | 0x0C | 0x11 => Some(1),
         0x0F | 0x10 => {
-            if adu_buf.len() > 4 {
-                Some(6 + adu_buf[4] as usize)
+            if adu_buf.len() > 6 {
+                Some(6 + adu_buf[6] as usize)
             } else {
                 // incomplete frame
                 None
