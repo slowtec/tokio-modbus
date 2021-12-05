@@ -115,75 +115,60 @@ pub(crate) struct ServerCodec {
 }
 
 fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
-    if adu_buf.len() < 2 {
-        return Ok(None);
+    if let Some(fn_code) = adu_buf.get(1) {
+        let len = match fn_code {
+            0x01..=0x06 => 5,
+            0x07 | 0x0B | 0x0C | 0x11 => 1,
+            0x0F | 0x10 => {
+                return Ok(adu_buf.get(6).map(|&byte_count| 6 + byte_count as usize));
+            }
+            0x16 => 7,
+            0x18 => 3,
+            0x17 => {
+                return Ok(adu_buf.get(10).map(|&byte_count| 10 + byte_count as usize));
+            }
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Invalid function code: 0x{:0>2X}", fn_code),
+                ));
+            }
+        };
+        Ok(Some(len))
+    } else {
+        Ok(None)
     }
-    let fn_code = adu_buf[1];
-    let len = match fn_code {
-        0x01..=0x06 => Some(5),
-        0x07 | 0x0B | 0x0C | 0x11 => Some(1),
-        0x0F | 0x10 => {
-            if adu_buf.len() > 6 {
-                Some(6 + adu_buf[6] as usize)
-            } else {
-                // incomplete frame
-                None
-            }
-        }
-        0x16 => Some(7),
-        0x18 => Some(3),
-        0x17 => {
-            if adu_buf.len() > 10 {
-                Some(10 + adu_buf[10] as usize)
-            } else {
-                // incomplete frame
-                None
-            }
-        }
-        _ => {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid function code: 0x{:0>2X}", fn_code),
-            ));
-        }
-    };
-    Ok(len)
 }
 
 fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
-    if adu_buf.len() < 2 {
-        return Ok(None);
+    if let Some(fn_code) = adu_buf.get(1) {
+        let len = match fn_code {
+            0x01..=0x04 | 0x0C | 0x17 => {
+                return Ok(adu_buf.get(2).map(|&byte_count| 2 + byte_count as usize));
+            }
+            0x05 | 0x06 | 0x0B | 0x0F | 0x10 => 5,
+            0x07 => 2,
+            0x16 => 7,
+            0x18 => {
+                if adu_buf.len() > 3 {
+                    3 + Cursor::new(&adu_buf[2..=3]).read_u16::<BigEndian>()? as usize
+                } else {
+                    // incomplete frame
+                    return Ok(None);
+                }
+            }
+            0x81..=0xAB => 2,
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Invalid function code: 0x{:0>2X}", fn_code),
+                ));
+            }
+        };
+        Ok(Some(len))
+    } else {
+        Ok(None)
     }
-    let fn_code = adu_buf[1];
-    let len = match fn_code {
-        0x01..=0x04 | 0x0C | 0x17 => {
-            if adu_buf.len() > 2 {
-                Some(2 + adu_buf[2] as usize)
-            } else {
-                // incomplete frame
-                None
-            }
-        }
-        0x05 | 0x06 | 0x0B | 0x0F | 0x10 => Some(5),
-        0x07 => Some(2),
-        0x16 => Some(7),
-        0x18 => {
-            if adu_buf.len() > 3 {
-                Some(3 + Cursor::new(&adu_buf[2..=3]).read_u16::<BigEndian>()? as usize)
-            } else {
-                // incomplete frame
-                None
-            }
-        }
-        0x81..=0xAB => Some(2),
-        _ => {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid function code: 0x{:0>2X}", fn_code),
-            ));
-        }
-    };
-    Ok(len)
 }
 
 fn calc_crc(data: &[u8]) -> u16 {
