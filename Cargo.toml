@@ -38,7 +38,7 @@ rtu = ["tokio-serial", "futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 sync = ["tokio/rt"]
 server = ["futures", "socket2/all", "tokio/rt", "tokio/rt-multi-thread"]
-tcp-server-unstable = ["server"]
+tcp-server-unstable = ["tcp", "server"]
 
 [badges]
 maintenance = { status = "actively-developed" }
