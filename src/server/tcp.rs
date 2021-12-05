@@ -193,7 +193,7 @@ mod tests {
         #[derive(Clone)]
         struct DummyService {
             response: Response,
-        };
+        }
 
         impl Service for DummyService {
             type Request = Request;

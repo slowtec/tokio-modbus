@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.2 (2021-12-05)
+
+- Fix (RTU): Wrong byte count offset when writing multiple coils/registers
+
 ## v0.4.1 (2021-08-13)
 
 - Fixed handling of *broken pipe* errors in RTU service
