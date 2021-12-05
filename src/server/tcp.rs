@@ -5,7 +5,7 @@ use crate::{
 };
 
 use futures::{self, Future};
-use futures_util::{future::FutureExt, sink::SinkExt, stream::StreamExt};
+use futures_util::{future::FutureExt as _, sink::SinkExt as _, stream::StreamExt as _};
 use log::{error, trace};
 use socket2::{Domain, Socket, Type};
 use std::{

@@ -5,7 +5,7 @@ use crate::{
     slave::*,
 };
 
-use futures_util::{future, sink::SinkExt, stream::StreamExt};
+use futures_util::{future, sink::SinkExt as _, stream::StreamExt as _};
 use std::{
     fmt::Debug,
     future::Future,

@@ -7,8 +7,8 @@ use crate::{
     frame::*,
     server::service::{NewService, Service},
 };
-use futures::{select, Future, FutureExt};
-use futures_util::{SinkExt, StreamExt};
+use futures::{select, Future, FutureExt as _};
+use futures_util::{SinkExt as _, StreamExt as _};
 use std::{io::Error, path::Path};
 use tokio_serial::SerialStream;
 use tokio_util::codec::Framed;
