@@ -17,6 +17,10 @@
 - Upgraded [tokio](https://tokio.rs/) version from 0.2 to 1
 - Switched from deprecated [net2](https://github.com/deprecrated/net2-rs) to [socket2](https://github.com/rust-lang/socket2)
 
+## v0.4.2 (2021-12-05)
+
+- Fix (RTU): Wrong byte count offset when writing multiple coils/registers
+
 ## v0.4.1 (2021-08-13)
 
 - Fixed handling of *broken pipe* errors in RTU service
