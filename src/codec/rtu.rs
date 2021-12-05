@@ -433,11 +433,11 @@ mod tests {
         assert_eq!(get_request_pdu_len(&buf).unwrap(), Some(1));
 
         buf[1] = 0x0F;
-        buf[4] = 99;
+        buf[6] = 99;
         assert_eq!(get_request_pdu_len(&buf).unwrap(), Some(105));
 
         buf[1] = 0x10;
-        buf[4] = 99;
+        buf[6] = 99;
         assert_eq!(get_request_pdu_len(&buf).unwrap(), Some(105));
 
         buf[1] = 0x11;
