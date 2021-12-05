@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.5.2 (Unreleased)
+
+- Fix (RTU): Wrong byte count offset when writing multiple coils/registers
+
 ## v0.5.1 (2021-11-21)
 
 - Fix: require tokio/rt for sync feature
