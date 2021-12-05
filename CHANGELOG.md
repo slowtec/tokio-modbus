@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.5.2 (Unreleased)
+## v0.5.2 (2021-12-05)
 
 - Fix (RTU): Wrong byte count offset when writing multiple coils/registers
 
