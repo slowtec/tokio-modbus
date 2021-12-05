@@ -45,7 +45,7 @@ Here are some lines as example:
 -let task = tcp::connect(&handle, socket_addr).and_then(move |ctx|
 -    ctx.read_input_registers(0x1000, 7).and_then(move |data|
 -        // ...
--  	 )
+-    )
 -);
 +let mut ctx = tcp::connect(socket_addr).await?;
 +let data = ctx.read_input_registers(0x1000, 7).await?;
@@ -185,14 +185,17 @@ and servers!
 ### Breaking Changes
 
 - Changed Client API
+
   ```diff
   -  use tokio_modbus::{Client, TcpClient};
   +  use tokio_modbus::*;
   ```
+
   ```diff
   -  RtuClient::connect(port, server_addr, &handle)
   +  Client::connect_rtu(port, server_addr, &handle)
   ```
+
   ```diff
   -  TcpClient::connect(&addr, &handle)
   +  Client::connect_tcp(&addr, &handle)
