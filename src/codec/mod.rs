@@ -179,7 +179,7 @@ impl TryFrom<Bytes> for Request {
                 if bytes.len() < (6 + byte_count as usize) {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
                 }
-                let mut data = vec![];
+                let mut data = Vec::with_capacity(quantity as usize);
                 for _ in 0..quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
@@ -191,10 +191,10 @@ impl TryFrom<Bytes> for Request {
                 let write_address = rdr.read_u16::<BigEndian>()?;
                 let write_quantity = rdr.read_u16::<BigEndian>()?;
                 let write_count = rdr.read_u8()? as usize;
-                let mut data = vec![];
                 if bytes.len() < (10 + write_count as usize) {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
                 }
+                let mut data = Vec::with_capacity(write_quantity as usize);
                 for _ in 0..write_quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
@@ -253,7 +253,7 @@ impl TryFrom<Bytes> for Response {
             0x04 => {
                 let byte_count = rdr.read_u8()?;
                 let quantity = byte_count / 2;
-                let mut data = vec![];
+                let mut data = Vec::with_capacity(quantity as usize);
                 for _ in 0..quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
@@ -262,7 +262,7 @@ impl TryFrom<Bytes> for Response {
             0x03 => {
                 let byte_count = rdr.read_u8()?;
                 let quantity = byte_count / 2;
-                let mut data = vec![];
+                let mut data = Vec::with_capacity(quantity as usize);
                 for _ in 0..quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
@@ -276,7 +276,7 @@ impl TryFrom<Bytes> for Response {
             0x17 => {
                 let byte_count = rdr.read_u8()?;
                 let quantity = byte_count / 2;
-                let mut data = vec![];
+                let mut data = Vec::with_capacity(quantity as usize);
                 for _ in 0..quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
