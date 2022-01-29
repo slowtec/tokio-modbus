@@ -60,8 +60,8 @@ jobs:
           command: doc
           args: --workspace --locked --all-features
 
-      - name: Build workspace in release mode with default features
+      - name: Build release with default features
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --locked --release
+          args: --locked --profile release
