@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.0.1
+  rev: v4.1.0
   hooks:
   - id: check-case-conflict
   - id: check-json
@@ -15,15 +15,14 @@ repos:
   - id: fix-byte-order-marker
   - id: forbid-new-submodules
   - id: mixed-line-ending
-    args: [--fix, 'no']
   - id: trailing-whitespace
 - repo: https://github.com/DavidAnson/markdownlint-cli2
-  rev: v0.3.2
+  rev: v0.4.0
   hooks:
   - id: markdownlint-cli2
     exclude: ^LICENSE\.md$
 - repo: https://github.com/shellcheck-py/shellcheck-py
-  rev: v0.8.0.1
+  rev: v0.8.0.3
   hooks:
   - id: shellcheck
 - repo: https://github.com/codespell-project/codespell
@@ -31,7 +30,7 @@ repos:
   hooks:
   - id: codespell
     args: [
-      --ignore-words=.codespellignore
+      --ignore-words=.codespellignore,
     ]
 - repo: https://github.com/doublify/pre-commit-rust
   rev: v1.0

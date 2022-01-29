@@ -119,7 +119,7 @@ and servers!
   +  client::sync::Client
   ```
 
-- Rename and relocate _Client_ structs into _Context_
+- Rename and relocate *Client* structs into *Context*
 
   ```diff
   -  client::Client
