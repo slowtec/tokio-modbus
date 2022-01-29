@@ -42,11 +42,17 @@ jobs:
         with:
           command: generate-lockfile
 
-      - name: Test workspace with all features enabled
+      - name: Build tests with all features enabled
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --locked --all-features
+          args: --workspace --locked --all-features --no-run
+
+      - name: Run tests with all features enabled
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --locked --all-features -- --nocapture --quiet
 
       - name: Build workspace documentation with all features enabled
         uses: actions-rs/cargo@v1
