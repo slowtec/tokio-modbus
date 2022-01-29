@@ -37,6 +37,11 @@ jobs:
         with:
           profile: minimal
 
+      - name: Generate Cargo.lock
+        uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
+
       - name: Test workspace with all features enabled
         uses: actions-rs/cargo@v1
         with:
