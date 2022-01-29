@@ -236,7 +236,7 @@ impl From<ResponsePdu> for Result<Response, ExceptionResponse> {
 }
 
 impl fmt::Display for Exception {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.description())
     }
 }
@@ -248,7 +248,7 @@ impl error::Error for Exception {
 }
 
 impl fmt::Display for ExceptionResponse {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Modbus function {}: {}", self.function, self.exception)
     }
 }

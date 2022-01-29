@@ -141,6 +141,23 @@
 //! - [MODBUS over serial line specification and implementation guide v1.02 (PDF)](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf)
 //! - [MODBUS Messaging on TCP/IP Implementation Guide v1.0b (PDF)](http://modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf)
 
+#![deny(rust_2018_idioms)]
+#![deny(rust_2021_compatibility)]
+#![deny(missing_debug_implementations)]
+// TODO: Add missing documentation
+//#![deny(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![deny(clippy::all)]
+#![deny(clippy::explicit_deref_methods)]
+#![deny(clippy::explicit_into_iter_loop)]
+#![deny(clippy::explicit_iter_loop)]
+// TODO (v0.6): Decorate functions with #[must_use]
+//#![deny(clippy::must_use_candidate)]
+#![cfg_attr(not(test), warn(unsafe_code))]
+#![cfg_attr(not(test), deny(clippy::panic_in_result_fn))]
+#![cfg_attr(not(debug_assertions), deny(warnings))]
+#![cfg_attr(not(debug_assertions), deny(clippy::used_underscore_binding))]
+
 pub mod prelude;
 
 pub mod client;

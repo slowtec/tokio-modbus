@@ -83,7 +83,7 @@ impl FromStr for Slave {
 }
 
 impl fmt::Display for Slave {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} (0x{:0>2X})", self.0, self.0)
     }
 }

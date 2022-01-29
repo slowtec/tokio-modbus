@@ -13,6 +13,7 @@ use std::{io::Error, path::Path};
 use tokio_serial::SerialStream;
 use tokio_util::codec::Framed;
 
+#[derive(Debug)]
 pub struct Server {
     serial: SerialStream,
 }
