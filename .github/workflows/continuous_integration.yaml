@@ -41,16 +41,16 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-features
+          args: --workspace --locked --all-features
 
       - name: Build workspace documentation with all features enabled
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --workspace --all-features
+          args: --workspace --locked --all-features
 
       - name: Build workspace in release mode with default features
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release
+          args: --workspace --locked --release
