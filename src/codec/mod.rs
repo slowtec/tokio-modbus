@@ -12,6 +12,22 @@ use bytes::{BufMut, Bytes, BytesMut};
 use std::convert::TryFrom;
 use std::io::{self, Cursor, Error, ErrorKind};
 
+fn u16_len(len: usize) -> u16 {
+    // This type conversion should always be safe, because either
+    // the caller is responsible to pass a valid usize or the
+    // possible values are limited by the protocol.
+    debug_assert!(len <= u16::MAX.into());
+    len as u16
+}
+
+fn u8_len(len: usize) -> u8 {
+    // This type conversion should always be safe, because either
+    // the caller is responsible to pass a valid usize or the
+    // possible values are limited by the protocol.
+    debug_assert!(len <= u8::MAX.into());
+    len as u8
+}
+
 impl From<Request> for Bytes {
     fn from(req: Request) -> Bytes {
         let cnt = request_byte_count(&req);
@@ -33,9 +49,9 @@ impl From<Request> for Bytes {
             WriteMultipleCoils(address, coils) => {
                 data.put_u16(address);
                 let len = coils.len();
-                data.put_u16(len as u16);
+                data.put_u16(u16_len(len));
                 let packed_coils = pack_coils(&coils);
-                data.put_u8(packed_coils.len() as u8);
+                data.put_u8(u8_len(packed_coils.len()));
                 for b in packed_coils {
                     data.put_u8(b);
                 }
@@ -47,8 +63,8 @@ impl From<Request> for Bytes {
             WriteMultipleRegisters(address, words) => {
                 data.put_u16(address);
                 let len = words.len();
-                data.put_u16(len as u16);
-                data.put_u8((len as u8) * 2);
+                data.put_u16(u16_len(len));
+                data.put_u8(u8_len(len * 2));
                 for w in words {
                     data.put_u16(w);
                 }
@@ -58,8 +74,8 @@ impl From<Request> for Bytes {
                 data.put_u16(quantity);
                 data.put_u16(write_address);
                 let n = words.len();
-                data.put_u16(n as u16);
-                data.put_u8(n as u8 * 2);
+                data.put_u16(u16_len(n));
+                data.put_u8(u8_len(n * 2));
                 for w in words {
                     data.put_u16(w);
                 }
@@ -90,7 +106,7 @@ impl From<Response> for Bytes {
         match rsp {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
                 let packed_coils = pack_coils(&coils);
-                data.put_u8(packed_coils.len() as u8);
+                data.put_u8(u8_len(packed_coils.len()));
                 for b in packed_coils {
                     data.put_u8(b);
                 }
@@ -98,7 +114,7 @@ impl From<Response> for Bytes {
             ReadInputRegisters(registers)
             | ReadHoldingRegisters(registers)
             | ReadWriteMultipleRegisters(registers) => {
-                data.put_u8((registers.len() * 2) as u8);
+                data.put_u8(u8_len(registers.len() * 2));
                 for r in registers {
                     data.put_u16(r);
                 }
@@ -130,7 +146,7 @@ impl From<ExceptionResponse> for Bytes {
         let mut data = BytesMut::with_capacity(2);
         debug_assert!(ex.function < 0x80);
         data.put_u8(ex.function + 0x80);
-        data.put_u8(ex.exception as u8);
+        data.put_u8(ex.exception.into());
         data.freeze()
     }
 }
@@ -160,7 +176,7 @@ impl TryFrom<Bytes> for Request {
                 let address = rdr.read_u16::<BigEndian>()?;
                 let quantity = rdr.read_u16::<BigEndian>()?;
                 let byte_count = rdr.read_u8()?;
-                if bytes.len() < (6 + byte_count as usize) {
+                if bytes.len() < 6 + usize::from(byte_count) {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
                 }
                 let x = &bytes[6..];
@@ -175,11 +191,11 @@ impl TryFrom<Bytes> for Request {
             0x10 => {
                 let address = rdr.read_u16::<BigEndian>()?;
                 let quantity = rdr.read_u16::<BigEndian>()?;
-                let byte_count = rdr.read_u8()? as usize;
-                if bytes.len() < (6 + byte_count as usize) {
+                let byte_count = rdr.read_u8()?;
+                if bytes.len() < 6 + usize::from(byte_count) {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
                 }
-                let mut data = Vec::with_capacity(quantity as usize);
+                let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
@@ -190,11 +206,11 @@ impl TryFrom<Bytes> for Request {
                 let read_quantity = rdr.read_u16::<BigEndian>()?;
                 let write_address = rdr.read_u16::<BigEndian>()?;
                 let write_quantity = rdr.read_u16::<BigEndian>()?;
-                let write_count = rdr.read_u8()? as usize;
-                if bytes.len() < (10 + write_count as usize) {
+                let write_count = rdr.read_u8()?;
+                if bytes.len() < 10 + usize::from(write_count) {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
                 }
-                let mut data = Vec::with_capacity(write_quantity as usize);
+                let mut data = Vec::with_capacity(write_quantity.into());
                 for _ in 0..write_quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
@@ -253,7 +269,7 @@ impl TryFrom<Bytes> for Response {
             0x04 => {
                 let byte_count = rdr.read_u8()?;
                 let quantity = byte_count / 2;
-                let mut data = Vec::with_capacity(quantity as usize);
+                let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
@@ -262,7 +278,7 @@ impl TryFrom<Bytes> for Response {
             0x03 => {
                 let byte_count = rdr.read_u8()?;
                 let quantity = byte_count / 2;
-                let mut data = Vec::with_capacity(quantity as usize);
+                let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
@@ -276,7 +292,7 @@ impl TryFrom<Bytes> for Response {
             0x17 => {
                 let byte_count = rdr.read_u8()?;
                 let quantity = byte_count / 2;
-                let mut data = Vec::with_capacity(quantity as usize);
+                let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
@@ -371,15 +387,15 @@ fn pack_coils(coils: &[Coil]) -> Vec<u8> {
     let mut res = vec![0; packed_size];
     for (i, b) in coils.iter().enumerate() {
         let v = if *b { 0b1 } else { 0b0 };
-        res[(i / 8) as usize] |= v << (i % 8);
+        res[i / 8] |= v << (i % 8);
     }
     res
 }
 
 fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
-    let mut res = Vec::with_capacity(count as usize);
-    for i in 0..count {
-        res.push((bytes[(i / 8u16) as usize] >> (i % 8)) & 0b1 > 0);
+    let mut res = Vec::with_capacity(count.into());
+    for i in 0usize..count.into() {
+        res.push((bytes[i / 8] >> (i % 8)) & 0b1 > 0);
     }
     res
 }
@@ -973,7 +989,7 @@ mod tests {
         fn read_coils_max_quantity() {
             let quantity = 2000;
             let byte_count = quantity / 8;
-            let mut raw: Vec<u8> = vec![1, byte_count as u8];
+            let mut raw: Vec<u8> = vec![1, u8_len(byte_count)];
             let mut values: Vec<u8> = (0..byte_count).map(|_| 0b_1111_1111).collect();
             raw.append(&mut values);
             let bytes = Bytes::from(raw);
@@ -997,7 +1013,7 @@ mod tests {
         fn read_discrete_inputs_max_quantity() {
             let quantity = 2000;
             let byte_count = quantity / 8;
-            let mut raw: Vec<u8> = vec![2, byte_count as u8];
+            let mut raw: Vec<u8> = vec![2, u8_len(byte_count)];
             let mut values: Vec<u8> = (0..byte_count).map(|_| 0b_1111_1111).collect();
             raw.append(&mut values);
             let bytes = Bytes::from(raw);

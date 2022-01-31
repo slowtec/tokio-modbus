@@ -17,7 +17,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         fn call(&self, req: Self::Request) -> Self::Future {
             match req {
                 Request::ReadInputRegisters(_addr, cnt) => {
-                    let mut registers = vec![0; cnt as usize];
+                    let mut registers = vec![0; cnt.into()];
                     registers[2] = 0x77;
                     future::ready(Ok(Response::ReadInputRegisters(registers)))
                 }

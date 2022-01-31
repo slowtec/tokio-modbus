@@ -110,8 +110,8 @@ impl Reader for Context {
         let rsp = self.client.call(Request::ReadCoils(addr, cnt)).await?;
 
         if let Response::ReadCoils(mut coils) = rsp {
-            debug_assert!(coils.len() >= cnt as usize);
-            coils.truncate(cnt as usize);
+            debug_assert!(coils.len() >= cnt.into());
+            coils.truncate(cnt.into());
             Ok(coils)
         } else {
             Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
@@ -129,8 +129,8 @@ impl Reader for Context {
             .await?;
 
         if let Response::ReadDiscreteInputs(mut coils) = rsp {
-            debug_assert!(coils.len() >= cnt as usize);
-            coils.truncate(cnt as usize);
+            debug_assert!(coils.len() >= cnt.into());
+            coils.truncate(cnt.into());
             Ok(coils)
         } else {
             Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
@@ -148,7 +148,7 @@ impl Reader for Context {
             .await?;
 
         if let Response::ReadInputRegisters(rsp) = rsp {
-            if rsp.len() != cnt as usize {
+            if rsp.len() != cnt.into() {
                 return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
             Ok(rsp)
@@ -168,7 +168,7 @@ impl Reader for Context {
             .await?;
 
         if let Response::ReadHoldingRegisters(rsp) = rsp {
-            if rsp.len() != cnt as usize {
+            if rsp.len() != cnt.into() {
                 return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
             Ok(rsp)
@@ -195,7 +195,7 @@ impl Reader for Context {
             .await?;
 
         if let Response::ReadWriteMultipleRegisters(rsp) = rsp {
-            if rsp.len() != read_cnt as usize {
+            if rsp.len() != read_cnt.into() {
                 return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
             Ok(rsp)
@@ -235,7 +235,7 @@ impl Writer for Context {
             .await?;
 
         if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
-            if rsp_addr != addr || rsp_cnt as usize != cnt {
+            if rsp_addr != addr || usize::from(rsp_cnt) != cnt {
                 return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
             Ok(())
@@ -276,7 +276,7 @@ impl Writer for Context {
             .await?;
 
         if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
-            if rsp_addr != addr || rsp_cnt as usize != cnt {
+            if rsp_addr != addr || usize::from(rsp_cnt) != cnt {
                 return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
             Ok(())
