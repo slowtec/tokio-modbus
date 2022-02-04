@@ -155,6 +155,7 @@
 //#![deny(clippy::must_use_candidate)]
 #![cfg_attr(not(test), warn(unsafe_code))]
 #![cfg_attr(not(test), deny(clippy::panic_in_result_fn))]
+#![cfg_attr(not(test), deny(clippy::cast_possible_truncation))]
 #![cfg_attr(not(debug_assertions), deny(warnings))]
 #![cfg_attr(not(debug_assertions), deny(clippy::used_underscore_binding))]
 

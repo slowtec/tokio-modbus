@@ -12,6 +12,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 use std::convert::TryFrom;
 use std::io::{self, Cursor, Error, ErrorKind};
 
+#[allow(clippy::cast_possible_truncation)]
 fn u16_len(len: usize) -> u16 {
     // This type conversion should always be safe, because either
     // the caller is responsible to pass a valid usize or the
@@ -20,6 +21,7 @@ fn u16_len(len: usize) -> u16 {
     len as u16
 }
 
+#[allow(clippy::cast_possible_truncation)]
 fn u8_len(len: usize) -> u8 {
     // This type conversion should always be safe, because either
     // the caller is responsible to pass a valid usize or the
