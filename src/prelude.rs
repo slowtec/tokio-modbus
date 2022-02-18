@@ -1,16 +1,23 @@
+//! Common types
+
 ///////////////////////////////////////////////////////////////////
 /// Modules
 ///////////////////////////////////////////////////////////////////
 pub use crate::client;
 
-#[cfg(feature = "server")]
-pub use crate::server;
+#[allow(missing_docs)]
+#[cfg(feature = "sync")]
+pub mod sync {
+    pub use crate::client::sync::*;
+}
 
+#[allow(missing_docs)]
 #[cfg(feature = "rtu")]
 pub mod rtu {
     pub use crate::client::rtu::*;
 }
 
+#[allow(missing_docs)]
 #[cfg(feature = "tcp")]
 pub mod tcp {
     pub use crate::client::tcp::*;
@@ -19,10 +26,8 @@ pub mod tcp {
     pub use crate::server::*;
 }
 
-#[cfg(feature = "sync")]
-pub mod sync {
-    pub use crate::client::sync::*;
-}
+#[cfg(feature = "server")]
+pub use crate::server;
 
 ///////////////////////////////////////////////////////////////////
 /// Structs

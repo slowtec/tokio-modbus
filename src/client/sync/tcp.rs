@@ -1,9 +1,12 @@
-use super::{Context, Result};
+//! TCP client connections
+
+use std::net::SocketAddr;
 
 use crate::client::tcp::connect_slave as async_connect_slave;
 use crate::slave::Slave;
 
-use std::net::SocketAddr;
+use super::{Context, Result};
+
 /// Establish a direct connection to a Modbus TCP coupler.
 pub fn connect(socket_addr: SocketAddr) -> Result<Context> {
     connect_slave(socket_addr, Slave::tcp_device())

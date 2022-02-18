@@ -1,4 +1,4 @@
-//! Connecting a Modbus RTU context
+//! RTU client connections
 
 use super::*;
 

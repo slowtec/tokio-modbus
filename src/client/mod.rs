@@ -1,13 +1,4 @@
-#[cfg(feature = "rtu")]
-pub mod rtu;
-
-#[cfg(feature = "sync")]
-pub mod sync;
-
-#[cfg(feature = "tcp")]
-pub mod tcp;
-
-use crate::{frame::*, slave::*};
+//! Modbus clients
 
 use std::{
     fmt::Debug,
@@ -16,24 +7,44 @@ use std::{
 
 use async_trait::async_trait;
 
-/// A transport independent asynchronous client trait.
+use crate::{frame::*, slave::*};
+
+#[cfg(feature = "sync")]
+pub mod sync;
+
+#[cfg(feature = "rtu")]
+pub mod rtu;
+
+#[cfg(feature = "tcp")]
+pub mod tcp;
+
+/// Transport independent asynchronous client trait
 #[async_trait]
 pub trait Client: SlaveContext + Send + Debug {
+    /// Invoke a Modbus function
     async fn call(&mut self, request: Request) -> Result<Response, Error>;
 }
 
-/// An asynchronous Modbus reader.
+/// Asynchronous Modbus reader
 #[async_trait]
 pub trait Reader: Client {
+    /// Read multiple coils (0x01)
     async fn read_coils(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>, Error>;
 
+    /// Read multiple discrete inputs (0x02)
     async fn read_discrete_inputs(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>, Error>;
 
-    async fn read_input_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>, Error>;
-
+    /// Read multiple holding registers (0x03)
     async fn read_holding_registers(&mut self, _: Address, _: Quantity)
         -> Result<Vec<Word>, Error>;
 
+    /// Read multiple input registers (0x04)
+    async fn read_input_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>, Error>;
+
+    /// Read and write multiple holding registers (0x17)
+    ///
+    /// The write operation is performed before the read unlike
+    /// the name of the operation might suggest!
     async fn read_write_multiple_registers(
         &mut self,
         _: Address,
@@ -43,25 +54,30 @@ pub trait Reader: Client {
     ) -> Result<Vec<Word>, Error>;
 }
 
-/// An asynchronous Modbus writer.
+/// Asynchronous Modbus writer
 #[async_trait]
 pub trait Writer: Client {
+    /// Write a single coil (0x05)
     async fn write_single_coil(&mut self, _: Address, _: Coil) -> Result<(), Error>;
 
-    async fn write_multiple_coils(&mut self, _: Address, _: &[Coil]) -> Result<(), Error>;
-
+    /// Write a single holding register (0x06)
     async fn write_single_register(&mut self, _: Address, _: Word) -> Result<(), Error>;
 
+    /// Write multiple coils (0x0F)
+    async fn write_multiple_coils(&mut self, _: Address, _: &[Coil]) -> Result<(), Error>;
+
+    /// Write multiple holding registers (0x10)
     async fn write_multiple_registers(&mut self, _: Address, _: &[Word]) -> Result<(), Error>;
 }
 
-/// An asynchronous Modbus client context.
+/// Asynchronous Modbus client context
 #[derive(Debug)]
 pub struct Context {
     client: Box<dyn Client>,
 }
 
 impl Context {
+    /// Disconnect the client
     pub async fn disconnect(&mut self) -> Result<(), Error> {
         // Disconnecting is expected to fail!
         let res = self.client.call(Request::Disconnect).await;

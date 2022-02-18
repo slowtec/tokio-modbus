@@ -1,8 +1,13 @@
-//! Synchronous Modbus context access
+//! Synchronous Modbus client
 
+// TODO: Add missing documentation
+#![allow(missing_docs)]
+
+/// RTU client connections
 #[cfg(feature = "rtu")]
 pub mod rtu;
 
+/// TCP client connections
 #[cfg(feature = "tcp")]
 pub mod tcp;
 

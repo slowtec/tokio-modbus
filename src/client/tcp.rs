@@ -1,4 +1,4 @@
-//! Connecting a Modbus TCP context
+//! TCP client connections
 
 use super::*;
 

@@ -1,3 +1,5 @@
+//! Modbus TCP server skeleton
+
 use crate::{
     codec,
     frame::*,

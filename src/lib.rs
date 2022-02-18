@@ -144,8 +144,7 @@
 #![deny(rust_2018_idioms)]
 #![deny(rust_2021_compatibility)]
 #![deny(missing_debug_implementations)]
-// TODO: Add missing documentation
-//#![deny(missing_docs)]
+#![deny(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(clippy::all)]
 #![deny(clippy::explicit_deref_methods)]
@@ -162,6 +161,7 @@
 pub mod prelude;
 
 pub mod client;
+
 pub mod slave;
 
 #[cfg(feature = "server")]

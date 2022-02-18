@@ -1,6 +1,4 @@
-/*!
- * Modbus RTU server functionality
- */
+//! Modbus RTU server skeleton
 
 use crate::{
     codec,

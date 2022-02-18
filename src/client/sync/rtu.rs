@@ -1,9 +1,9 @@
 use super::{Context, Result};
 
+use tokio_serial::{SerialPortBuilder, SerialStream};
+
 use crate::client::rtu::connect_slave as async_connect_slave;
 use crate::slave::Slave;
-
-use tokio_serial::{SerialPortBuilder, SerialStream};
 
 /// Connect to no particular Modbus slave device for sending
 /// broadcast messages.
