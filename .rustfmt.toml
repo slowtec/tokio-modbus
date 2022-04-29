@@ -1,0 +1,22 @@
+# Only add deviations from the default settings!
+
+# Use a single edition only (should match Cargo.toml)
+edition = "2021"
+
+# Prevent carriage returns
+newline_style = "Unix"
+
+use_field_init_shorthand = true
+
+# TODO: Enable when available on the stable channel
+#format_strings = true
+#imports_granularity = "Crate"
+
+# Treat code in doc comments as regular code
+# TODO: Enable when available on the stable channel and still not the default!
+#format_code_in_doc_comments = true
+
+# Comments should be treated like any other code. Reword your comments or add
+# manual breaks if needed.
+# TODO: Enable when available on the stable channel and still not the default!
+#wrap_comments = true
