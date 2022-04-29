@@ -1,0 +1,37 @@
+{
+  "rules": {
+    "header-min-length": [
+      2,
+      "always",
+      8
+    ],
+    "header-max-length": [
+      2,
+      "always",
+      72
+    ],
+    "header-case": [
+      2,
+      "always",
+      "sentence-case"
+    ],
+    "header-full-stop": [
+      2,
+      "never",
+      "."
+    ],
+    "body-leading-blank": [
+      2,
+      "always"
+    ],
+    "body-max-line-length": [
+      2,
+      "always",
+      72
+    ],
+    "footer-leading-blank": [
+      2,
+      "always"
+    ]
+  }
+}
