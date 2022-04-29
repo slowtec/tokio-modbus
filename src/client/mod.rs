@@ -308,7 +308,7 @@ mod tests {
     use std::sync::Mutex;
 
     #[derive(Default, Debug)]
-    pub struct ClientMock {
+    pub(crate) struct ClientMock {
         slave: Option<Slave>,
         last_request: Mutex<Option<Request>>,
         next_response: Option<Result<Response, Error>>,
@@ -316,15 +316,15 @@ mod tests {
 
     #[allow(dead_code)]
     impl ClientMock {
-        pub fn slave(&self) -> Option<Slave> {
+        pub(crate) fn slave(&self) -> Option<Slave> {
             self.slave
         }
 
-        pub fn last_request(&self) -> &Mutex<Option<Request>> {
+        pub(crate) fn last_request(&self) -> &Mutex<Option<Request>> {
             &self.last_request
         }
 
-        pub fn set_next_response(&mut self, next_response: Result<Response, Error>) {
+        pub(crate) fn set_next_response(&mut self, next_response: Result<Response, Error>) {
             self.next_response = Some(next_response);
         }
     }

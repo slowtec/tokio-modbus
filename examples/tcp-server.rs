@@ -1,3 +1,5 @@
+//! TCP server example
+
 use futures::future;
 use std::{net::SocketAddr, time::Duration};
 
@@ -25,7 +27,7 @@ impl Service for MbServer {
 }
 
 #[tokio::main]
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket_addr = "127.0.0.1:5502".parse().unwrap();
 
     tokio::select! {

@@ -1,8 +1,8 @@
 #[cfg(feature = "rtu")]
-pub mod rtu;
+pub(crate) mod rtu;
 
 #[cfg(feature = "tcp")]
-pub mod tcp;
+pub(crate) mod tcp;
 
 use std::{error, fmt};
 

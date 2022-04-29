@@ -1,4 +1,6 @@
-pub fn main() {
+//! Synchronous TCP client example
+
+fn main() {
     use tokio_modbus::prelude::*;
 
     let socket_addr = "192.168.0.222:502".parse().unwrap();

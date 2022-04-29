@@ -1,5 +1,7 @@
+//! RTU server example
+
 #[tokio::main]
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use futures::future;
     use std::{thread, time::Duration};
 

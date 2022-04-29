@@ -29,7 +29,7 @@ impl Default for FrameDecoder {
 }
 
 impl FrameDecoder {
-    pub fn decode(
+    pub(crate) fn decode(
         &mut self,
         buf: &mut BytesMut,
         pdu_len: usize,
@@ -73,7 +73,7 @@ impl FrameDecoder {
         }
     }
 
-    pub fn recover_on_error(&mut self, buf: &mut BytesMut) {
+    pub(crate) fn recover_on_error(&mut self, buf: &mut BytesMut) {
         // If decoding failed the buffer cannot be empty
         debug_assert!(!buf.is_empty());
         // Skip and record the first byte of the buffer
@@ -759,6 +759,7 @@ mod tests {
                 disconnect: false,
             };
             let mut buf = BytesMut::with_capacity(40);
+            #[allow(unsafe_code)]
             unsafe {
                 buf.set_len(33);
             }

@@ -5,19 +5,19 @@ pub(crate) type UnitId = u8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Header {
-    pub transaction_id: TransactionId,
-    pub unit_id: UnitId,
+    pub(crate) transaction_id: TransactionId,
+    pub(crate) unit_id: UnitId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RequestAdu {
-    pub hdr: Header,
-    pub pdu: RequestPdu,
-    pub disconnect: bool,
+    pub(crate) hdr: Header,
+    pub(crate) pdu: RequestPdu,
+    pub(crate) disconnect: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ResponseAdu {
-    pub hdr: Header,
-    pub pdu: ResponsePdu,
+    pub(crate) hdr: Header,
+    pub(crate) pdu: ResponsePdu,
 }

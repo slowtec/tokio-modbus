@@ -1,5 +1,7 @@
+//! Asynchronous TCP client example
+
 #[tokio::main(flavor = "current_thread")]
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_modbus::prelude::*;
 
     let socket_addr = "127.0.0.1:5502".parse().unwrap();

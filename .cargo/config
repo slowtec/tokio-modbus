@@ -1,0 +1,5 @@
+[alias]
+clippy-lints = "clippy --all-targets --all-features --no-deps -- --cap-lints warn"
+
+[build]
+rustflags = "-D warnings -W unsafe-code -W unreachable-pub -W missing_docs -W missing-debug-implementations -W rust_2018_idioms -W rust-2021-compatibility"

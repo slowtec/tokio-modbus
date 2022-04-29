@@ -1,5 +1,7 @@
+//! Custom function client example
+
 #[tokio::main(flavor = "current_thread")]
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_modbus::prelude::*;
 
     let socket_addr = "192.168.0.222:502".parse().unwrap();

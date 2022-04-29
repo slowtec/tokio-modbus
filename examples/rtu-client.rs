@@ -1,5 +1,7 @@
+//! Asynchronous RTU client example
+
 #[tokio::main(flavor = "current_thread")]
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_serial::SerialStream;
 
     use tokio_modbus::prelude::*;

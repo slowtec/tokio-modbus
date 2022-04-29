@@ -1,4 +1,6 @@
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! Synchronous RTU client example
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_modbus::prelude::*;
 
     let tty_path = "/dev/ttyUSB0";

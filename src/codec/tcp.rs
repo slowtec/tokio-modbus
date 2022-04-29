@@ -309,6 +309,7 @@ mod tests {
                 disconnect: false,
             };
             let mut buf = BytesMut::with_capacity(40);
+            #[allow(unsafe_code)]
             unsafe {
                 buf.set_len(29);
             }
