@@ -14,23 +14,23 @@ edition = "2021"
 all-features = true
 
 [dependencies]
-async-trait = "0.1.52"
+async-trait = "0.1.53"
 byteorder = "1.4.3"
 bytes = "1.1.0"
 futures = { version = "0.3.21", optional = true }
 futures-util = { version = "0.3.21", optional = true, default-features = false }
-log = "0.4.14"
+log = "0.4.16"
 smallvec = { version = "1.8.0", default-features = false }
 socket2 = { version = "0.4.4", optional = true, default-features = false }
-tokio = { version = "1.17.0", default-features = false }
+tokio = { version = "1.18.0", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
-tokio-serial = { version = "5.4.1", optional = true, default-features = false }
-tokio-util = { version = "0.7.0", features = ["codec"] }
+tokio-serial = { version = "5.4.3", optional = true, default-features = false }
+tokio-util = { version = "0.7.1", features = ["codec"] }
 
 [dev-dependencies]
 env_logger = "0.9.0"
 futures = "0.3.21"
-tokio = { version = "1.17.0", features = ["net", "macros", "io-util", "rt", "time"] }
+tokio = { version = "1.18.0", features = ["net", "macros", "io-util", "rt", "time"] }
 
 [features]
 default = ["tcp", "rtu"]
