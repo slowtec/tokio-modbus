@@ -30,12 +30,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+
+      - name: Cache Rust toolchain and build artifacts
+        uses: Swatinem/rust-cache@v1
 
       - name: Generate Cargo.lock
         uses: actions-rs/cargo@v1

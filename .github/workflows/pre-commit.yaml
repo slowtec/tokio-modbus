@@ -15,10 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
+
+    - name: Cache Rust toolchain and build artifacts
+      uses: Swatinem/rust-cache@v1
 
     - name: Setup Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
 
     - name: Install Rust toolchain
       id: rust-toolchain
@@ -42,18 +45,3 @@ jobs:
       if: github.event_name == 'pull_request'
       env:
         SKIP: no-commit-to-branch
-
-    - name: Generate patch file
-      if: failure()
-      run: |
-        git diff-index -p HEAD > "${PATCH_FILE}"
-        [ -s "${PATCH_FILE}" ] && echo "UPLOAD_PATCH_FILE=${PATCH_FILE}" >> "${GITHUB_ENV}"
-      env:
-        PATCH_FILE: pre-commit.patch
-
-    - name: Upload patch artifact
-      if: failure() && env.UPLOAD_PATCH_FILE != null
-      uses: actions/upload-artifact@v2
-      with:
-        name: ${{ env.UPLOAD_PATCH_FILE }}
-        path: ${{ env.UPLOAD_PATCH_FILE }}
