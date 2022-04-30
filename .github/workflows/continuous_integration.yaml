@@ -49,13 +49,13 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --locked --all-features --no-run
+          args: --workspace --locked --all-features --all-targets --no-run
 
       - name: Run tests with all features enabled
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --locked --all-features -- --nocapture --quiet
+          args: --workspace --locked --all-features --all-targets -- --nocapture --quiet
 
       - name: Build workspace documentation with all features enabled
         uses: actions-rs/cargo@v1
@@ -67,4 +67,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --locked --profile release
+          args: --locked --all-targets --profile release
