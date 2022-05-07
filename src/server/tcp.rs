@@ -25,6 +25,7 @@ pub struct Server {
 
 impl Server {
     /// Set the address for the server (mandatory).
+    #[must_use]
     pub fn new(socket_addr: SocketAddr) -> Self {
         Self { socket_addr }
     }

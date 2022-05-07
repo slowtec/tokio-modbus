@@ -17,16 +17,19 @@ impl Slave {
     ///
     /// Some devices may use a custom id from the reserved range
     /// 248-255 for broadcasting.
+    #[must_use]
     pub const fn broadcast() -> Self {
         Slave(0)
     }
 
     /// The minimum address of a single Modbus slave device.
+    #[must_use]
     pub const fn min_device() -> Self {
         Slave(1)
     }
 
     /// The maximum address of a single Modbus slave device.
+    #[must_use]
     pub const fn max_device() -> Self {
         Slave(247)
     }
@@ -38,21 +41,25 @@ impl Slave {
     /// [MODBUS Messaging on TCP/IP Implementation Guide](http://www.modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf), page 23
     /// "On TCP/IP, the MODBUS server is addressed using its IP address; therefore,
     /// the MODBUS Unit Identifier is useless. The value 0xFF has to be used."
+    #[must_use]
     pub const fn tcp_device() -> Self {
         Slave(255)
     }
 
     /// Check if the [`SlaveId`] is used for broadcasting
+    #[must_use]
     pub fn is_broadcast(self) -> bool {
         self == Self::broadcast()
     }
 
     /// Check if the [`SlaveId`] addresses a single device
+    #[must_use]
     pub fn is_single_device(self) -> bool {
         self >= Self::min_device() && self <= Self::max_device()
     }
 
     /// Check if the [`SlaveId`] is reserved
+    #[must_use]
     pub fn is_reserved(self) -> bool {
         self > Self::max_device()
     }

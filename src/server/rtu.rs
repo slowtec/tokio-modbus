@@ -25,6 +25,7 @@ impl Server {
     }
 
     /// set up a new Server instance based on a pre-configured SerialStream instance
+    #[must_use]
     pub fn new(serial: SerialStream) -> Self {
         Server { serial }
     }
