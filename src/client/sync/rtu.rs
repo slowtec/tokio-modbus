@@ -16,7 +16,8 @@ pub fn connect_slave(builder: &SerialPortBuilder, slave: Slave) -> Result<Contex
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_io()
         .build()?;
-    let serial = SerialStream::open(builder).unwrap();
+    // SerialStream::open requires a runtime at least on cfg(unix).
+    let serial = rt.block_on(async { SerialStream::open(builder) })?;
     let async_ctx = rt.block_on(async_connect_slave(serial, slave))?;
     let sync_ctx = Context {
         core: rt,
