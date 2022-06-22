@@ -1,4 +1,9 @@
-name: Continuous integration
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+
+name: continuous-integration
+
+permissions:
+  contents: read
 
 on:
   push:
@@ -21,7 +26,7 @@ jobs:
           - x86_64-apple-darwin
           - x86_64-pc-windows-msvc
         include:
-          - target:  x86_64-unknown-linux-gnu
+          - target: x86_64-unknown-linux-gnu
             runner_os: ubuntu-latest
           - target: x86_64-apple-darwin
             runner_os: macos-latest
@@ -29,13 +34,14 @@ jobs:
             runner_os: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
+          toolchain: stable
           profile: minimal
+
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Cache Rust toolchain and build artifacts
         uses: Swatinem/rust-cache@v1

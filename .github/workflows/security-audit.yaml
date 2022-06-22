@@ -1,4 +1,10 @@
-name: Security audit
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+
+name: security-audit
+
+permissions:
+  contents: read
+
 on:
   push:
     paths:
