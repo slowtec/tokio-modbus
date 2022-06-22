@@ -76,6 +76,6 @@ are expected to fail.
 
 ## License
 
-Copyright 2017 - 2021 [slowtec GmbH](https://www.slowtec.de)
+Copyright 2017 - 2022 [slowtec GmbH](https://www.slowtec.de)
 
 [MIT](LICENSE-MIT)/[Apache-2.0](LICENSE-APACHE)
