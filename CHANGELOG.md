@@ -2,7 +2,7 @@
 
 ## v0.5.3 (2022-06-22)
 
-- Fix (RTU/sync): Execute SerialStream::open within an async runtime [#116]
+- Fix (RTU/sync): Execute SerialStream::open within an async runtime [#116](https://github.com/slowtec/tokio-modbus/pull/116)
 
 ## v0.5.2 (2021-12-05)
 
