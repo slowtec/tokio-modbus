@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.3.0
     hooks:
       - id: check-case-conflict
       - id: check-json
@@ -35,6 +35,11 @@ repos:
     hooks:
       - id: codespell
         args: [--ignore-words=.codespellignore]
+  - repo: https://github.com/sirosen/check-jsonschema
+    rev: 0.16.1
+    hooks:
+      - id: check-github-actions
+      - id: check-github-workflows
   - repo: https://github.com/doublify/pre-commit-rust
     rev: v1.0
     hooks:
@@ -51,3 +56,11 @@ repos:
             -D,
             warnings,
           ]
+  - repo: local
+    hooks:
+      - id: cargo-doc
+        name: cargo-doc
+        entry: env RUSTDOCFLAGS=-Dwarnings cargo
+        language: system
+        pass_filenames: false
+        args: [doc, --locked, --workspace, --no-deps]
