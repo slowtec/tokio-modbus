@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2017-2022 slowtec GmbH <post@slowtec.de>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Synchronous RTU client example
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

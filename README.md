@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2017-2022 slowtec GmbH <post@slowtec.de> -->
+<!-- SPDX-License-Identifier: MIT OR Apache-2.0 -->
+
 # tokio-modbus
 
 A [tokio](https://tokio.rs)-based modbus library.
@@ -6,6 +9,8 @@ A [tokio](https://tokio.rs)-based modbus library.
 [![Docs.rs](https://docs.rs/tokio-modbus/badge.svg)](https://docs.rs/tokio-modbus/)
 [![Security audit](https://github.com/slowtec/tokio-modbus/actions/workflows/security-audit.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/security-audit.yaml)
 [![Continuous integration](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous-integration.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous-integration.yaml)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE-MIT)
+[![Apache 2.0 licensed](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE-APACHE)
 
 ## Features
 
@@ -76,6 +81,6 @@ are expected to fail.
 
 ## License
 
-Copyright 2017 - 2022 [slowtec GmbH](https://www.slowtec.de)
+Copyright (c) 2017-2022 [slowtec GmbH](https://www.slowtec.de)
 
-[MIT](LICENSE-MIT)/[Apache-2.0](LICENSE-APACHE)
+[MIT](LICENSES/MIT.txt)/[Apache-2.0](LICENSES/Apache-2.0.txt)

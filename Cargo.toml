@@ -1,9 +1,12 @@
+# SPDX-FileCopyrightText: Copyright (c) 2017-2022 slowtec GmbH <post@slowtec.de>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
 [package]
 name = "tokio-modbus"
 description = "Tokio-based Modbus library"
 version = "0.5.3"
-authors = ["slowtec GmbH", "Markus Kohlhase <markus.kohlhase@slowtec.de>"]
-license = "MIT/Apache-2.0"
+authors = ["slowtec GmbH <post@slowtec.de>", "Markus Kohlhase <markus.kohlhase@slowtec.de>"]
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["fieldbus", "modbus", "hardware", "automation"]
 homepage = "https://github.com/slowtec/tokio-modbus"
@@ -20,7 +23,7 @@ bytes = "1.1.0"
 futures = { version = "0.3.21", optional = true }
 futures-util = { version = "0.3.21", optional = true, default-features = false }
 log = "0.4.17"
-smallvec = { version = "1.8.0", default-features = false }
+smallvec = { version = "1.9.0", default-features = false }
 socket2 = { version = "0.4.4", optional = true, default-features = false }
 tokio = { version = "1.19.2", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
