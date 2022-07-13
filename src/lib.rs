@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2017-2022 slowtec GmbH <post@slowtec.de>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! A pure [Rust](https://www.rust-lang.org)
 //! [Modbus](https://en.wikipedia.org/wiki/Modbus) library
 //! based on [tokio](https://tokio.rs).

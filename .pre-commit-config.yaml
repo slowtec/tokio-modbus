@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2017-2022 slowtec GmbH <post@slowtec.de>
+# SPDX-License-Identifier: CC0-1.0
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.3.0
@@ -36,10 +39,15 @@ repos:
       - id: codespell
         args: [--ignore-words=.codespellignore]
   - repo: https://github.com/sirosen/check-jsonschema
-    rev: 0.16.1
+    rev: 0.17.0
     hooks:
       - id: check-github-actions
       - id: check-github-workflows
+  # https://reuse.software
+  - repo: https://github.com/fsfe/reuse-tool
+    rev: v1.0.0
+    hooks:
+      - id: reuse
   - repo: https://github.com/doublify/pre-commit-rust
     rev: v1.0
     hooks:

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2017-2022 slowtec GmbH <post@slowtec.de>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use std::{future::Future, io, rc::Rc, sync::Arc};
 
 /// A Modbus server service.
