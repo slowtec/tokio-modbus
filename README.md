@@ -3,7 +3,9 @@
 
 # tokio-modbus
 
-A [tokio](https://tokio.rs)-based modbus library.
+A pure [Rust](https://www.rust-lang.org)
+[Modbus](https://en.wikipedia.org/wiki/Modbus) library
+based on [tokio](https://tokio.rs).
 
 [![Crates.io](https://img.shields.io/crates/v/tokio-modbus.svg)](https://crates.io/crates/tokio-modbus)
 [![Docs.rs](https://docs.rs/tokio-modbus/badge.svg)](https://docs.rs/tokio-modbus/)
@@ -11,6 +13,11 @@ A [tokio](https://tokio.rs)-based modbus library.
 [![Continuous integration](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous-integration.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous-integration.yaml)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE-MIT)
 [![Apache 2.0 licensed](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE-APACHE)
+
+Modbus is based on a [*master/slave*](https://en.wikipedia.org/wiki/Master/slave_(technology))
+communication pattern.
+To avoid confusion with the Tokio terminology the *master* is called *client*
+and the *slave* is called *server* in this library.
 
 ## Features
 
