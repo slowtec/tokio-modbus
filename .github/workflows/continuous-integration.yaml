@@ -47,7 +47,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Cache Rust toolchain and build artifacts
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - name: Generate Cargo.lock
         uses: actions-rs/cargo@v1
