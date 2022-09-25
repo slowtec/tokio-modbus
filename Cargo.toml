@@ -25,7 +25,7 @@ futures-util = { version = "0.3", optional = true, default-features = false }
 log = "0.4"
 smallvec = { version = "1.9", default-features = false }
 socket2 = { version = "0.4", optional = true, default-features = false }
-tokio = { version = "1.20", default-features = false }
+tokio = { version = "1.21", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4", optional = true, default-features = false }
 tokio-util = { version = "0.7", features = ["codec"] }
@@ -33,7 +33,7 @@ tokio-util = { version = "0.7", features = ["codec"] }
 [dev-dependencies]
 env_logger = "0.9"
 futures = "0.3"
-tokio = { version = "1.20", features = ["net", "macros", "io-util", "rt", "time"] }
+tokio = { version = "1.21", features = ["net", "macros", "io-util", "rt", "time"] }
 
 [features]
 default = ["tcp", "rtu"]
