@@ -25,13 +25,13 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
-    rev: v9.0.0
+    rev: v9.1.0
     hooks:
       - id: commitlint
         stages:
           - commit-msg
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.5.0
+    rev: v0.5.1
     hooks:
       - id: markdownlint-cli2
   - repo: https://github.com/shellcheck-py/shellcheck-py
@@ -39,15 +39,21 @@ repos:
     hooks:
       - id: shellcheck
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.1.0
+    rev: v2.2.1
     hooks:
       - id: codespell
         args: [--ignore-words=.codespellignore]
   - repo: https://github.com/sirosen/check-jsonschema
-    rev: 0.17.1
+    rev: 0.18.3
     hooks:
       - id: check-github-actions
       - id: check-github-workflows
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v2.7.1
+    hooks:
+      - id: prettier
+        types:
+          - yaml
   # https://reuse.software
   - repo: https://github.com/fsfe/reuse-tool
     rev: v1.0.0
