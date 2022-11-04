@@ -151,7 +151,7 @@ impl Encoder<RequestAdu> for ClientCodec {
         buf.put_u16(PROTOCOL_ID);
         buf.put_u16(u16_len(pdu_data.len() + 1));
         buf.put_u8(hdr.unit_id);
-        buf.put_slice(&*pdu_data);
+        buf.put_slice(&pdu_data);
         Ok(())
     }
 }
@@ -167,7 +167,7 @@ impl Encoder<ResponseAdu> for ServerCodec {
         buf.put_u16(PROTOCOL_ID);
         buf.put_u16(u16_len(pdu_data.len() + 1));
         buf.put_u8(hdr.unit_id);
-        buf.put_slice(&*pdu_data);
+        buf.put_slice(&pdu_data);
         Ok(())
     }
 }

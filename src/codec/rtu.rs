@@ -354,7 +354,7 @@ impl Encoder<RequestAdu> for ClientCodec {
         let pdu_data: Bytes = pdu.into();
         buf.reserve(pdu_data.len() + 3);
         buf.put_u8(hdr.slave_id);
-        buf.put_slice(&*pdu_data);
+        buf.put_slice(&pdu_data);
         let crc = calc_crc(buf);
         buf.put_u16(crc);
         Ok(())
@@ -369,7 +369,7 @@ impl Encoder<ResponseAdu> for ServerCodec {
         let pdu_data: Bytes = pdu.into();
         buf.reserve(pdu_data.len() + 3);
         buf.put_u8(hdr.slave_id);
-        buf.put_slice(&*pdu_data);
+        buf.put_slice(&pdu_data);
         let crc = calc_crc(buf);
         buf.put_u16(crc);
         Ok(())

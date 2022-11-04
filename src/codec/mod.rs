@@ -391,7 +391,7 @@ fn pack_coils(coils: &[Coil]) -> Vec<u8> {
     let packed_size = packed_coils_len(coils.len());
     let mut res = vec![0; packed_size];
     for (i, b) in coils.iter().enumerate() {
-        let v = if *b { 0b1 } else { 0b0 };
+        let v = u8::from(*b); // 0 or 1
         res[i / 8] |= v << (i % 8);
     }
     res
