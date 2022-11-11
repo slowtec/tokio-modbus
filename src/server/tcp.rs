@@ -43,7 +43,13 @@ impl Server {
         S::Instance: Send + Sync + 'static,
     {
         let service = Arc::new(service);
-        let listener = TcpListener::bind(self.socket_addr).await?;
+
+        let socket = Socket::new(Domain::IPV4, Type::STREAM, None)?;
+        socket.reuse_address()?;
+        socket.set_nodelay(true)?;
+        socket.bind(&self.socket_addr.into())?;
+        socket.listen(1024)?;
+        let listener =  TcpListener::from_std(socket.into())?;
 
         loop {
             let (stream, _) = listener.accept().await?;
@@ -115,6 +121,7 @@ where
         }
 
         let request = request.unwrap()?;
+
         let hdr = request.hdr;
         let response = service.call(request.pdu.0).await.map_err(Into::into)?;
 
