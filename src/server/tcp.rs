@@ -44,7 +44,6 @@ impl Server {
     {
         let service = Arc::new(service);
         let socket = Socket::new(Domain::IPV4, Type::STREAM, None)?;
-        socket.reuse_address()?;
         socket.set_nodelay(true)?;
         socket.bind(&self.socket_addr.into())?;
         socket.listen(1024)?;
