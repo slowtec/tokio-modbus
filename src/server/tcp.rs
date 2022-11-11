@@ -43,7 +43,6 @@ impl Server {
         S::Instance: Send + Sync + 'static,
     {
         let service = Arc::new(service);
-
         let socket = Socket::new(Domain::IPV4, Type::STREAM, None)?;
         socket.reuse_address()?;
         socket.set_nodelay(true)?;
@@ -121,7 +120,6 @@ where
         }
 
         let request = request.unwrap()?;
-
         let hdr = request.hdr;
         let response = service.call(request.pdu.0).await.map_err(Into::into)?;
 
