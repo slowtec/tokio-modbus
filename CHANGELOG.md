@@ -3,6 +3,10 @@
 
 # Changelog
 
+## v0.5.4 (2022-11-15)
+
+- Fix TCP Server: Added nodelay to socket to prevent gathering of multiple Modbus ADUs into a single TCP PDU
+
 ## v0.5.3 (2022-06-22)
 
 - Fix (RTU/sync): Execute SerialStream::open within an async runtime [#116](https://github.com/slowtec/tokio-modbus/pull/116)
