@@ -47,7 +47,7 @@ impl Server {
         socket.set_nodelay(true)?;
         socket.bind(&self.socket_addr.into())?;
         socket.listen(1024)?;
-        let listener =  TcpListener::from_std(socket.into())?;
+        let listener = TcpListener::from_std(socket.into())?;
 
         loop {
             let (stream, _) = listener.accept().await?;
