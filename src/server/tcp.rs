@@ -21,8 +21,8 @@ use std::{
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
 
-/// The maximum number of connections queue for acception 
-const CONNECTION_QUEUE_MAX: i32 = 10;
+/// Maximum number of pending connections that could be accepted 
+const SOCKET_LISTEN_BACKLOG: i32 = 10;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Server {
@@ -49,7 +49,7 @@ impl Server {
         let socket = Socket::new(Domain::IPV4, Type::STREAM, None)?;
         socket.set_nodelay(true)?;
         socket.bind(&self.socket_addr.into())?;
-        socket.listen(CONNECTION_QUEUE_MAX)?;
+        socket.listen(SOCKET_LISTEN_BACKLOG)?;
         let listener = TcpListener::from_std(socket.into())?;
 
         loop {
