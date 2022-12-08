@@ -20,9 +20,9 @@ all-features = true
 # <https://users.rust-lang.org/t/psa-please-specify-precise-dependency-versions-in-cargo-toml/71277>
 
 [dependencies]
-async-trait = "0.1.58"
+async-trait = "0.1.59"
 byteorder = "1.4.3"
-bytes = "1.2.1"
+bytes = "1.3.0"
 futures = { version = "0.3.25", optional = true }
 futures-util = { version = "0.3.25", optional = true, default-features = false }
 log = "0.4.17"
@@ -34,7 +34,7 @@ tokio-serial = { version = "5.4.4", optional = true, default-features = false }
 tokio-util = { version = "0.7.4", features = ["codec"] }
 
 [dev-dependencies]
-env_logger = "0.9.1"
+env_logger = "0.10.0"
 futures = "0.3.25"
 tokio = { version = "1.21.2", features = ["net", "macros", "io-util", "rt", "time"] }
 
