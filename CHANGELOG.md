@@ -3,6 +3,10 @@
 
 # Changelog
 
+## v0.5.4 (unreleased)
+
+- Fix: Use `tokio` v1.22.x as a temporary workaround to avoid incompatibilities with `mio-serial` on Windows (#136).
+
 ## v0.5.3 (2022-06-22)
 
 - Fix (RTU/sync): Execute SerialStream::open within an async runtime [#116](https://github.com/slowtec/tokio-modbus/pull/116)

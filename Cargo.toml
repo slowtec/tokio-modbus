@@ -4,7 +4,7 @@
 [package]
 name = "tokio-modbus"
 description = "Tokio-based Modbus library"
-version = "0.5.3"
+version = "0.5.4"
 authors = ["slowtec GmbH <post@slowtec.de>", "Markus Kohlhase <markus.kohlhase@slowtec.de>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -28,15 +28,21 @@ futures-util = { version = "0.3.25", optional = true, default-features = false }
 log = "0.4.17"
 smallvec = { version = "1.10.0", default-features = false }
 socket2 = { version = "0.4.7", optional = true, default-features = false }
-tokio = { version = "1.21.2", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4.4", optional = true, default-features = false }
 tokio-util = { version = "0.7.4", features = ["codec"] }
 
+# See also: <https://github.com/slowtec/tokio-modbus/issues/136>
+# Workaround cannot be restricted to Windows: <https://github.com/rust-lang/cargo/issues/5896>
+tokio = { version = "~1.22.0", default-features = false }
+
 [dev-dependencies]
 env_logger = "0.10.0"
 futures = "0.3.25"
-tokio = { version = "1.21.2", features = ["net", "macros", "io-util", "rt", "time"] }
+
+# See also: <https://github.com/slowtec/tokio-modbus/issues/136>
+# Workaround cannot be restricted to Windows: <https://github.com/rust-lang/cargo/issues/5896>
+tokio = { version = "~1.22.0", features = ["net", "macros", "io-util", "rt", "time"] }
 
 [features]
 default = ["tcp", "rtu"]
