@@ -12,7 +12,8 @@ on:
   push:
     paths:
       - "**/Cargo.toml"
-#  schedule:
+  workflow_dispatch:
+# schedule:
 #    - cron: '0 0 * * *'
 
 jobs:
