@@ -355,7 +355,7 @@ mod tests {
         // a multiple of 8 coils.
         let response_coils = [true, false, false, true, false, true, false, true].to_vec();
         for num_coils in 1usize..8usize {
-            let mut client = Box::new(ClientMock::default());
+            let mut client = Box::<ClientMock>::default();
             client.set_next_response(Ok(Response::ReadCoils(response_coils.clone())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
@@ -371,7 +371,7 @@ mod tests {
         // a multiple of 8 coils.
         let response_inputs = [true, false, false, true, false, true, false, true].to_vec();
         for num_inputs in 1usize..8usize {
-            let mut client = Box::new(ClientMock::default());
+            let mut client = Box::<ClientMock>::default();
             client.set_next_response(Ok(Response::ReadDiscreteInputs(response_inputs.clone())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
