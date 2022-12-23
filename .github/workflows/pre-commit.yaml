@@ -29,23 +29,22 @@ jobs:
           python-version: "3.x"
 
       - name: Install Rust toolchain
-        id: rust-toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          profile: minimal
-          components: rustfmt, clippy
+          components: clippy, rustfmt
 
       - name: Check out repository
         uses: actions/checkout@v3
 
+      - name: Generate Cargo.lock
+        run: cargo generate-lockfile
+
       - name: Cache Rust toolchain and build artifacts
         uses: Swatinem/rust-cache@v2
-
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
         with:
-          command: generate-lockfile
+          # Distinguished by the action name to avoid sharing across different actions!
+          shared-key: "pre-commit"
 
       - name: Detect code style issues (push)
         uses: pre-commit/action@v3.0.0
