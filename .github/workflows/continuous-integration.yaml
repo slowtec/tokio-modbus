@@ -39,42 +39,31 @@ jobs:
 
     steps:
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          profile: minimal
+          targets: ${{ matrix.target }}
 
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Generate Cargo.lock
+        run: cargo generate-lockfile
+
       - name: Cache Rust toolchain and build artifacts
         uses: Swatinem/rust-cache@v2
-
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
         with:
-          command: generate-lockfile
+          # Distinguished by the action name to avoid sharing across different actions!
+          shared-key: "continuous-integration"
 
       - name: Build tests with all features enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --locked --all-features --all-targets --no-run
+        run: cargo test --workspace --locked --all-features --all-targets --no-run
 
       - name: Run tests with all features enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --locked --all-features --all-targets -- --nocapture --quiet
+        run: cargo test --workspace --locked --all-features --all-targets -- --nocapture --quiet
 
       - name: Build workspace documentation with all features enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --workspace --locked --all-features
+        run: cargo doc --workspace --locked --all-features
 
       - name: Build release with default features
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --locked --all-targets --profile release
+        run: cargo build --locked --all-targets --profile release
