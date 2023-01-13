@@ -13,7 +13,7 @@ pub(crate) struct Header {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RequestAdu {
+pub struct RequestAdu {
     pub(crate) hdr: Header,
     pub(crate) pdu: RequestPdu,
     pub(crate) disconnect: bool,
@@ -23,4 +23,19 @@ pub(crate) struct RequestAdu {
 pub(crate) struct ResponseAdu {
     pub(crate) hdr: Header,
     pub(crate) pdu: ResponsePdu,
+}
+
+impl From<RequestAdu> for Request {
+    fn from(from: RequestAdu) -> Self {
+        from.pdu.into()
+    }
+}
+
+impl From<RequestAdu> for SlaveRequest {
+    fn from(from: RequestAdu) -> Self {
+        Self {
+            slave: from.hdr.unit_id,
+            request: from.pdu.into(),
+        }
+    }
 }
