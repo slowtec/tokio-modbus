@@ -34,13 +34,14 @@ impl Server {
     }
 
     /// Start an async Modbus TCP server task.
-    pub async fn serve<S>(&self, service: S) -> Result<(), std::io::Error>
+    pub async fn serve<S, Req>(&self, service: S) -> Result<(), std::io::Error>
     where
-        S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
-        S::Request: From<Request>,
+        S: NewService<Request = Req, Response = Response> + Send + Sync + 'static,
+        S::Request: From<Req> + From<tcp::RequestAdu>,
         S::Response: Into<Response>,
         S::Error: Into<Error>,
         S::Instance: Send + Sync + 'static,
+        Req: Send,
     {
         let service = Arc::new(service);
         let listener = TcpListener::bind(self.socket_addr).await?;
@@ -60,14 +61,15 @@ impl Server {
     }
 
     /// Start a Modbus TCP server that blocks the current thread until a shutdown is requested
-    pub fn serve_until<S, Sd>(self, service: S, shutdown_signal: Sd)
+    pub fn serve_until<S, Req, Sd>(self, service: S, shutdown_signal: Sd)
     where
-        S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
+        S: NewService<Request = Req, Response = Response> + Send + Sync + 'static,
         Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
-        S::Request: From<Request>,
+        S::Request: From<Req> + From<tcp::RequestAdu>,
         S::Response: Into<Response>,
         S::Error: Into<Error>,
         S::Instance: Send + Sync + 'static,
+        Req: Send,
     {
         let shutdown_signal = shutdown_signal.fuse();
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -83,26 +85,29 @@ impl Server {
         })
     }
 
-    pub fn serve_forever<S>(self, service: S)
+    pub fn serve_forever<S, Req>(self, service: S)
     where
-        S: NewService<Request = Request, Response = Response> + Send + Sync + 'static,
-        S::Request: From<Request>,
+        S: NewService<Request = Req, Response = Response> + Send + Sync + 'static,
+        S::Request: From<Req> + From<tcp::RequestAdu>,
         S::Response: Into<Response>,
         S::Error: Into<Error>,
         S::Instance: Send + Sync + 'static,
+        Req: Send,
     {
         self.serve_until(service, futures::future::pending())
     }
 }
 
 /// The request-response loop spawned by serve_until for each client
-async fn process<S>(
+async fn process<S, Req>(
     framed: Framed<TcpStream, codec::tcp::ServerCodec>,
     service: S,
 ) -> io::Result<()>
 where
-    S: Service<Request = Request, Response = Response> + Send + Sync + 'static,
+    S: Service<Request = Req, Response = Response> + Send + Sync + 'static,
     S::Error: Into<Error>,
+    S::Request: From<tcp::RequestAdu>,
+    Req: Send,
 {
     let mut framed = framed;
 
@@ -116,7 +121,7 @@ where
 
         let request = request.unwrap()?;
         let hdr = request.hdr;
-        let response = service.call(request.pdu.0).await.map_err(Into::into)?;
+        let response = service.call(request.into()).await.map_err(Into::into)?;
 
         framed
             .send(tcp::ResponseAdu {
@@ -183,6 +188,34 @@ mod tests {
         }
 
         let service = DummyService {
+            response: Response::ReadInputRegisters(vec![0x33]),
+        };
+
+        let pdu = Request::ReadInputRegisters(0, 1);
+        let rsp_adu = service.call(pdu).await.unwrap();
+
+        assert_eq!(rsp_adu, service.response);
+    }
+
+    #[tokio::test]
+    async fn slave_service_wrapper() {
+        #[derive(Clone)]
+        struct SlaveDummyService {
+            response: Response,
+        }
+
+        impl Service for SlaveDummyService {
+            type Request = SlaveRequest;
+            type Response = Response;
+            type Error = Error;
+            type Future = future::Ready<Result<Self::Response, Self::Error>>;
+
+            fn call(&self, _: Self::Request) -> Self::Future {
+                future::ready(Ok(self.response.clone()))
+            }
+        }
+
+        let service = SlaveDummyService {
             response: Response::ReadInputRegisters(vec![0x33]),
         };
 
