@@ -3,6 +3,10 @@
 
 # Changelog
 
+## v0.5.4 (2023-01-18)
+
+- Fix (Windows): Upgrade dependencies to fix build failures on Windows for Tokio 1.23.0 and later.
+
 ## v0.5.3 (2022-06-22)
 
 - Fix (RTU/sync): Execute SerialStream::open within an async runtime [#116](https://github.com/slowtec/tokio-modbus/pull/116)

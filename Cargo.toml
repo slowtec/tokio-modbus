@@ -4,7 +4,7 @@
 [package]
 name = "tokio-modbus"
 description = "Tokio-based Modbus library"
-version = "0.5.3"
+version = "0.5.4"
 authors = ["slowtec GmbH <post@slowtec.de>", "Markus Kohlhase <markus.kohlhase@slowtec.de>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
