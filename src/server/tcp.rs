@@ -11,7 +11,7 @@ use crate::{
 
 use futures::{self, Future};
 use futures_util::{future::FutureExt as _, sink::SinkExt as _, stream::StreamExt as _};
-use log::{error, trace};
+use log::{debug, error, trace};
 use socket2::{Domain, Socket, Type};
 use std::{
     io::{self, Error},
@@ -34,14 +34,14 @@ impl Server {
     }
 
     /// Start an async Modbus TCP server task.
-    pub async fn serve<S, Req>(&self, service: S) -> Result<(), std::io::Error>
+    pub async fn serve<S, Req, Res>(&self, service: S) -> Result<(), std::io::Error>
     where
-        S: NewService<Request = Req, Response = Response> + Send + Sync + 'static,
-        S::Request: From<Req> + From<tcp::RequestAdu>,
-        S::Response: Into<Response>,
-        S::Error: Into<Error>,
+        S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
+        Req: From<tcp::RequestAdu> + Send,
+        Res: TryInto<ResponsePdu> + Send,
+        <Res as TryInto<ResponsePdu>>::Error: Send,
         S::Instance: Send + Sync + 'static,
-        Req: Send,
+        S::Error: Into<Error>,
     {
         let service = Arc::new(service);
         let listener = TcpListener::bind(self.socket_addr).await?;
@@ -61,15 +61,15 @@ impl Server {
     }
 
     /// Start a Modbus TCP server that blocks the current thread until a shutdown is requested
-    pub fn serve_until<S, Req, Sd>(self, service: S, shutdown_signal: Sd)
+    pub fn serve_until<S, Req, Res, Sd>(self, service: S, shutdown_signal: Sd)
     where
-        S: NewService<Request = Req, Response = Response> + Send + Sync + 'static,
+        S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
         Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
-        S::Request: From<Req> + From<tcp::RequestAdu>,
-        S::Response: Into<Response>,
-        S::Error: Into<Error>,
+        Req: From<tcp::RequestAdu> + Send,
+        Res: TryInto<ResponsePdu> + Send,
+        <Res as TryInto<ResponsePdu>>::Error: Send,
         S::Instance: Send + Sync + 'static,
-        Req: Send,
+        S::Error: Into<Error>,
     {
         let shutdown_signal = shutdown_signal.fuse();
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -85,29 +85,29 @@ impl Server {
         })
     }
 
-    pub fn serve_forever<S, Req>(self, service: S)
+    pub fn serve_forever<S, Req, Res>(self, service: S)
     where
-        S: NewService<Request = Req, Response = Response> + Send + Sync + 'static,
-        S::Request: From<Req> + From<tcp::RequestAdu>,
-        S::Response: Into<Response>,
-        S::Error: Into<Error>,
+        S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
+        Req: From<tcp::RequestAdu> + Send,
+        Res: TryInto<ResponsePdu> + Send,
+        <Res as TryInto<ResponsePdu>>::Error: Send,
         S::Instance: Send + Sync + 'static,
-        Req: Send,
+        S::Error: Into<Error>,
     {
         self.serve_until(service, futures::future::pending())
     }
 }
 
 /// The request-response loop spawned by serve_until for each client
-async fn process<S, Req>(
+async fn process<S, Req, Res>(
     framed: Framed<TcpStream, codec::tcp::ServerCodec>,
     service: S,
 ) -> io::Result<()>
 where
-    S: Service<Request = Req, Response = Response> + Send + Sync + 'static,
+    S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
+    S::Request: From<tcp::RequestAdu> + Send,
+    S::Response: TryInto<ResponsePdu> + Send,
     S::Error: Into<Error>,
-    S::Request: From<tcp::RequestAdu>,
-    Req: Send,
 {
     let mut framed = framed;
 
@@ -123,12 +123,14 @@ where
         let hdr = request.hdr;
         let response = service.call(request.into()).await.map_err(Into::into)?;
 
-        framed
-            .send(tcp::ResponseAdu {
-                hdr,
-                pdu: response.into(),
-            })
-            .await?;
+        match response.try_into() {
+            Ok(pdu) => {
+                framed.send(tcp::ResponseAdu { hdr, pdu }).await?;
+            }
+            Err(_) => {
+                debug!("skipping reponse");
+            }
+        }
     }
     Ok(())
 }
@@ -188,34 +190,6 @@ mod tests {
         }
 
         let service = DummyService {
-            response: Response::ReadInputRegisters(vec![0x33]),
-        };
-
-        let pdu = Request::ReadInputRegisters(0, 1);
-        let rsp_adu = service.call(pdu).await.unwrap();
-
-        assert_eq!(rsp_adu, service.response);
-    }
-
-    #[tokio::test]
-    async fn slave_service_wrapper() {
-        #[derive(Clone)]
-        struct SlaveDummyService {
-            response: Response,
-        }
-
-        impl Service for SlaveDummyService {
-            type Request = SlaveRequest;
-            type Response = Response;
-            type Error = Error;
-            type Future = future::Ready<Result<Self::Response, Self::Error>>;
-
-            fn call(&self, _: Self::Request) -> Self::Future {
-                future::ready(Ok(self.response.clone()))
-            }
-        }
-
-        let service = SlaveDummyService {
             response: Response::ReadInputRegisters(vec![0x33]),
         };
 
