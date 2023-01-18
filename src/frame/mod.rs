@@ -242,7 +242,7 @@ impl From<RequestPdu> for Request {
 
 /// Represents a message from the server (slave) to the client (master).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ResponsePdu(pub(crate) Result<Response, ExceptionResponse>);
+pub struct ResponsePdu(pub(crate) Result<Response, ExceptionResponse>);
 
 impl From<Response> for ResponsePdu {
     fn from(from: Response) -> Self {
@@ -259,6 +259,22 @@ impl From<ExceptionResponse> for ResponsePdu {
 impl From<Result<Response, ExceptionResponse>> for ResponsePdu {
     fn from(from: Result<Response, ExceptionResponse>) -> Self {
         ResponsePdu(from.map(Into::into).map_err(Into::into))
+    }
+}
+
+impl<E> TryFrom<Option<E>> for ResponsePdu
+where
+    E: Into<ResponsePdu>,
+{
+    type Error = std::io::Error;
+    fn try_from(from: Option<E>) -> Result<ResponsePdu, Self::Error> {
+        match from {
+            Some(e) => Ok(e.into()),
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "empty response",
+            )),
+        }
     }
 }
 
