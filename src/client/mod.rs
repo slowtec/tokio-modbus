@@ -71,6 +71,9 @@ pub trait Writer: Client {
 
     /// Write multiple holding registers (0x10)
     async fn write_multiple_registers(&mut self, _: Address, _: &[Word]) -> Result<(), Error>;
+
+    /// Set or clear individual bits of a holding register (0x16)
+    async fn masked_write_register(&mut self, _: Address, _: Word, _: Word) -> Result<(), Error>;
 }
 
 /// Asynchronous Modbus client context
@@ -296,6 +299,27 @@ impl Writer for Context {
 
         if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
             if rsp_addr != addr || usize::from(rsp_cnt) != cnt {
+                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
+            }
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
+        }
+    }
+
+    async fn masked_write_register<'a>(
+        &'a mut self,
+        address: Address,
+        and_mask: Word,
+        or_mask: Word,
+    ) -> Result<(), Error> {
+        let rsp = self
+            .client
+            .call(Request::MaskWriteRegister(address, and_mask, or_mask))
+            .await?;
+
+        if let Response::MaskWriteRegister(addr, and, or) = rsp {
+            if addr != address || and != and_mask || or != or_mask {
                 return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
             Ok(())

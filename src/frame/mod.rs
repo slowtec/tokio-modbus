@@ -75,6 +75,12 @@ pub enum Request {
     /// The second parameter is the vector of values to write to the registers.
     WriteMultipleRegisters(Address, Vec<Word>),
 
+    /// A request to set or clear individual bits of a holding register.
+    /// The first parameter is the address of the holding register.
+    /// The second parameter is the AND mask.
+    /// The third parameter is the OR mask.
+    MaskWriteRegister(Address, Word, Word),
+
     /// A request to simultaneously read multiple registers and write multiple registers.
     /// The first parameter is the address of the first register to read.
     /// The second parameter is the number of registers to read.
@@ -144,6 +150,12 @@ pub enum Response {
     /// The first parameter contains the address at the start of the register range that has been written to
     /// The second parameter contains the amount of register that have been written
     WriteMultipleRegisters(Address, Quantity),
+
+    /// Response MaskWriteRegister
+    /// The first parameter is the address of the holding register.
+    /// The second parameter is the AND mask.
+    /// The third parameter is the OR mask.
+    MaskWriteRegister(Address, Word, Word),
 
     /// Response to a ReadWriteMultipleRegisters request
     /// The parameter contains the register values that have been read as part of the read instruction

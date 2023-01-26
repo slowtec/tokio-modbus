@@ -3,6 +3,14 @@
 
 # Changelog
 
+## v0.5.5 (2023-01-30)
+
+- Added support for the `MaskWriteRegister` function code.
+
+### Breaking Changes
+
+- Masked write register requests and responses are now handled by the new `MaskWriteRegister` variant, not under the `Custom` variant.
+
 ## v0.5.4 (2023-01-18)
 
 - Fix (Windows): Upgrade dependencies to fix build failures on Windows for Tokio 1.23.0 and later.

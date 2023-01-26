@@ -74,6 +74,11 @@ impl From<Request> for Bytes {
                     data.put_u16(w);
                 }
             }
+            MaskWriteRegister(address, and_mask, or_mask) => {
+                data.put_u16(address);
+                data.put_u16(and_mask);
+                data.put_u16(or_mask);
+            }
             ReadWriteMultipleRegisters(read_address, quantity, write_address, words) => {
                 data.put_u16(read_address);
                 data.put_u16(quantity);
@@ -135,6 +140,11 @@ impl From<Response> for Bytes {
             WriteSingleRegister(address, word) => {
                 data.put_u16(address);
                 data.put_u16(word);
+            }
+            MaskWriteRegister(address, and_mask, or_mask) => {
+                data.put_u16(address);
+                data.put_u16(and_mask);
+                data.put_u16(or_mask);
             }
             Custom(_, custom_data) => {
                 for d in custom_data {
@@ -205,6 +215,12 @@ impl TryFrom<Bytes> for Request {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
                 WriteMultipleRegisters(address, data)
+            }
+            0x16 => {
+                let address = rdr.read_u16::<BigEndian>()?;
+                let and_mask = rdr.read_u16::<BigEndian>()?;
+                let or_mask = rdr.read_u16::<BigEndian>()?;
+                MaskWriteRegister(address, and_mask, or_mask)
             }
             0x17 => {
                 let read_address = rdr.read_u16::<BigEndian>()?;
@@ -293,6 +309,12 @@ impl TryFrom<Bytes> for Response {
 
             0x10 => {
                 WriteMultipleRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
+            }
+            0x16 => {
+                let address = rdr.read_u16::<BigEndian>()?;
+                let and_mask = rdr.read_u16::<BigEndian>()?;
+                let or_mask = rdr.read_u16::<BigEndian>()?;
+                MaskWriteRegister(address, and_mask, or_mask)
             }
             0x17 => {
                 let byte_count = rdr.read_u8()?;
@@ -416,6 +438,7 @@ fn req_to_fn_code(req: &Request) -> u8 {
         ReadHoldingRegisters(_, _) => 0x03,
         WriteSingleRegister(_, _) => 0x06,
         WriteMultipleRegisters(_, _) => 0x10,
+        MaskWriteRegister(_, _, _) => 0x16,
         ReadWriteMultipleRegisters(_, _, _, _) => 0x17,
         Custom(code, _) => code,
         Disconnect => unreachable!(),
@@ -433,6 +456,7 @@ fn rsp_to_fn_code(rsp: &Response) -> u8 {
         ReadHoldingRegisters(_) => 0x03,
         WriteSingleRegister(_, _) => 0x06,
         WriteMultipleRegisters(_, _) => 0x10,
+        MaskWriteRegister(_, _, _) => 0x16,
         ReadWriteMultipleRegisters(_) => 0x17,
         Custom(code, _) => code,
     }
@@ -449,6 +473,7 @@ fn request_byte_count(req: &Request) -> usize {
         | WriteSingleCoil(_, _) => 5,
         WriteMultipleCoils(_, ref coils) => 6 + packed_coils_len(coils.len()),
         WriteMultipleRegisters(_, ref data) => 6 + data.len() * 2,
+        MaskWriteRegister(_, _, _) => 7,
         ReadWriteMultipleRegisters(_, _, _, ref data) => 10 + data.len() * 2,
         Custom(_, ref data) => 1 + data.len(),
         Disconnect => unreachable!(),
@@ -466,6 +491,7 @@ fn response_byte_count(rsp: &Response) -> usize {
         ReadInputRegisters(ref data)
         | ReadHoldingRegisters(ref data)
         | ReadWriteMultipleRegisters(ref data) => 2 + data.len() * 2,
+        MaskWriteRegister(_, _, _) => 7,
         Custom(_, ref data) => 1 + data.len(),
     }
 }
@@ -523,6 +549,7 @@ mod tests {
         assert_eq!(req_to_fn_code(&ReadHoldingRegisters(0, 0)), 0x03);
         assert_eq!(req_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
         assert_eq!(req_to_fn_code(&WriteMultipleRegisters(0, vec![])), 0x10);
+        assert_eq!(req_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
         assert_eq!(
             req_to_fn_code(&ReadWriteMultipleRegisters(0, 0, 0, vec![])),
             0x17
@@ -541,6 +568,7 @@ mod tests {
         assert_eq!(rsp_to_fn_code(&ReadHoldingRegisters(vec![])), 0x03);
         assert_eq!(rsp_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
         assert_eq!(rsp_to_fn_code(&WriteMultipleRegisters(0, 0)), 0x10);
+        assert_eq!(rsp_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
         assert_eq!(rsp_to_fn_code(&ReadWriteMultipleRegisters(vec![])), 0x17);
         assert_eq!(rsp_to_fn_code(&Custom(99, vec![])), 99);
     }
@@ -711,6 +739,26 @@ mod tests {
         }
 
         #[test]
+        fn masked_write_register() {
+            let bytes: Bytes = Request::MaskWriteRegister(0xABCD, 0xEF12, 0x2345).into();
+
+            // function code
+            assert_eq!(bytes[0], 0x16);
+
+            // address
+            assert_eq!(bytes[1], 0xAB);
+            assert_eq!(bytes[2], 0xCD);
+
+            // and mask
+            assert_eq!(bytes[3], 0xEF);
+            assert_eq!(bytes[4], 0x12);
+
+            // or mask
+            assert_eq!(bytes[5], 0x23);
+            assert_eq!(bytes[6], 0x45);
+        }
+
+        #[test]
         fn read_write_multiple_registers() {
             let data = vec![0xABCD, 0xEF12];
             let bytes: Bytes = Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, data).into();
@@ -848,6 +896,13 @@ mod tests {
         }
 
         #[test]
+        fn masked_write_register() {
+            let bytes = Bytes::from(vec![0x16, 0xAB, 0xCD, 0xEF, 0x12, 0x23, 0x45]);
+            let req = Request::try_from(bytes).unwrap();
+            assert_eq!(req, Request::MaskWriteRegister(0xABCD, 0xEF12, 0x2345));
+        }
+
+        #[test]
         fn read_write_multiple_registers() {
             assert!(Request::try_from(Bytes::from(vec![
                 0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12,
@@ -954,6 +1009,18 @@ mod tests {
             assert_eq!(bytes[2], 0x06);
             assert_eq!(bytes[3], 0x00);
             assert_eq!(bytes[4], 0x02);
+        }
+
+        #[test]
+        fn masked_write_register() {
+            let bytes: Bytes = Response::MaskWriteRegister(0x06, 0x8001, 0x4002).into();
+            assert_eq!(bytes[0], 0x16);
+            assert_eq!(bytes[1], 0x00);
+            assert_eq!(bytes[2], 0x06);
+            assert_eq!(bytes[3], 0x80);
+            assert_eq!(bytes[4], 0x01);
+            assert_eq!(bytes[5], 0x40);
+            assert_eq!(bytes[6], 0x02);
         }
 
         #[test]
@@ -1069,6 +1136,13 @@ mod tests {
             let bytes = Bytes::from(vec![0x10, 0x00, 0x06, 0x00, 0x02]);
             let rsp = Response::try_from(bytes).unwrap();
             assert_eq!(rsp, Response::WriteMultipleRegisters(0x06, 2));
+        }
+
+        #[test]
+        fn masked_write_register() {
+            let bytes = Bytes::from(vec![0x16, 0x00, 0x06, 0x80, 0x01, 0x40, 0x02]);
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::MaskWriteRegister(6, 0x8001, 0x4002));
         }
 
         #[test]
