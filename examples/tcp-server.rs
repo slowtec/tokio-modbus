@@ -57,7 +57,7 @@ async fn client_context(socket_addr: SocketAddr) {
             let mut ctx = tcp::connect(socket_addr).await.unwrap();
             println!("Reading input registers...");
             let response = ctx.read_input_registers(0x00, 7).await.unwrap();
-            println!("The result is '{:?}'", response);
+            println!("The result is '{response:?}'");
         },
         tokio::time::sleep(Duration::from_secs(5))
     );

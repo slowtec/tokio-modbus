@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx = rtu::connect(client_serial).await?;
     println!("Reading input registers...");
     let rsp = ctx.read_input_registers(0x00, 7).await?;
-    println!("The result is '{:#x?}'", rsp); // The result is '[0x0,0x0,0x77,0x0,0x0,0x0,0x0,]'
+    println!("The result is '{rsp:#x?}'"); // The result is '[0x0,0x0,0x77,0x0,0x0,0x0,0x0,]'
 
     Ok(())
 }

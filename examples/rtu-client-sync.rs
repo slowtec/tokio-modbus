@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx = sync::rtu::connect_slave(&builder, slave)?;
     println!("Reading a sensor value");
     let rsp = ctx.read_holding_registers(0x082B, 2)?;
-    println!("Sensor value is: {:?}", rsp);
+    println!("Sensor value is: {rsp:?}");
 
     Ok(())
 }

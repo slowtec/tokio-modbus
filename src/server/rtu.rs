@@ -64,7 +64,7 @@ impl Server {
         async {
             select! {
                 res = server => if let Err(e) = res {
-                    println!("error: {}", e);
+                    println!("error: {e}");
                 },
                 _ = shutdown => println!("Shutdown signal received")
             }
