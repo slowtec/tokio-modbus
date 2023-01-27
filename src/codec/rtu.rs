@@ -137,7 +137,7 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
             _ => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
-                    format!("Invalid function code: 0x{:0>2X}", fn_code),
+                    format!("Invalid function code: 0x{fn_code:0>2X}"),
                 ));
             }
         };
@@ -170,7 +170,7 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
             _ => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
-                    format!("Invalid function code: 0x{:0>2X}", fn_code),
+                    format!("Invalid function code: 0x{fn_code:0>2X}"),
                 ));
             }
         };
@@ -201,8 +201,7 @@ fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
         return Err(Error::new(
             ErrorKind::InvalidData,
             format!(
-                "Invalid CRC: expected = 0x{:0>4X}, actual = 0x{:0>4X}",
-                expected_crc, actual_crc
+                "Invalid CRC: expected = 0x{expected_crc:0>4X}, actual = 0x{actual_crc:0>4X}"
             ),
         ));
     }
@@ -721,7 +720,7 @@ mod tests {
 
             let ResponseAdu { pdu, .. } = codec.decode(&mut buf).unwrap().unwrap();
             if let ResponsePdu(Err(err)) = pdu {
-                assert_eq!(format!("{}", err), "Modbus function 2: Illegal data value");
+                assert_eq!(format!("{err}"), "Modbus function 2: Illegal data value");
                 assert_eq!(buf.len(), 0);
             } else {
                 panic!("unexpected response")

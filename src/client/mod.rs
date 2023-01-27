@@ -338,7 +338,7 @@ mod tests {
             *self.last_request.lock().unwrap() = Some(request);
             match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
-                Err(err) => Err(Error::new(err.kind(), format!("{}", err))),
+                Err(err) => Err(Error::new(err.kind(), format!("{err}"))),
             }
         }
     }

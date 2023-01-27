@@ -103,8 +103,7 @@ fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error>
         return Err(Error::new(
             ErrorKind::InvalidData,
             format!(
-                "Invalid response header: expected/request = {:?}, actual/response = {:?}",
-                req_hdr, rsp_hdr
+                "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
             ),
         ));
     }

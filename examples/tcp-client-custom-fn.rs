@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match rsp {
         Response::Custom(f, rsp) => {
-            println!("Result for function {} is '{:?}'", f, rsp);
+            println!("Result for function {f} is '{rsp:?}'");
         }
         _ => {
             panic!("unexpected result");

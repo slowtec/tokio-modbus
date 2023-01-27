@@ -61,7 +61,7 @@ impl Decoder for AduDecoder {
         } else {
             return Err(Error::new(
                 ErrorKind::InvalidData,
-                format!("Invalid data length: {}", len),
+                format!("Invalid data length: {len}"),
             ));
         };
         if buf.len() < HEADER_LEN + pdu_len {
@@ -76,8 +76,7 @@ impl Decoder for AduDecoder {
             return Err(Error::new(
                 ErrorKind::InvalidData,
                 format!(
-                    "Invalid protocol identifier: expected = {}, actual = {}",
-                    PROTOCOL_ID, protocol_id
+                    "Invalid protocol identifier: expected = {PROTOCOL_ID}, actual = {protocol_id}"
                 ),
             ));
         }
@@ -241,7 +240,7 @@ mod tests {
             assert_eq!(hdr.transaction_id, TRANSACTION_ID);
             assert_eq!(hdr.unit_id, UNIT_ID);
             if let ResponsePdu(Err(err)) = pdu {
-                assert_eq!(format!("{}", err), "Modbus function 2: Illegal data value");
+                assert_eq!(format!("{err}"), "Modbus function 2: Illegal data value");
                 assert_eq!(buf.len(), 1);
             } else {
                 panic!("unexpected response")
@@ -265,7 +264,7 @@ mod tests {
             buf.extend_from_slice(&[0x00, 0x02, 0x66, 0x82, 0x03, 0x00]);
             let err = codec.decode(&mut buf).err().unwrap();
             assert_eq!(err.kind(), ErrorKind::InvalidData);
-            assert!(format!("{}", err).contains("Invalid protocol identifier"));
+            assert!(format!("{err}").contains("Invalid protocol identifier"));
         }
 
         #[test]
