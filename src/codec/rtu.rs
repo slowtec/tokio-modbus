@@ -200,9 +200,7 @@ fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
     if expected_crc != actual_crc {
         return Err(Error::new(
             ErrorKind::InvalidData,
-            format!(
-                "Invalid CRC: expected = 0x{expected_crc:0>4X}, actual = 0x{actual_crc:0>4X}"
-            ),
+            format!("Invalid CRC: expected = 0x{expected_crc:0>4X}, actual = 0x{actual_crc:0>4X}"),
         ));
     }
     Ok(())
