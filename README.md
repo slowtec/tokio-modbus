@@ -14,10 +14,10 @@ based on [tokio](https://tokio.rs).
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE-MIT)
 [![Apache 2.0 licensed](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE-APACHE)
 
-Modbus is based on a [*master/slave*](https://en.wikipedia.org/wiki/Master/slave_(technology))
+Modbus is based on a [_master/slave_](<https://en.wikipedia.org/wiki/Master/slave_(technology)>)
 communication pattern.
-To avoid confusion with the Tokio terminology the *master* is called *client*
-and the *slave* is called *server* in this library.
+To avoid confusion with the Tokio terminology the _master_ is called _client_
+and the _slave_ is called _server_ in this library.
 
 ## Features
 
@@ -26,7 +26,7 @@ and the *slave* is called *server* in this library.
 - Both `async` (non-blocking, default) and `sync` (blocking, optional)
 - Client API
 - Server implementations
-  - for *out-of-the-box* usage or
+  - for _out-of-the-box_ usage or
   - as a starting point for a customized implementation
 - Open source (MIT/Apache-2.0)
 
@@ -77,7 +77,7 @@ features enabled:
 cargo test --workspace --all-features
 ```
 
-Otherwise some *doctests* that require non-default features like `sync`
+Otherwise some _doctests_ that require non-default features like `sync`
 are expected to fail.
 
 ## Protocol-Specification

@@ -52,8 +52,9 @@ repos:
     rev: v3.0.0-alpha.4
     hooks:
       - id: prettier
-        types:
+        types_or:
           - yaml
+          - markdown
   # https://reuse.software
   - repo: https://github.com/fsfe/reuse-tool
     rev: v1.1.0

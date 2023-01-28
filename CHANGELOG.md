@@ -34,7 +34,7 @@
 
 ## v0.4.1 (2021-08-13)
 
-- Fixed handling of *broken pipe* errors in RTU service
+- Fixed handling of _broken pipe_ errors in RTU service
 - Fixed multiplication overflow for function 1 and 2 [#87](https://github.com/slowtec/tokio-modbus/pull/87)
 
 ## v0.4.0 (2020-03-13)
@@ -69,12 +69,12 @@ Here are some lines as example:
 ## v0.3.5 (2019-09-17)
 
 - Added missing implementation of `disconnect()` for TCP clients
-- Upgraded *tokio-serial* to version 3.3
+- Upgraded _tokio-serial_ to version 3.3
 
 ## v0.3.4 (2019-05-21)
 
-- Disabled the default features of *tokio-serial* to exclude an unused
-  dependency on *libudev* inherited from *mio-serial*
+- Disabled the default features of _tokio-serial_ to exclude an unused
+  dependency on _libudev_ inherited from _mio-serial_
 
 ## v0.3.3 (2019-05-16)
 
@@ -83,7 +83,7 @@ Here are some lines as example:
 
 ## v0.3.2 (2019-04-15)
 
-- Client: Added a `Disconnect` request as *poison pill* for stopping
+- Client: Added a `Disconnect` request as _poison pill_ for stopping
   the client service and to release the underlying transport
 - Added utilities to share a single Modbus context within a thread for
   communicating with multiple devices
@@ -130,7 +130,7 @@ and servers!
   +  client::sync::Client
   ```
 
-- Rename and relocate *Client* structs into *Context*
+- Rename and relocate _Client_ structs into _Context_
 
   ```diff
   -  client::Client
