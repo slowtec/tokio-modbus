@@ -1,4 +1,4 @@
-<!-- SPDX-FileCopyrightText: Copyright (c) 2017-2022 slowtec GmbH <post@slowtec.de> -->
+<!-- SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de> -->
 <!-- SPDX-License-Identifier: MIT OR Apache-2.0 -->
 
 # tokio-modbus
@@ -88,6 +88,6 @@ are expected to fail.
 
 ## License
 
-Copyright (c) 2017-2022 [slowtec GmbH](https://www.slowtec.de)
+Copyright (c) 2017-2023 [slowtec GmbH](https://www.slowtec.de)
 
 [MIT](LICENSES/MIT.txt)/[Apache-2.0](LICENSES/Apache-2.0.txt)
