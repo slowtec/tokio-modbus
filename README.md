@@ -70,15 +70,12 @@ folder.
 ## Testing
 
 The workspace contains documentation, tests, and examples for all available
-features. Running the tests for the whole workspace only succeeds with all
-features enabled:
+features.
 
 ```sh
+cargo test --workspace
 cargo test --workspace --all-features
 ```
-
-Otherwise some _doctests_ that require non-default features like `sync`
-are expected to fail.
 
 ## Protocol-Specification
 
