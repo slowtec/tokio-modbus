@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.5.5 (2023-01-30)
+## v0.6.0 (2023-01-30)
 
 - Added support for the `MaskWriteRegister` function code.
 
