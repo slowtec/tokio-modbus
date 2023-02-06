@@ -82,4 +82,4 @@ required-features = ["tcp"]
 [[example]]
 name = "tcp-server"
 path = "examples/tcp-server.rs"
-required-features = ["tcp", "server", "tcp-server-unstable"]
+required-features = ["tcp-server-unstable"]
