@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     struct MbServer {
         slave: Slave,
-    };
+    }
 
     impl Service for MbServer {
         type Request = SlaveRequest;
@@ -44,7 +44,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _server = thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let server = server::rtu::Server::new(server_serial);
-        let slave = slave.clone();
         rt.block_on(async {
             server.serve_forever(move || Ok(MbServer { slave })).await;
         });
@@ -58,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx = rtu::connect_slave(client_serial, slave).await?;
     println!("Reading input registers...");
     let rsp = ctx.read_input_registers(0x00, 7).await?;
-    println!("The result is '{:#x?}'", rsp); // The result is '[0x0,0x0,0x77,0x0,0x0,0x0,0x0,]'
+    println!("The result is '{rsp:#x?}'"); // The result is '[0x0,0x0,0x77,0x0,0x0,0x0,0x0,]'
 
     Ok(())
 }

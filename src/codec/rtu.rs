@@ -7,7 +7,6 @@ use crate::{frame::rtu::*, slave::SlaveId};
 
 use byteorder::BigEndian;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use log::{debug, error, warn};
 use smallvec::SmallVec;
 use std::io::{Cursor, Error, ErrorKind, Result};
 use tokio_util::codec::{Decoder, Encoder};
@@ -46,7 +45,7 @@ impl FrameDecoder {
                 Ok(crc) => match check_crc(&adu_buf, crc) {
                     Ok(()) => {
                         if !self.dropped_bytes.is_empty() {
-                            warn!(
+                            log::warn!(
                                 "Successfully decoded frame after dropping {} byte(s): {:X?}",
                                 self.dropped_bytes.len(),
                                 self.dropped_bytes
@@ -82,9 +81,9 @@ impl FrameDecoder {
         // Skip and record the first byte of the buffer
         {
             let first = buf.first().unwrap();
-            debug!("Dropped first byte: {:X?}", first);
+            log::debug!("Dropped first byte: {:X?}", first);
             if self.dropped_bytes.len() >= MAX_FRAME_LEN {
-                error!(
+                log::error!(
                     "Giving up to decode frame after dropping {} byte(s): {:X?}",
                     self.dropped_bytes.len(),
                     self.dropped_bytes
@@ -252,7 +251,7 @@ where
                 }
             })
             .or_else(|err| {
-                warn!("Failed to decode {} frame: {}", pdu_type, err);
+                log::warn!("Failed to decode {} frame: {}", pdu_type, err);
                 frame_decoder.recover_on_error(buf);
                 retry = true;
                 Ok(None)
@@ -280,7 +279,7 @@ impl Decoder for ClientCodec {
                         .map(|pdu| Some(ResponseAdu { hdr, pdu }))
                         .map_err(|err| {
                             // Unrecoverable error
-                            error!("Failed to decode response PDU: {}", err);
+                            log::error!("Failed to decode response PDU: {}", err);
                             err
                         })
                 } else {
@@ -318,7 +317,7 @@ impl Decoder for ServerCodec {
                         })
                         .map_err(|err| {
                             // Unrecoverable error
-                            error!("Failed to decode request PDU: {}", err);
+                            log::error!("Failed to decode request PDU: {}", err);
                             err
                         })
                 } else {
