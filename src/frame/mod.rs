@@ -244,6 +244,9 @@ impl From<RequestPdu> for Request {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResponsePdu(pub(crate) Result<Response, ExceptionResponse>);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OptionalResponsePdu(pub(crate) Option<ResponsePdu>);
+
 impl From<Response> for ResponsePdu {
     fn from(from: Response) -> Self {
         ResponsePdu(Ok(from))
@@ -262,18 +265,14 @@ impl From<Result<Response, ExceptionResponse>> for ResponsePdu {
     }
 }
 
-impl<E> TryFrom<Option<E>> for ResponsePdu
+impl<T> From<Option<T>> for OptionalResponsePdu
 where
-    E: Into<ResponsePdu>,
+    T: Into<ResponsePdu>,
 {
-    type Error = std::io::Error;
-    fn try_from(from: Option<E>) -> Result<ResponsePdu, Self::Error> {
+    fn from(from: Option<T>) -> OptionalResponsePdu {
         match from {
-            Some(e) => Ok(e.into()),
-            None => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "empty response",
-            )),
+            Some(e) => OptionalResponsePdu(Some(e.into())),
+            None => OptionalResponsePdu(None),
         }
     }
 }

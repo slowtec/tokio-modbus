@@ -10,7 +10,6 @@ use crate::{
 };
 use futures::{select, Future, FutureExt as _};
 use futures_util::{SinkExt as _, StreamExt as _};
-use log::debug;
 use std::{io::Error, path::Path};
 use tokio_serial::SerialStream;
 use tokio_util::codec::Framed;
@@ -39,8 +38,7 @@ impl Server {
     where
         S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
         Req: From<rtu::RequestAdu> + Send,
-        Res: TryInto<ResponsePdu> + Send,
-        <Res as TryInto<ResponsePdu>>::Error: Send,
+        Res: Into<OptionalResponsePdu> + Send,
         S::Instance: Send + Sync + 'static,
         S::Error: Into<Error>,
     {
@@ -54,8 +52,7 @@ impl Server {
         S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
         Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
         Req: From<rtu::RequestAdu> + Send,
-        Res: TryInto<ResponsePdu> + Send,
-        <Res as TryInto<ResponsePdu>>::Error: Send,
+        Res: Into<OptionalResponsePdu> + Send,
         S::Instance: Send + Sync + 'static,
         S::Error: Into<Error>,
     {
@@ -86,7 +83,7 @@ async fn process<S, Req, Res>(
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
     S::Request: From<rtu::RequestAdu> + Send,
-    S::Response: TryInto<ResponsePdu> + Send,
+    S::Response: Into<OptionalResponsePdu> + Send,
     S::Error: Into<Error>,
 {
     loop {
@@ -97,14 +94,18 @@ where
         }?;
 
         let hdr = request.hdr;
-        let response = service.call(request.into()).await.map_err(Into::into)?;
+        let response: OptionalResponsePdu = service
+            .call(request.into())
+            .await
+            .map_err(Into::into)?
+            .into();
 
-        match response.try_into() {
-            Ok(pdu) => {
+        match response.0 {
+            Some(pdu) => {
                 framed.send(rtu::ResponseAdu { hdr, pdu }).await?;
             }
-            Err(_) => {
-                debug!("skipping reponse");
+            None => {
+                log::debug!("skipping reponse");
             }
         }
     }

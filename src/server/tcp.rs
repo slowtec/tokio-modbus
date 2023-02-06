@@ -11,7 +11,6 @@ use crate::{
 
 use futures::{self, Future};
 use futures_util::{future::FutureExt as _, sink::SinkExt as _, stream::StreamExt as _};
-use log::{debug, error, trace};
 use socket2::{Domain, Socket, Type};
 use std::{
     io::{self, Error},
@@ -38,8 +37,7 @@ impl Server {
     where
         S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
         Req: From<tcp::RequestAdu> + Send,
-        Res: TryInto<ResponsePdu> + Send,
-        <Res as TryInto<ResponsePdu>>::Error: Send,
+        Res: Into<OptionalResponsePdu> + Send,
         S::Instance: Send + Sync + 'static,
         S::Error: Into<Error>,
     {
@@ -66,8 +64,7 @@ impl Server {
         S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
         Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
         Req: From<tcp::RequestAdu> + Send,
-        Res: TryInto<ResponsePdu> + Send,
-        <Res as TryInto<ResponsePdu>>::Error: Send,
+        Res: Into<OptionalResponsePdu> + Send,
         S::Instance: Send + Sync + 'static,
         S::Error: Into<Error>,
     {
@@ -79,8 +76,8 @@ impl Server {
 
         rt.block_on(async {
             tokio::select! {
-                res = self.serve(service) => if let Err(e) = res { error!("error: {}", e) },
-                _ = shutdown_signal => trace!("Shutdown signal received")
+                res = self.serve(service) => if let Err(e) = res { log::error!("error: {}", e) },
+                _ = shutdown_signal => log::trace!("Shutdown signal received")
             }
         })
     }
@@ -89,8 +86,7 @@ impl Server {
     where
         S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
         Req: From<tcp::RequestAdu> + Send,
-        Res: TryInto<ResponsePdu> + Send,
-        <Res as TryInto<ResponsePdu>>::Error: Send,
+        Res: Into<OptionalResponsePdu> + Send,
         S::Instance: Send + Sync + 'static,
         S::Error: Into<Error>,
     {
@@ -106,7 +102,7 @@ async fn process<S, Req, Res>(
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
     S::Request: From<tcp::RequestAdu> + Send,
-    S::Response: TryInto<ResponsePdu> + Send,
+    S::Response: Into<OptionalResponsePdu> + Send,
     S::Error: Into<Error>,
 {
     let mut framed = framed;
@@ -121,14 +117,18 @@ where
 
         let request = request.unwrap()?;
         let hdr = request.hdr;
-        let response = service.call(request.into()).await.map_err(Into::into)?;
+        let response: OptionalResponsePdu = service
+            .call(request.into())
+            .await
+            .map_err(Into::into)?
+            .into();
 
-        match response.try_into() {
-            Ok(pdu) => {
+        match response.0 {
+            Some(pdu) => {
                 framed.send(tcp::ResponseAdu { hdr, pdu }).await?;
             }
-            Err(_) => {
-                debug!("skipping reponse");
+            None => {
+                log::debug!("skipping reponse");
             }
         }
     }
