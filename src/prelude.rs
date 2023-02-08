@@ -33,8 +33,6 @@ pub mod tcp {
 pub use crate::server;
 
 ///////////////////////////////////////////////////////////////////
-#[cfg(feature = "server")]
-pub use crate::frame::OptionalResponsePdu;
 /// Structs
 ///////////////////////////////////////////////////////////////////
 pub use crate::frame::{Request, Response, SlaveRequest};

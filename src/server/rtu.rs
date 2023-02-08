@@ -105,7 +105,7 @@ where
                 framed.send(rtu::ResponseAdu { hdr, pdu }).await?;
             }
             None => {
-                log::debug!("skipping response");
+                log::debug!("No response for request {hdr:?}");
             }
         }
     }
