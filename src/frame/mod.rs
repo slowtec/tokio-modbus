@@ -276,6 +276,16 @@ where
     }
 }
 
+#[cfg(feature = "server")]
+impl<T> From<T> for OptionalResponsePdu
+where
+    T: Into<ResponsePdu>,
+{
+    fn from(from: T) -> Self {
+        Self(Some(from.into()))
+    }
+}
+
 impl From<ResponsePdu> for Result<Response, ExceptionResponse> {
     fn from(from: ResponsePdu) -> Self {
         from.0

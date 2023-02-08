@@ -128,7 +128,7 @@ where
                 framed.send(tcp::ResponseAdu { hdr, pdu }).await?;
             }
             None => {
-                log::debug!("skipping reponse");
+                log::debug!("skipping response");
             }
         }
     }
