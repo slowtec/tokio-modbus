@@ -242,10 +242,7 @@ impl From<RequestPdu> for Request {
 
 /// Represents a message from the server (slave) to the client (master).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResponsePdu(pub(crate) Result<Response, ExceptionResponse>);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OptionalResponsePdu(pub(crate) Option<ResponsePdu>);
+pub(crate) struct ResponsePdu(pub(crate) Result<Response, ExceptionResponse>);
 
 impl From<Response> for ResponsePdu {
     fn from(from: Response) -> Self {
@@ -265,15 +262,17 @@ impl From<Result<Response, ExceptionResponse>> for ResponsePdu {
     }
 }
 
+#[cfg(feature = "server")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OptionalResponsePdu(pub(crate) Option<ResponsePdu>);
+
+#[cfg(feature = "server")]
 impl<T> From<Option<T>> for OptionalResponsePdu
 where
     T: Into<ResponsePdu>,
 {
-    fn from(from: Option<T>) -> OptionalResponsePdu {
-        match from {
-            Some(e) => OptionalResponsePdu(Some(e.into())),
-            None => OptionalResponsePdu(None),
-        }
+    fn from(from: Option<T>) -> Self {
+        Self(from.map(Into::into))
     }
 }
 
