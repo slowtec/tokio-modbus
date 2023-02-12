@@ -29,6 +29,7 @@ impl From<RequestAdu> for Request {
     }
 }
 
+#[cfg(feature = "server")]
 impl From<RequestAdu> for SlaveRequest {
     fn from(from: RequestAdu) -> Self {
         Self {

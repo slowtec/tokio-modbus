@@ -76,7 +76,7 @@ impl Server {
 
         rt.block_on(async {
             tokio::select! {
-                res = self.serve(service) => if let Err(e) = res { log::error!("error: {}", e) },
+                res = self.serve(service) => if let Err(e) = res { log::error!("Error: {}", e) },
                 _ = shutdown_signal => log::trace!("Shutdown signal received")
             }
         })
