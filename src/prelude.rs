@@ -32,10 +32,13 @@ pub mod tcp {
 #[cfg(feature = "server")]
 pub use crate::server;
 
+#[cfg(feature = "server")]
+pub use crate::frame::SlaveRequest;
+
 ///////////////////////////////////////////////////////////////////
 /// Structs
 ///////////////////////////////////////////////////////////////////
-pub use crate::frame::{Request, Response, SlaveRequest};
+pub use crate::frame::{Request, Response};
 pub use crate::slave::{Slave, SlaveId};
 
 ///////////////////////////////////////////////////////////////////
