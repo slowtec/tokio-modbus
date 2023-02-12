@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::slave::SlaveId;
-
 #[cfg(feature = "rtu")]
 pub(crate) mod rtu;
 
@@ -108,10 +106,11 @@ pub enum Request {
 }
 
 /// A Modbus request with slave included
+#[cfg(feature = "server")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlaveRequest {
     /// Slave Id from the request
-    pub slave: SlaveId,
+    pub slave: crate::slave::SlaveId,
     /// A `Request` enum
     pub request: Request,
 }
