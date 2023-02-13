@@ -5,6 +5,8 @@
 
 ## v0.7.0 (Unreleased)
 
+- Added: Optional timeout for synchronous RTU/TCP operations [#125](https://github.com/slowtec/tokio-modbus/issues/125).
+
 ### Breaking Changes
 
 - Features: Added "rtu-sync" as a replacement and superset of "rtu" and "sync"
