@@ -12,14 +12,14 @@ use async_trait::async_trait;
 
 use crate::{frame::*, slave::*};
 
-#[cfg(feature = "sync")]
-pub mod sync;
-
 #[cfg(feature = "rtu")]
 pub mod rtu;
 
 #[cfg(feature = "tcp")]
 pub mod tcp;
+
+#[cfg(feature = "sync")]
+pub mod sync;
 
 /// Transport independent asynchronous client trait
 #[async_trait]

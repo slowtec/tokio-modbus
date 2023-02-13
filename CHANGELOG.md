@@ -7,6 +7,9 @@
 
 ### Breaking Changes
 
+- Features: Added "rtu-sync" as a replacement and superset of "rtu" and "sync"
+- Features: Added "tcp-sync" as a replacement and superset of "tcp" and "sync"
+- Features: Added "rtu-server" as a replacement and superset of "rtu" and "server"
 - Server: Removed inconsistent `server::*` re-exports from `prelude::tcp`
 
 ## v0.6.1 (2023-02-13)

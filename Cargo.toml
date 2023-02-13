@@ -31,20 +31,34 @@ socket2 = { version = "0.4.7", optional = true, default-features = false }
 tokio = { version = "1.25.0", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4.4", optional = true, default-features = false }
-tokio-util = { version = "0.7.7", features = ["codec"] }
+tokio-util = { version = "0.7.7", default-features = false, features = [
+    "codec",
+] }
 
 [dev-dependencies]
 env_logger = "0.10.0"
 futures = "0.3.26"
-tokio = { version = "1.25.0", features = ["net", "macros", "io-util", "rt", "time"] }
+tokio = { version = "1.25.0", default-features = false, features = ["macros", "rt-multi-thread", "time"] }
+tokio-serial = { version = "5.4.4", default-features = false }
 
 [features]
-default = ["tcp", "rtu"]
-rtu = ["tokio-serial", "futures-util/sink"]
+default = ["rtu", "tcp"]
+rtu = ["futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
-sync = ["tokio/rt"]
-server = ["futures", "socket2/all", "tokio/macros", "tokio/rt", "tokio/rt-multi-thread"]
-tcp-server-unstable = ["tcp", "server"]
+# The internal feature "sync" has no effect when used alone.
+# It is always enabled together with "rtu-sync" or "tcp-sync".
+sync = []
+rtu-sync = ["rtu", "sync", "dep:tokio-serial"]
+tcp-sync = ["tcp", "sync"]
+server = ["dep:futures"]
+rtu-server = ["rtu", "server", "tokio/macros", "dep:tokio-serial"]
+tcp-server-unstable = [
+    "tcp",
+    "server",
+    "socket2/all",
+    "tokio/macros",
+    "tokio/rt-multi-thread",
+]
 
 [badges]
 maintenance = { status = "actively-developed" }
@@ -52,7 +66,7 @@ maintenance = { status = "actively-developed" }
 [[example]]
 name = "rtu-client-sync"
 path = "examples/rtu-client-sync.rs"
-required-features = ["rtu", "sync"]
+required-features = ["rtu-sync"]
 
 [[example]]
 name = "rtu-client"
@@ -62,7 +76,7 @@ required-features = ["rtu"]
 [[example]]
 name = "rtu-server"
 path = "examples/rtu-server.rs"
-required-features = ["rtu", "server"]
+required-features = ["rtu-server"]
 
 [[example]]
 name = "rtu-server-address"
@@ -77,7 +91,7 @@ required-features = ["tcp"]
 [[example]]
 name = "tcp-client-sync"
 path = "examples/tcp-client-sync.rs"
-required-features = ["tcp", "sync"]
+required-features = ["tcp-sync"]
 
 [[example]]
 name = "tcp-client"

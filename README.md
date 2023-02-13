@@ -39,25 +39,43 @@ Add this to your `Cargo.toml`:
 tokio-modbus = "*"
 ```
 
-If you like to use Modbus TCP only:
+### Cargo Features
+
+- `"rtu"`: Asynchronous RTU client (default)
+- `"tcp"`: Asynchronous TCP client (default)
+- `"rtu-sync`: Synchronous RTU client
+- `"tcp-sync"`: Synchronous RTU client
+- `"rtu-server"`: (Asynchronous) RTU server
+- `"tcp-server-unstable"`: (Asynchronous) TCP server (experimental)
+
+#### Examples
+
+If you only need an asynchronous TCP client add the following line to your Cargo.toml file:
 
 ```toml
 [dependencies]
 tokio-modbus = { version = "*", default-features = false, features = ["tcp"] }
 ```
 
-If you like to use Modbus RTU only:
+For an asynchronous RTU client:
 
 ```toml
 [dependencies]
 tokio-modbus = { version = "*", default-features = false, features = ["rtu"] }
 ```
 
-If you like to build a TCP server:
+For an RTU server:
 
 ```toml
 [dependencies]
-tokio-modbus = { version = "*", default-features = false, features = ["tcp", "server"] }
+tokio-modbus = { version = "*", default-features = false, features = ["rtu-server"] }
+```
+
+For a TCP server:
+
+```toml
+[dependencies]
+tokio-modbus = { version = "*", default-features = false, features = ["tcp-server-unstable"] }
 ```
 
 ## Examples
