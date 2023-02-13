@@ -63,7 +63,7 @@ tcp-server-unstable = [
     "tokio/rt-multi-thread",
 ]
 # The following features are internal and must not be used in dependencies.
-sync = []
+sync = ["dep:futures", "tokio/time"]
 server = ["dep:futures"]
 
 [badges]

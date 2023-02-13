@@ -11,15 +11,35 @@ pub mod rtu;
 #[cfg(feature = "tcp-sync")]
 pub mod tcp;
 
+use std::{future::Future, io::Result, time::Duration};
+
+use futures::future::Either;
+
+use crate::{frame::*, slave::*};
+
 use super::{
     Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, SlaveContext,
     Writer as AsyncWriter,
 };
 
-use crate::frame::*;
-use crate::slave::*;
-
-use std::io::Result;
+fn block_on_with_timeout<T>(
+    runtime: &tokio::runtime::Runtime,
+    timeout: Option<Duration>,
+    task: impl Future<Output = Result<T>>,
+) -> Result<T> {
+    let task = if let Some(duration) = timeout {
+        Either::Left(async move {
+            tokio::time::timeout(duration, task)
+                .await
+                .unwrap_or_else(|elapsed| {
+                    Err(std::io::Error::new(std::io::ErrorKind::TimedOut, elapsed))
+                })
+        })
+    } else {
+        Either::Right(task)
+    };
+    runtime.block_on(task)
+}
 
 /// A transport independent synchronous client trait.
 pub trait Client: SlaveContext {
@@ -52,13 +72,33 @@ pub trait Writer: Client {
 /// A synchronous Modbus client context.
 #[derive(Debug)]
 pub struct Context {
-    core: tokio::runtime::Runtime,
+    runtime: tokio::runtime::Runtime,
     async_ctx: AsyncContext,
+    timeout: Option<Duration>,
+}
+
+impl Context {
+    /// Returns the current timeout.
+    pub const fn timeout(&self) -> Option<Duration> {
+        self.timeout
+    }
+
+    /// Sets a timeout duration for all subsequent operations.
+    ///
+    /// The timeout is disabled by passing `None`.
+    pub fn set_timeout(&mut self, duration: impl Into<Option<Duration>>) {
+        self.timeout = duration.into()
+    }
+
+    /// Disables the timeout for all subsequent operations.
+    pub fn reset_timeout(&mut self) {
+        self.timeout = None;
+    }
 }
 
 impl Client for Context {
     fn call(&mut self, req: Request) -> Result<Response> {
-        self.core.block_on(self.async_ctx.call(req))
+        block_on_with_timeout(&self.runtime, self.timeout, self.async_ctx.call(req))
     }
 }
 
@@ -70,22 +110,35 @@ impl SlaveContext for Context {
 
 impl Reader for Context {
     fn read_coils(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>> {
-        self.core.block_on(self.async_ctx.read_coils(addr, cnt))
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.read_coils(addr, cnt),
+        )
     }
 
     fn read_discrete_inputs(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>> {
-        self.core
-            .block_on(self.async_ctx.read_discrete_inputs(addr, cnt))
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.read_discrete_inputs(addr, cnt),
+        )
     }
 
     fn read_input_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>> {
-        self.core
-            .block_on(self.async_ctx.read_input_registers(addr, cnt))
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.read_input_registers(addr, cnt),
+        )
     }
 
     fn read_holding_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>> {
-        self.core
-            .block_on(self.async_ctx.read_holding_registers(addr, cnt))
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.read_holding_registers(addr, cnt),
+        )
     }
 
     fn read_write_multiple_registers(
@@ -95,7 +148,9 @@ impl Reader for Context {
         write_addr: Address,
         write_data: &[Word],
     ) -> Result<Vec<Word>> {
-        self.core.block_on(
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
             self.async_ctx
                 .read_write_multiple_registers(read_addr, read_cnt, write_addr, write_data),
         )
@@ -104,22 +159,34 @@ impl Reader for Context {
 
 impl Writer for Context {
     fn write_single_register(&mut self, addr: Address, data: Word) -> Result<()> {
-        self.core
-            .block_on(self.async_ctx.write_single_register(addr, data))
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.write_single_register(addr, data),
+        )
     }
 
     fn write_multiple_registers(&mut self, addr: Address, data: &[Word]) -> Result<()> {
-        self.core
-            .block_on(self.async_ctx.write_multiple_registers(addr, data))
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.write_multiple_registers(addr, data),
+        )
     }
 
     fn write_single_coil(&mut self, addr: Address, coil: Coil) -> Result<()> {
-        self.core
-            .block_on(self.async_ctx.write_single_coil(addr, coil))
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.write_single_coil(addr, coil),
+        )
     }
 
     fn write_multiple_coils(&mut self, addr: Address, coils: &[Coil]) -> Result<()> {
-        self.core
-            .block_on(self.async_ctx.write_multiple_coils(addr, coils))
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.write_multiple_coils(addr, coils),
+        )
     }
 }
