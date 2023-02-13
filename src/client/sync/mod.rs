@@ -3,15 +3,12 @@
 
 //! Synchronous Modbus client
 
-// TODO: Add missing documentation
 #![allow(missing_docs)]
 
-/// RTU client connections
-#[cfg(feature = "rtu")]
+#[cfg(feature = "rtu-sync")]
 pub mod rtu;
 
-/// TCP client connections
-#[cfg(feature = "tcp")]
+#[cfg(feature = "tcp-sync")]
 pub mod tcp;
 
 use super::{

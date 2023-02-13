@@ -6,7 +6,7 @@
 // TODO: Add missing documentation
 #![allow(missing_docs)]
 
-#[cfg(feature = "rtu")]
+#[cfg(feature = "rtu-server")]
 pub mod rtu;
 
 #[cfg(feature = "tcp-server-unstable")]
