@@ -3,6 +3,12 @@
 
 # Changelog
 
+## v0.7.0 (Unreleased)
+
+### Breaking Changes
+
+- Server: Removed inconsistent `server::*` re-exports from `prelude::tcp`
+
 ## v0.6.1 (2023-02-13)
 
 - Server: Provide access to `SlaveId` in request

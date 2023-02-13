@@ -83,4 +83,4 @@ repos:
         entry: env RUSTDOCFLAGS=-Dwarnings cargo
         language: system
         pass_filenames: false
-        args: [doc, --locked, --workspace, --no-deps]
+        args: [doc, --locked, --workspace, --all-features, --no-deps]
