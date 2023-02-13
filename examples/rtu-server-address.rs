@@ -1,41 +1,42 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2022 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! RTU server example
+//! RTU server example with slave address filtering and optional response
+
+use std::{thread, time::Duration};
+
+use futures::future;
+
+use tokio_modbus::prelude::*;
+use tokio_modbus::server::{self, Service};
+
+struct Server {
+    slave: Slave,
+}
+
+impl Service for Server {
+    type Request = SlaveRequest;
+    type Response = Option<Response>;
+    type Error = std::io::Error;
+    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+
+    fn call(&self, req: Self::Request) -> Self::Future {
+        if req.slave != self.slave.into() {
+            return future::ready(Ok(None));
+        }
+        match req.request {
+            Request::ReadInputRegisters(_addr, cnt) => {
+                let mut registers = vec![0; cnt.into()];
+                registers[2] = 0x77;
+                future::ready(Ok(Some(Response::ReadInputRegisters(registers))))
+            }
+            _ => unimplemented!(),
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use futures::future;
-    use std::{thread, time::Duration};
-
-    use tokio_modbus::prelude::*;
-    use tokio_modbus::server::{self, Service};
-
-    struct MbServer {
-        slave: Slave,
-    }
-
-    impl Service for MbServer {
-        type Request = SlaveRequest;
-        type Response = Option<Response>;
-        type Error = std::io::Error;
-        type Future = future::Ready<Result<Self::Response, Self::Error>>;
-
-        fn call(&self, req: Self::Request) -> Self::Future {
-            if req.slave != self.slave.into() {
-                return future::ready(Ok(None));
-            }
-            match req.request {
-                Request::ReadInputRegisters(_addr, cnt) => {
-                    let mut registers = vec![0; cnt.into()];
-                    registers[2] = 0x77;
-                    future::ready(Ok(Some(Response::ReadInputRegisters(registers))))
-                }
-                _ => unimplemented!(),
-            }
-        }
-    }
-
     let slave = Slave(12);
     let builder = tokio_serial::new("/dev/ttyS10", 19200);
     let server_serial = tokio_serial::SerialStream::open(&builder).unwrap();
@@ -45,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let server = server::rtu::Server::new(server_serial);
         rt.block_on(async {
-            server.serve_forever(move || Ok(MbServer { slave })).await;
+            server.serve_forever(move || Ok(Server { slave })).await;
         });
     });
 

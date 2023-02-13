@@ -87,7 +87,7 @@ required-features = ["rtu-server"]
 [[example]]
 name = "rtu-server-address"
 path = "examples/rtu-server-address.rs"
-required-features = ["rtu", "server"]
+required-features = ["rtu-server"]
 
 [[example]]
 name = "tcp-client-custom-fn"

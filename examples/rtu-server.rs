@@ -3,34 +3,35 @@
 
 //! RTU server example
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use futures::future;
-    use std::{thread, time::Duration};
+use std::{thread, time::Duration};
 
-    use tokio_modbus::prelude::*;
-    use tokio_modbus::server::{self, Service};
+use futures::future;
 
-    struct MbServer;
+use tokio_modbus::prelude::*;
+use tokio_modbus::server::{self, Service};
 
-    impl Service for MbServer {
-        type Request = Request;
-        type Response = Response;
-        type Error = std::io::Error;
-        type Future = future::Ready<Result<Self::Response, Self::Error>>;
+struct Server;
 
-        fn call(&self, req: Self::Request) -> Self::Future {
-            match req {
-                Request::ReadInputRegisters(_addr, cnt) => {
-                    let mut registers = vec![0; cnt.into()];
-                    registers[2] = 0x77;
-                    future::ready(Ok(Response::ReadInputRegisters(registers)))
-                }
-                _ => unimplemented!(),
+impl Service for Server {
+    type Request = Request;
+    type Response = Response;
+    type Error = std::io::Error;
+    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+
+    fn call(&self, req: Self::Request) -> Self::Future {
+        match req {
+            Request::ReadInputRegisters(_addr, cnt) => {
+                let mut registers = vec![0; cnt.into()];
+                registers[2] = 0x77;
+                future::ready(Ok(Response::ReadInputRegisters(registers)))
             }
+            _ => unimplemented!(),
         }
     }
+}
 
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let builder = tokio_serial::new("/dev/ttyUSB0", 19200);
     let server_serial = tokio_serial::SerialStream::open(&builder).unwrap();
 
@@ -39,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let server = server::rtu::Server::new(server_serial);
         rt.block_on(async {
-            server.serve_forever(|| Ok(MbServer)).await;
+            server.serve_forever(|| Ok(Server)).await;
         });
     });
 
