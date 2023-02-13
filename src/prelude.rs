@@ -32,19 +32,21 @@ pub mod tcp {
 #[cfg(feature = "server")]
 pub use crate::server;
 
-#[cfg(feature = "server")]
-pub use crate::frame::SlaveRequest;
-
 ///////////////////////////////////////////////////////////////////
 /// Structs
 ///////////////////////////////////////////////////////////////////
 pub use crate::frame::{Request, Response};
 pub use crate::slave::{Slave, SlaveId};
 
+#[cfg(feature = "server")]
+pub use crate::frame::SlaveRequest;
+
 ///////////////////////////////////////////////////////////////////
 /// Traits
 ///////////////////////////////////////////////////////////////////
 pub use crate::client::{Client, Reader, Writer};
+
+pub use crate::slave::SlaveContext;
 
 #[cfg(feature = "sync")]
 pub use crate::client::sync::Client as SyncClient;
@@ -54,5 +56,3 @@ pub use crate::client::sync::Reader as SyncReader;
 
 #[cfg(feature = "sync")]
 pub use crate::client::sync::Writer as SyncWriter;
-
-pub use crate::slave::SlaveContext;
