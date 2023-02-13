@@ -3,6 +3,11 @@
 
 # Changelog
 
+## v0.6.1 (2023-02-13)
+
+- Server: Provide access to `SlaveId` in request
+- Server: Allow requests without a response
+
 ## v0.6.0 (2023-01-30)
 
 - Added support for the `MaskWriteRegister` function code.
