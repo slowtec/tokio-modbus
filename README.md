@@ -44,7 +44,7 @@ tokio-modbus = "*"
 - `"rtu"`: Asynchronous RTU client (default)
 - `"tcp"`: Asynchronous TCP client (default)
 - `"rtu-sync`: Synchronous RTU client
-- `"tcp-sync"`: Synchronous RTU client
+- `"tcp-sync"`: Synchronous TCP client
 - `"rtu-server"`: (Asynchronous) RTU server
 - `"tcp-server-unstable"`: (Asynchronous) TCP server (experimental)
 
