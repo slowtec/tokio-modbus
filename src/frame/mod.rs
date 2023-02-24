@@ -7,6 +7,9 @@ pub(crate) mod rtu;
 #[cfg(feature = "tcp")]
 pub(crate) mod tcp;
 
+#[cfg(feature = "tls")]
+pub(crate) mod tls;
+
 use std::{error, fmt};
 
 /// A Modbus function code is represented by an unsigned 8 bit integer.

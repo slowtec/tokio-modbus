@@ -8,6 +8,10 @@ pub(crate) mod rtu;
 #[cfg(feature = "tcp")]
 pub(crate) mod tcp;
 
+#[cfg(feature = "tls")]
+pub(crate) mod tls;
+
+
 use crate::frame::*;
 
 use byteorder::{BigEndian, ReadBytesExt as _};
