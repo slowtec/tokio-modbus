@@ -100,7 +100,7 @@ impl Context {
     fn new(
         service: Framed<tokio_rustls::client::TlsStream<TcpStream>, codec::tls::ClientCodec>,
         unit_id: UnitId,
-        ) -> Self {
+    ) -> Self {
         Self {
             service,
             unit_id,

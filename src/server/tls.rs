@@ -73,7 +73,7 @@ impl Server {
             .with_single_cert(certs, keys.remove(0))
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
         let acceptor = TlsAcceptor::from(Arc::new(config));
-    
+
         let listener = TcpListener::bind(&self.socket_addr).await?;
 
         loop {
