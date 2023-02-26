@@ -10,21 +10,21 @@ use crate::{
 
 use futures_util::{sink::SinkExt as _, stream::StreamExt as _};
 use std::{
-    future::Future,
-    io::{self, Error, ErrorKind, BufReader},
-    net::{SocketAddr},
-    sync::atomic::{AtomicU16, Ordering},
-    fs::File,
     convert::From,
+    fs::File,
+    future::Future,
+    io::{self, BufReader, Error, ErrorKind},
+    net::SocketAddr,
     path::Path,
+    sync::atomic::{AtomicU16, Ordering},
     sync::Arc,
 };
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
-use tokio_rustls::rustls::{self, OwnedTrustAnchor, Certificate, PrivateKey};
-use tokio_rustls::{webpki, TlsConnector};
 use rustls_pemfile::{certs, ec_private_keys};
+use tokio_rustls::rustls::{self, Certificate, OwnedTrustAnchor, PrivateKey};
+use tokio_rustls::{webpki, TlsConnector};
 
 fn load_certs(path: &Path) -> io::Result<Vec<Certificate>> {
     certs(&mut BufReader::new(File::open(path)?))
@@ -46,45 +46,45 @@ pub(crate) fn connect_slave(
     async move {
         let mut root_cert_store = rustls::RootCertStore::empty();
         let ca_path = Path::new("./pki/ca.pem");
-            let mut pem = BufReader::new(File::open(ca_path)?);
-            let certs = rustls_pemfile::certs(&mut pem)?;
-            let trust_anchors = certs.iter().map(|cert| {
-                let ta = webpki::TrustAnchor::try_from_cert_der(&cert[..]).unwrap();
-                OwnedTrustAnchor::from_subject_spki_name_constraints(
-                    ta.subject,
-                    ta.spki,
-                    ta.name_constraints,
-                )
-            });
-            root_cert_store.add_server_trust_anchors(trust_anchors);
+        let mut pem = BufReader::new(File::open(ca_path)?);
+        let certs = rustls_pemfile::certs(&mut pem)?;
+        let trust_anchors = certs.iter().map(|cert| {
+            let ta = webpki::TrustAnchor::try_from_cert_der(&cert[..]).unwrap();
+            OwnedTrustAnchor::from_subject_spki_name_constraints(
+                ta.subject,
+                ta.spki,
+                ta.name_constraints,
+            )
+        });
+        root_cert_store.add_server_trust_anchors(trust_anchors);
+
+        let domain = "localhost";
+        let cert_path = Path::new("./pki/client.pem");
+        let key_path = Path::new("./pki/client.key");
+        let certs = load_certs(cert_path)?;
+        let mut keys = load_keys(key_path)?;
+
+        let config = rustls::ClientConfig::builder()
+            .with_safe_defaults()
+            .with_root_certificates(root_cert_store)
+            .with_single_cert(certs, keys.remove(0))
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
+        let connector = TlsConnector::from(Arc::new(config));
+
+        let stream = TcpStream::connect(&socket_addr).await?;
+
+        let domain = rustls::ServerName::try_from(domain)
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dnsname"))?;
     
-            let domain = "localhost";
-            let cert_path = Path::new("./pki/client.pem");
-            let key_path = Path::new("./pki/client.key");
-            let certs = load_certs(cert_path)?;
-            let mut keys = load_keys(key_path)?;
-        
-            let config = rustls::ClientConfig::builder()
-                .with_safe_defaults()
-                .with_root_certificates(root_cert_store)
-                .with_single_cert(certs, keys.remove(0))
-                .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
-            let connector = TlsConnector::from(Arc::new(config));
-        
-            let stream = TcpStream::connect(&socket_addr).await?;
-        
-            let domain = rustls::ServerName::try_from(domain)
-                .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dnsname"))?;
-        
-            let service = connector.connect(domain, stream).await?;
+        let service = connector.connect(domain, stream).await?;
 
-            let framed = Framed::new(service, codec::tls::ClientCodec::default());
+        let framed = Framed::new(service, codec::tls::ClientCodec::default());
 
-            let context: Context = Context::new(framed, unit_id);
+        let context: Context = Context::new(framed, unit_id);
 
-            Ok(context)
+        Ok(context)
     }
-    }
+}
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
 
@@ -97,7 +97,10 @@ pub(crate) struct Context {
 }
 
 impl Context {
-    fn new(service: Framed<tokio_rustls::client::TlsStream<TcpStream>, codec::tls::ClientCodec>, unit_id: UnitId) -> Self {
+    fn new(
+        service: Framed<tokio_rustls::client::TlsStream<TcpStream>, codec::tls::ClientCodec>,
+        unit_id: UnitId,
+        ) -> Self {
         Self {
             service,
             unit_id,

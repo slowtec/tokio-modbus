@@ -2,10 +2,10 @@
 
 use futures::future;
 use std::{net::SocketAddr, time::Duration};
+use tokio::time::{sleep_until, Instant};
 
 use tokio_modbus::prelude::*;
 use tokio_modbus::server::{self, Service};
-use tokio::time::{sleep_until, Instant};
 
 struct MbServer;
 
@@ -58,7 +58,7 @@ async fn client_context(socket_addr: SocketAddr) {
             println!("The result is '{response:?}'");
 
             sleep_until(Instant::now() + Duration::from_secs(5)).await;
-        
+
             let response = ctx.read_input_registers(0x01, 5).await.unwrap();
             println!("The result is '{response:?}'");
         },

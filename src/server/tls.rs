@@ -11,7 +11,7 @@ use crate::{
 
 use futures::{self, Future};
 use futures_util::{future::FutureExt as _, sink::SinkExt as _, stream::StreamExt as _};
-use socket2::{Socket};
+use socket2::Socket;
 use std::{
     io::{self, BufReader, Error},
     net::SocketAddr,
@@ -21,10 +21,10 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
 
 use rustls_pemfile::{certs, ec_private_keys};
-use std::fs::File;
-use std::path::{Path};
 use std::convert::From;
-use tokio_rustls::{rustls::{self, Certificate, PrivateKey}};
+use std::fs::File;
+use std::path::Path;
+use tokio_rustls::rustls::{self, Certificate, PrivateKey};
 use tokio_rustls::TlsAcceptor;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -202,7 +202,6 @@ fn configure_tls(_workers: usize, _tcp: &Socket) -> io::Result<()> {
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -217,6 +216,5 @@ mod tests {
             assert_eq!(certs.len(), 1);
             assert_eq!(keys.len(), 1);
         }
-
     }
 }
