@@ -11,7 +11,7 @@ use crate::{
 
 use futures::{self, Future};
 use futures_util::{future::FutureExt as _, sink::SinkExt as _, stream::StreamExt as _};
-use socket2::Socket;
+use socket2::{Domain, Socket, Type};
 use std::{
     io::{self, BufReader, Error},
     net::SocketAddr,
@@ -74,7 +74,11 @@ impl Server {
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
         let acceptor = TlsAcceptor::from(Arc::new(config));
 
-        let listener = TcpListener::bind(&self.socket_addr).await?;
+        let socket = Socket::new(Domain::IPV4, Type::STREAM, None)?;
+        socket.set_nodelay(true)?;
+        socket.bind(&self.socket_addr.into())?;
+        socket.listen(1024)?;
+        let listener = TcpListener::from_std(socket.into())?;
 
         loop {
             //let (stream, _) = listener.accept().await?;
@@ -171,7 +175,6 @@ where
     Ok(())
 }
 
-/*
 /// Start TCP listener - configure and open TCP socket
 #[allow(unused)]
 fn listener(addr: SocketAddr, workers: usize) -> io::Result<TcpListener> {
@@ -179,13 +182,13 @@ fn listener(addr: SocketAddr, workers: usize) -> io::Result<TcpListener> {
         SocketAddr::V4(_) => Socket::new(Domain::IPV4, Type::STREAM, None)?,
         SocketAddr::V6(_) => Socket::new(Domain::IPV6, Type::STREAM, None)?,
     };
-    configure_tcp(workers, &listener)?;
+    configure_tls(workers, &listener)?;
     listener.reuse_address()?;
+    listener.set_nodelay(true)?;
     listener.bind(&addr.into())?;
     listener.listen(1024)?;
     TcpListener::from_std(listener.into())
 }
- */
 
 #[cfg(unix)]
 #[allow(unused)]
