@@ -3,7 +3,11 @@
 
 # Changelog
 
-## v0.7.0 (Unreleased)
+## v0.7.1 (2023-02-28)
+
+- Fix (sync): Panic when using client-side timeouts [#155](https://github.com/slowtec/tokio-modbus/issues/155)
+
+## v0.7.0 (2023-02-14)
 
 - Added: Optional timeout for synchronous RTU/TCP operations [#125](https://github.com/slowtec/tokio-modbus/issues/125).
 

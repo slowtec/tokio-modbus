@@ -38,6 +38,7 @@ pub fn connect_slave_with_timeout(
 ) -> Result<Context> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_io()
+        .enable_time()
         .build()?;
     // SerialStream::open requires a runtime at least on cfg(unix).
     let serial = runtime.block_on(async { SerialStream::open(builder) })?;
