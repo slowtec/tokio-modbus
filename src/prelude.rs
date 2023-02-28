@@ -27,10 +27,10 @@ pub mod sync {
 }
 
 ///////////////////////////////////////////////////////////////////
-/// Structs
+/// Types
 ///////////////////////////////////////////////////////////////////
-pub use crate::frame::{Request, Response};
-pub use crate::slave::{Slave, SlaveId};
+pub use crate::{Request, Response};
+pub use crate::{Slave, SlaveId};
 
 #[cfg(feature = "server")]
 pub use crate::frame::SlaveRequest;

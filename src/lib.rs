@@ -28,10 +28,14 @@ pub mod prelude;
 pub mod client;
 
 pub mod slave;
+pub use self::slave::{Slave, SlaveId};
+
+mod codec;
+
+mod frame;
+pub use self::frame::{Address, FunctionCode, Quantity, Request, Response};
+
+mod service;
 
 #[cfg(feature = "server")]
 pub mod server;
-
-mod codec;
-mod frame;
-mod service;
