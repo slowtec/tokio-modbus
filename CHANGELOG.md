@@ -6,6 +6,7 @@
 ## v0.7.1 (2023-02-28)
 
 - Fix (sync): Panic when using client-side timeouts [#155](https://github.com/slowtec/tokio-modbus/issues/155)
+- tcp-server-unstable: Upgrade socket2 dependency
 
 ## v0.7.0 (2023-02-14)
 
