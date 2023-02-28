@@ -36,6 +36,7 @@ pub fn connect_slave_with_timeout(
 ) -> Result<Context> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_io()
+        .enable_time()
         .build()?;
     let async_ctx =
         block_on_with_timeout(&runtime, timeout, async_connect_slave(socket_addr, slave))?;
