@@ -10,7 +10,7 @@ pub(crate) mod tcp;
 use std::{error, fmt};
 
 /// A Modbus function code is represented by an unsigned 8 bit integer.
-pub(crate) type FunctionCode = u8;
+pub type FunctionCode = u8;
 
 /// A Modbus protocol address is represented by 16 bit from `0` to `65535`.
 ///
@@ -18,7 +18,7 @@ pub(crate) type FunctionCode = u8;
 /// *register address* is often specified as a number with 1-based indexing.
 /// Please consult the specification of your devices if 1-based coil/register
 /// addresses need to be converted to 0-based protocol addresses by subtracting 1.
-pub(crate) type Address = u16;
+pub type Address = u16;
 
 /// A Coil represents a single bit.
 ///
@@ -26,11 +26,13 @@ pub(crate) type Address = u16;
 /// - `false` is equivalent to `OFF`, `0` and `0x0000`.
 pub(crate) type Coil = bool;
 
-/// Modbus uses 16 bit for its data items (big-endian representation).
+/// Modbus uses 16 bit for its data items.
+///
+/// Transmitted using a big-endian representation.
 pub(crate) type Word = u16;
 
-/// Number of items to process (`0` - `65535`).
-pub(crate) type Quantity = u16;
+/// Number of items to process.
+pub type Quantity = u16;
 
 /// A request represents a message from the client (master) to the server (slave).
 #[derive(Debug, Clone, PartialEq, Eq)]
