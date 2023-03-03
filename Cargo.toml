@@ -71,7 +71,13 @@ tcp-server-unstable = [
 # The following features are internal and must not be used in dependencies.
 sync = ["dep:futures", "tokio/time"]
 server = ["dep:futures"]
-tls-server = ["tls", "server"]
+tls-server = [
+    "tls",
+    "server",
+    "socket2/all",
+    "tokio/macros",
+    "tokio/rt-multi-thread",
+]
 
 [badges]
 maintenance = { status = "actively-developed" }

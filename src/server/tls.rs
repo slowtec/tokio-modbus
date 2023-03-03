@@ -55,7 +55,7 @@ impl Server {
     pub async fn serve<S, Req, Res>(&self, service: S) -> Result<(), std::io::Error>
     where
         S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
-        Req: From<tls::RequestAdu> + Send,
+        Req: From<tcp::RequestAdu> + Send,
         Res: Into<OptionalResponsePdu> + Send,
         S::Instance: Send + Sync + 'static,
         S::Error: Into<Error>,
@@ -86,7 +86,7 @@ impl Server {
             let acceptor = acceptor.clone();
 
             let stream = acceptor.accept(stream).await?;
-            let framed = Framed::new(stream, codec::tls::ServerCodec::default());
+            let framed = Framed::new(stream, codec::tcp::ServerCodec::default());
             let new_service = service.clone();
 
             tokio::spawn(Box::pin(async move {
@@ -103,7 +103,7 @@ impl Server {
     where
         S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
         Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
-        Req: From<tls::RequestAdu> + Send,
+        Req: From<tcp::RequestAdu> + Send,
         Res: Into<OptionalResponsePdu> + Send,
         S::Instance: Send + Sync + 'static,
         S::Error: Into<Error>,
@@ -125,7 +125,7 @@ impl Server {
     pub fn serve_forever<S, Req, Res>(self, service: S)
     where
         S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
-        Req: From<tls::RequestAdu> + Send,
+        Req: From<tcp::RequestAdu> + Send,
         Res: Into<OptionalResponsePdu> + Send,
         S::Instance: Send + Sync + 'static,
         S::Error: Into<Error>,
@@ -136,12 +136,12 @@ impl Server {
 
 /// The request-response loop spawned by serve_until for each client
 async fn process<S, Req, Res>(
-    framed: Framed<tokio_rustls::server::TlsStream<TcpStream>, codec::tls::ServerCodec>,
+    framed: Framed<tokio_rustls::server::TlsStream<TcpStream>, codec::tcp::ServerCodec>,
     service: S,
 ) -> io::Result<()>
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
-    S::Request: From<tls::RequestAdu> + Send,
+    S::Request: From<tcp::RequestAdu> + Send,
     S::Response: Into<OptionalResponsePdu> + Send,
     S::Error: Into<Error>,
 {
@@ -165,7 +165,7 @@ where
 
         match response.0 {
             Some(pdu) => {
-                framed.send(tls::ResponseAdu { hdr, pdu }).await?;
+                framed.send(tcp::ResponseAdu { hdr, pdu }).await?;
             }
             None => {
                 log::debug!("No response for request {hdr:?}");

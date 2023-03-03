@@ -4,7 +4,7 @@
 use crate::{
     client::Client,
     codec,
-    frame::{tls::*, *},
+    frame::{tcp::*, *},
     slave::*,
 };
 
@@ -78,7 +78,7 @@ pub(crate) fn connect_slave(
     
         let service = connector.connect(domain, stream).await?;
 
-        let framed = Framed::new(service, codec::tls::ClientCodec::default());
+        let framed = Framed::new(service, codec::tcp::ClientCodec::default());
 
         let context: Context = Context::new(framed, unit_id);
 
@@ -91,14 +91,14 @@ const INITIAL_TRANSACTION_ID: TransactionId = 0;
 /// Modbus TLS client
 #[derive(Debug)]
 pub(crate) struct Context {
-    service: Framed<tokio_rustls::client::TlsStream<TcpStream>, codec::tls::ClientCodec>,
+    service: Framed<tokio_rustls::client::TlsStream<TcpStream>, codec::tcp::ClientCodec>,
     unit_id: UnitId,
     transaction_id: AtomicU16,
 }
 
 impl Context {
     fn new(
-        service: Framed<tokio_rustls::client::TlsStream<TcpStream>, codec::tls::ClientCodec>,
+        service: Framed<tokio_rustls::client::TlsStream<TcpStream>, codec::tcp::ClientCodec>,
         unit_id: UnitId,
     ) -> Self {
         Self {
