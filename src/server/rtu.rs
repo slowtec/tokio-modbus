@@ -95,7 +95,7 @@ where
 
         let hdr = request.hdr;
         let response: OptionalResponsePdu = service
-            .call(request.into())
+            .call(request.into(), hdr.slave_id)
             .await
             .map_err(Into::into)?
             .into();

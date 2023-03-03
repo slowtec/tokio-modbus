@@ -18,7 +18,7 @@ pub trait Service {
     type Future: Future<Output = Result<Self::Response, Self::Error>> + Send + Sync + Unpin;
 
     /// Process the request and return the response asynchronously.
-    fn call(&self, req: Self::Request) -> Self::Future;
+    fn call(&self, req: Self::Request, unit_id: u8) -> Self::Future;
 }
 
 /// Creates new `Service` values.
@@ -82,8 +82,8 @@ impl<S: Service + ?Sized + 'static> Service for Box<S> {
     type Error = S::Error;
     type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> Self::Future {
-        (**self).call(request)
+    fn call(&self, request: S::Request, unit_id: u8) -> Self::Future {
+        (**self).call(request, unit_id)
     }
 }
 
@@ -93,8 +93,8 @@ impl<S: Service + ?Sized + 'static> Service for Rc<S> {
     type Error = S::Error;
     type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> Self::Future {
-        (**self).call(request)
+    fn call(&self, request: S::Request, unit_id: u8) -> Self::Future {
+        (**self).call(request, unit_id)
     }
 }
 
@@ -104,7 +104,7 @@ impl<S: Service + ?Sized + 'static> Service for Arc<S> {
     type Error = S::Error;
     type Future = S::Future;
 
-    fn call(&self, request: S::Request) -> Self::Future {
-        (**self).call(request)
+    fn call(&self, request: S::Request, unit_id: u8) -> Self::Future {
+        (**self).call(request, unit_id)
     }
 }

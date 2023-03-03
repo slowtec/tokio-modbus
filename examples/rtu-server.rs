@@ -18,7 +18,7 @@ impl Service for Server {
     type Error = std::io::Error;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
-    fn call(&self, req: Self::Request) -> Self::Future {
+    fn call(&self, req: Self::Request, _unit_id: u8) -> Self::Future {
         match req {
             Request::ReadInputRegisters(_addr, cnt) => {
                 let mut registers = vec![0; cnt.into()];

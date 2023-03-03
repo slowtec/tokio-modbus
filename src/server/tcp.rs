@@ -118,7 +118,7 @@ where
         let request = request.unwrap()?;
         let hdr = request.hdr;
         let response: OptionalResponsePdu = service
-            .call(request.into())
+            .call(request.into(), hdr.unit_id)
             .await
             .map_err(Into::into)?
             .into();
@@ -184,7 +184,7 @@ mod tests {
             type Error = Error;
             type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
-            fn call(&self, _: Self::Request) -> Self::Future {
+            fn call(&self, _: Self::Request, _unit_id: u8) -> Self::Future {
                 future::ready(Ok(self.response.clone()))
             }
         }
@@ -194,7 +194,7 @@ mod tests {
         };
 
         let pdu = Request::ReadInputRegisters(0, 1);
-        let rsp_adu = service.call(pdu).await.unwrap();
+        let rsp_adu = service.call(pdu, 0).await.unwrap();
 
         assert_eq!(rsp_adu, service.response);
     }

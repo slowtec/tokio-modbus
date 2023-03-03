@@ -20,7 +20,7 @@ impl Service for Server {
     type Error = std::io::Error;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
-    fn call(&self, req: Self::Request) -> Self::Future {
+    fn call(&self, req: Self::Request, _unit_id: u8) -> Self::Future {
         if req.slave != self.slave.into() {
             return future::ready(Ok(None));
         }
