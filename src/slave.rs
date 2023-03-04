@@ -41,9 +41,9 @@ impl Slave {
     /// connected Modbus TCP device, i.e. if not forwarded through
     /// a TCP/RTU gateway according to the unit identifier.
     ///
-    /// [MODBUS Messaging on TCP/IP Implementation Guide](http://www.modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf), page 23
-    /// "On TCP/IP, the MODBUS server is addressed using its IP address; therefore,
-    /// the MODBUS Unit Identifier is useless. The value 0xFF has to be used."
+    /// [Modbus Messaging on TCP/IP Implementation Guide](http://www.modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf), page 23
+    /// "On TCP/IP, the Modbus server is addressed using its IP address; therefore,
+    /// the Modbus Unit Identifier is useless. The value 0xFF has to be used."
     #[must_use]
     pub const fn tcp_device() -> Self {
         Slave(255)
