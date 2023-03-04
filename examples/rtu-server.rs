@@ -7,19 +7,18 @@ use std::{thread, time::Duration};
 
 use futures::future;
 
-use tokio_modbus::prelude::*;
-use tokio_modbus::server::{self, Service};
+use tokio_modbus::{prelude::*, server::rtu::Server};
 
-struct Server;
+struct Service;
 
-impl Service for Server {
-    type Request = Request;
+impl tokio_modbus::server::Service for Service {
+    type Request = SlaveRequest;
     type Response = Response;
     type Error = std::io::Error;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        match req {
+        match req.request {
             Request::ReadInputRegisters(_addr, cnt) => {
                 let mut registers = vec![0; cnt.into()];
                 registers[2] = 0x77;
@@ -38,9 +37,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting up server...");
     let _server = thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let server = server::rtu::Server::new(server_serial);
+        let server = Server::new(server_serial);
+        let service = Service;
         rt.block_on(async {
-            server.serve_forever(|| Ok(Server)).await;
+            if let Err(err) = server.serve_forever(service).await {
+                eprintln!("{err}");
+            }
         });
     });
 

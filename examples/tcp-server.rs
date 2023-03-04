@@ -3,15 +3,16 @@
 
 //! TCP server example
 
-use futures::future;
 use std::{net::SocketAddr, time::Duration};
 
-use tokio_modbus::prelude::*;
-use tokio_modbus::server::{self, Service};
+use futures::future;
+use tokio::net::TcpListener;
 
-struct MbServer;
+use tokio_modbus::{prelude::*, server::tcp::Server};
 
-impl Service for MbServer {
+struct Service;
+
+impl tokio_modbus::server::Service for Service {
     type Request = Request;
     type Response = Response;
     type Error = std::io::Error;
@@ -41,10 +42,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn server_context(socket_addr: SocketAddr) {
-    println!("Starting up server...");
-    let server = server::tcp::Server::new(socket_addr);
-    server.serve(|| Ok(MbServer)).await.unwrap();
+async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
+    println!("Starting up server on {socket_addr}");
+    let listener = TcpListener::bind(socket_addr).await?;
+    let server = Server::new(listener);
+    let new_service = |_socket_addr| Some(Service);
+    let on_process_error = |err| {
+        eprintln!("{err}");
+    };
+    server.serve(&new_service, on_process_error).await?;
+    Ok(())
 }
 
 async fn client_context(socket_addr: SocketAddr) {

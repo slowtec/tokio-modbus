@@ -4,7 +4,7 @@
 [package]
 name = "tokio-modbus"
 description = "Tokio-based Modbus library"
-version = "0.7.1"
+version = "0.8.0"
 authors = [
     "slowtec GmbH <post@slowtec.de>",
     "Markus Kohlhase <markus.kohlhase@slowtec.de>",
@@ -50,13 +50,13 @@ tokio = { version = "1.26.0", default-features = false, features = [
 tokio-serial = { version = "5.4.4", default-features = false }
 
 [features]
-default = ["rtu", "tcp"]
+default = ["rtu", "tcp", "rtu-server", "tcp-server"]
 rtu = ["futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 rtu-sync = ["rtu", "sync", "dep:tokio-serial"]
 tcp-sync = ["tcp", "sync"]
 rtu-server = ["rtu", "server", "tokio/macros", "dep:tokio-serial"]
-tcp-server-unstable = [
+tcp-server = [
     "tcp",
     "server",
     "socket2/all",
@@ -108,4 +108,4 @@ required-features = ["tcp"]
 [[example]]
 name = "tcp-server"
 path = "examples/tcp-server.rs"
-required-features = ["tcp-server-unstable"]
+required-features = ["tcp-server"]

@@ -9,9 +9,18 @@
 #[cfg(feature = "rtu-server")]
 pub mod rtu;
 
-#[cfg(feature = "tcp-server-unstable")]
+#[cfg(feature = "tcp-server")]
 pub mod tcp;
 
 mod service;
+pub use self::service::Service;
 
-pub use service::{NewService, Service};
+/// Cause for termination
+#[derive(Debug, Clone)]
+pub enum Terminated {
+    /// The server has finished processing.
+    Finished,
+
+    /// Processing has been aborted.
+    Aborted,
+}

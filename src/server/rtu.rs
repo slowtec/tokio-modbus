@@ -3,16 +3,23 @@
 
 //! Modbus RTU server skeleton
 
-use crate::{
-    codec,
-    frame::*,
-    server::service::{NewService, Service},
-};
-use futures::{select, Future, FutureExt as _};
+use std::{io, path::Path};
+
+use futures::{Future, FutureExt as _};
 use futures_util::{SinkExt as _, StreamExt as _};
-use std::{io::Error, path::Path};
 use tokio_serial::SerialStream;
 use tokio_util::codec::Framed;
+
+use crate::{
+    codec::rtu::ServerCodec,
+    frame::{
+        rtu::{RequestAdu, ResponseAdu},
+        OptionalResponsePdu,
+    },
+    server::service::Service,
+};
+
+use super::Terminated;
 
 #[derive(Debug)]
 pub struct Server {
@@ -21,7 +28,7 @@ pub struct Server {
 
 impl Server {
     /// set up a new Server instance from an interface path and baud rate
-    pub fn new_from_path<P: AsRef<Path>>(p: P, baud_rate: u32) -> Result<Self, Error> {
+    pub fn new_from_path<P: AsRef<Path>>(p: P, baud_rate: u32) -> io::Result<Self> {
         let serial =
             SerialStream::open(&tokio_serial::new(p.as_ref().to_string_lossy(), baud_rate))?;
         Ok(Server { serial })
@@ -33,81 +40,76 @@ impl Server {
         Server { serial }
     }
 
-    /// serve Modbus RTU requests based on the provided service until it finishes
-    pub async fn serve_forever<S, Req, Res>(self, new_service: S)
+    /// Process Modbus RTU requests.
+    pub async fn serve_forever<S>(self, service: S) -> io::Result<()>
     where
-        S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
-        Req: From<rtu::RequestAdu> + Send,
-        Res: Into<OptionalResponsePdu> + Send,
-        S::Instance: Send + Sync + 'static,
-        S::Error: Into<Error>,
+        S: Service + Send + Sync + 'static,
+        S::Request: From<RequestAdu> + Send,
+        S::Response: Into<OptionalResponsePdu> + Send,
+        S::Error: Into<io::Error>,
     {
-        self.serve_until(new_service, futures::future::pending())
-            .await;
+        let framed = Framed::new(self.serial, ServerCodec::default());
+        process(framed, service).await
     }
 
-    /// serve Modbus RTU requests based on the provided service until it finishes or a shutdown signal is received
-    pub async fn serve_until<S, Req, Res, Sd>(self, new_service: S, shutdown_signal: Sd)
+    /// Process Modbus RTU requests until finished or aborted.
+    ///
+    /// Warning: Request processing is not scoped and could be aborted at any internal await point!
+    /// See also: <https://rust-lang.github.io/wg-async/vision/roadmap/scopes.html#cancellation>
+    pub async fn serve_until<S, X>(self, service: S, abort_signal: X) -> io::Result<Terminated>
     where
-        S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
-        Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
-        Req: From<rtu::RequestAdu> + Send,
-        Res: Into<OptionalResponsePdu> + Send,
-        S::Instance: Send + Sync + 'static,
-        S::Error: Into<Error>,
+        S: Service + Send + Sync + 'static,
+        S::Request: From<RequestAdu> + Send,
+        S::Response: Into<OptionalResponsePdu> + Send,
+        S::Error: Into<io::Error>,
+        X: Future<Output = ()> + Sync + Send + Unpin + 'static,
     {
-        let framed = Framed::new(self.serial, codec::rtu::ServerCodec::default());
-        let service = new_service.new_service().unwrap();
-        let future = process(framed, service);
-
-        let mut server = Box::pin(future).fuse();
-        let mut shutdown = shutdown_signal.fuse();
-
-        async {
-            select! {
-                res = server => if let Err(e) = res {
-                    println!("error: {e}");
-                },
-                _ = shutdown => println!("Shutdown signal received")
+        let framed = Framed::new(self.serial, ServerCodec::default());
+        let abort_signal = abort_signal.fuse();
+        tokio::select! {
+            res = process(framed, service) => {
+                res.map(|()| Terminated::Finished)
+            },
+            () = abort_signal => {
+                Ok(Terminated::Aborted)
             }
         }
-        .await;
     }
 }
 
 /// frame wrapper around the underlying service's responses to forwarded requests
 async fn process<S, Req, Res>(
-    mut framed: Framed<SerialStream, codec::rtu::ServerCodec>,
+    mut framed: Framed<SerialStream, ServerCodec>,
     service: S,
-) -> Result<(), Error>
+) -> io::Result<()>
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
-    S::Request: From<rtu::RequestAdu> + Send,
+    S::Request: From<RequestAdu> + Send,
     S::Response: Into<OptionalResponsePdu> + Send,
-    S::Error: Into<Error>,
+    S::Error: Into<io::Error>,
 {
     loop {
-        let request = match framed.next().await {
-            // Stream is exhausted
-            None => break,
-            Some(request) => request,
-        }?;
+        let Some(request) = framed.next().await.transpose()? else {
+            log::debug!("Stream has finished");
+            break;
+        };
 
         let hdr = request.hdr;
-        let response: OptionalResponsePdu = service
+        let OptionalResponsePdu(Some(response_pdu)) = service
             .call(request.into())
             .await
             .map_err(Into::into)?
-            .into();
+            .into() else {
+                log::debug!("Sending no response for request {hdr:?}");
+                continue;
+        };
 
-        match response.0 {
-            Some(pdu) => {
-                framed.send(rtu::ResponseAdu { hdr, pdu }).await?;
-            }
-            None => {
-                log::debug!("No response for request {hdr:?}");
-            }
-        }
+        framed
+            .send(ResponseAdu {
+                hdr,
+                pdu: response_pdu,
+            })
+            .await?;
     }
     Ok(())
 }
