@@ -12,6 +12,9 @@ pub mod rtu;
 #[cfg(feature = "tcp-server-unstable")]
 pub mod tcp;
 
+#[cfg(feature = "tls-server")]
+pub mod tls;
+
 mod service;
 
 pub use service::{NewService, Service};

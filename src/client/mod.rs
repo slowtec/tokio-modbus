@@ -18,6 +18,9 @@ pub mod rtu;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 
+#[cfg(feature = "tls")]
+pub mod tls;
+
 #[cfg(feature = "sync")]
 pub mod sync;
 
