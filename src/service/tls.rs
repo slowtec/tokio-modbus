@@ -22,7 +22,7 @@ use std::{
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
-use rustls_pemfile::{certs, ec_private_keys};
+use rustls_pemfile::{certs, rsa_private_keys};
 use tokio_rustls::rustls::{self, Certificate, OwnedTrustAnchor, PrivateKey};
 use tokio_rustls::{webpki, TlsConnector};
 
@@ -33,7 +33,7 @@ fn load_certs(path: &Path) -> io::Result<Vec<Certificate>> {
 }
 
 fn load_keys(path: &Path) -> io::Result<Vec<PrivateKey>> {
-    ec_private_keys(&mut BufReader::new(File::open(path)?))
+    rsa_private_keys(&mut BufReader::new(File::open(path)?))
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid key"))
         .map(|mut keys| keys.drain(..).map(PrivateKey).collect())
 }
