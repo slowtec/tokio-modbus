@@ -11,8 +11,8 @@ use smallvec::SmallVec;
 use std::io::{Cursor, Error, ErrorKind, Result};
 use tokio_util::codec::{Decoder, Encoder};
 
-// [MODBUS over Serial Line Specification and Implementation Guide V1.02](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf), page 13
-// "The maximum size of a MODBUS RTU frame is 256 bytes."
+// [Modbus over Serial Line Specification and Implementation Guide V1.02](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf), page 13
+// "The maximum size of a Modbus RTU frame is 256 bytes."
 const MAX_FRAME_LEN: usize = 256;
 
 type DroppedBytes = SmallVec<[u8; MAX_FRAME_LEN]>;
