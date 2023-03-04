@@ -8,7 +8,6 @@ pub(crate) mod rtu;
 #[cfg(feature = "tcp")]
 pub(crate) mod tcp;
 
-
 use crate::frame::*;
 
 use byteorder::{BigEndian, ReadBytesExt as _};
