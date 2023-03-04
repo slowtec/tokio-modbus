@@ -46,7 +46,7 @@ tokio-modbus = "*"
 - `"rtu-sync`: Synchronous RTU client
 - `"tcp-sync"`: Synchronous TCP client
 - `"rtu-server"`: (Asynchronous) RTU server
-- `"tcp-server-unstable"`: (Asynchronous) TCP server (experimental)
+- `"tcp-server"`: (Asynchronous) TCP server
 
 #### Examples
 
@@ -75,7 +75,7 @@ For a TCP server:
 
 ```toml
 [dependencies]
-tokio-modbus = { version = "*", default-features = false, features = ["tcp-server-unstable"] }
+tokio-modbus = { version = "*", default-features = false, features = ["tcp-server"] }
 ```
 
 ## Examples

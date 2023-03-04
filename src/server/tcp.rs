@@ -3,135 +3,145 @@
 
 //! Modbus TCP server skeleton
 
-use crate::{
-    codec,
-    frame::*,
-    server::service::{NewService, Service},
-};
+use std::{io, net::SocketAddr};
 
+use async_trait::async_trait;
 use futures::{self, Future};
 use futures_util::{future::FutureExt as _, sink::SinkExt as _, stream::StreamExt as _};
 use socket2::{Domain, Socket, Type};
-use std::{
-    io::{self, Error},
-    net::SocketAddr,
-    sync::Arc,
-};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+use crate::{
+    codec::tcp::ServerCodec,
+    frame::{
+        tcp::{RequestAdu, ResponseAdu},
+        OptionalResponsePdu,
+    },
+    server::service::Service,
+};
+
+use super::Terminated;
+
+#[async_trait]
+pub trait BindSocket {
+    type Error;
+
+    async fn bind_socket(addr: SocketAddr) -> Result<Socket, Self::Error>;
+}
+
+#[derive(Debug)]
 pub struct Server {
-    socket_addr: SocketAddr,
+    listener: TcpListener,
 }
 
 impl Server {
-    /// Set the address for the server (mandatory).
+    /// Attach the Modbus server to a TCP socket server.
     #[must_use]
-    pub fn new(socket_addr: SocketAddr) -> Self {
-        Self { socket_addr }
+    pub fn new(listener: TcpListener) -> Self {
+        Self { listener }
     }
 
-    /// Start an async Modbus TCP server task.
-    pub async fn serve<S, Req, Res>(&self, service: S) -> Result<(), std::io::Error>
+    /// Start a Modbus TCP server task.
+    pub async fn serve<S, OnConnected, OnProcessError>(
+        &self,
+        on_connected: &OnConnected,
+        on_process_error: OnProcessError,
+    ) -> io::Result<()>
     where
-        S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
-        Req: From<tcp::RequestAdu> + Send,
-        Res: Into<OptionalResponsePdu> + Send,
-        S::Instance: Send + Sync + 'static,
-        S::Error: Into<Error>,
+        S: Service + Send + Sync + 'static,
+        S::Request: From<RequestAdu> + Send,
+        S::Response: Into<OptionalResponsePdu> + Send,
+        S::Error: Into<io::Error>,
+        OnConnected: Fn(SocketAddr) -> Option<S>,
+        OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
     {
-        let service = Arc::new(service);
-        let listener = TcpListener::bind(self.socket_addr).await?;
-
         loop {
-            let (stream, _) = listener.accept().await?;
-            let framed = Framed::new(stream, codec::tcp::ServerCodec::default());
-            let new_service = service.clone();
+            let (stream, socket_addr) = self.listener.accept().await?;
+            log::debug!("Accepted connection from {socket_addr}");
 
-            tokio::spawn(Box::pin(async move {
-                let service = new_service.new_service().unwrap();
+            let Some(service) = on_connected(socket_addr) else {
+                log::debug!("No service for connection from {socket_addr}");
+                continue;
+            };
+            let on_process_error = on_process_error.clone();
+            let framed = Framed::new(stream, ServerCodec::default());
+
+            tokio::spawn(async move {
+                log::debug!("Processing requests from {socket_addr}");
                 if let Err(err) = process(framed, service).await {
-                    eprintln!("{err:?}");
+                    on_process_error(err);
                 }
-            }));
+            });
         }
     }
 
-    /// Start a Modbus TCP server that blocks the current thread until a shutdown is requested
-    pub fn serve_until<S, Req, Res, Sd>(self, service: S, shutdown_signal: Sd)
+    /// Start an abortable Modbus TCP server task.
+    ///
+    /// Warning: Request processing is not scoped and could be aborted at any internal await point!
+    /// See also: <https://rust-lang.github.io/wg-async/vision/roadmap/scopes.html#cancellation>
+    pub async fn serve_until<S, X, OnConnected, OnProcessError>(
+        self,
+        on_connected: &OnConnected,
+        on_process_error: OnProcessError,
+        abort_signal: X,
+    ) -> io::Result<Terminated>
     where
-        S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
-        Sd: Future<Output = ()> + Sync + Send + Unpin + 'static,
-        Req: From<tcp::RequestAdu> + Send,
-        Res: Into<OptionalResponsePdu> + Send,
-        S::Instance: Send + Sync + 'static,
-        S::Error: Into<Error>,
+        S: Service + Send + Sync + 'static,
+        S::Request: From<RequestAdu> + Send,
+        S::Response: Into<OptionalResponsePdu> + Send,
+        S::Error: Into<io::Error>,
+        X: Future<Output = ()> + Sync + Send + Unpin + 'static,
+        OnConnected: Fn(SocketAddr) -> Option<S>,
+        OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
     {
-        let shutdown_signal = shutdown_signal.fuse();
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_io()
-            .build()
-            .unwrap();
-
-        rt.block_on(async {
-            tokio::select! {
-                res = self.serve(service) => if let Err(e) = res { log::error!("Error: {}", e) },
-                _ = shutdown_signal => log::trace!("Shutdown signal received")
+        let abort_signal = abort_signal.fuse();
+        tokio::select! {
+            res = self.serve(on_connected, on_process_error) => {
+                res.map(|()| Terminated::Finished)
+            },
+            () = abort_signal => {
+                Ok(Terminated::Aborted)
             }
-        })
-    }
-
-    pub fn serve_forever<S, Req, Res>(self, service: S)
-    where
-        S: NewService<Request = Req, Response = Res> + Send + Sync + 'static,
-        Req: From<tcp::RequestAdu> + Send,
-        Res: Into<OptionalResponsePdu> + Send,
-        S::Instance: Send + Sync + 'static,
-        S::Error: Into<Error>,
-    {
-        self.serve_until(service, futures::future::pending())
+        }
     }
 }
 
 /// The request-response loop spawned by serve_until for each client
 async fn process<S, Req, Res>(
-    framed: Framed<TcpStream, codec::tcp::ServerCodec>,
+    mut framed: Framed<TcpStream, ServerCodec>,
     service: S,
 ) -> io::Result<()>
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
-    S::Request: From<tcp::RequestAdu> + Send,
+    S::Request: From<RequestAdu> + Send,
     S::Response: Into<OptionalResponsePdu> + Send,
-    S::Error: Into<Error>,
+    S::Error: Into<io::Error>,
 {
-    let mut framed = framed;
-
     loop {
-        let request = framed.next().await;
-
-        // tcp socket closed
-        if request.is_none() {
+        let Some(request) = framed.next().await.transpose()? else {
+            log::debug!("TCP socket has been closed");
             break;
-        }
+        };
 
-        let request = request.unwrap()?;
         let hdr = request.hdr;
-        let response: OptionalResponsePdu = service
+        let OptionalResponsePdu(Some(response_pdu)) = service
             .call(request.into())
             .await
             .map_err(Into::into)?
-            .into();
+            .into() else {
+                log::trace!("Sending no response for request {hdr:?}");
+                continue;
+        };
 
-        match response.0 {
-            Some(pdu) => {
-                framed.send(tcp::ResponseAdu { hdr, pdu }).await?;
-            }
-            None => {
-                log::debug!("No response for request {hdr:?}");
-            }
-        }
+        framed
+            .send(ResponseAdu {
+                hdr,
+                pdu: response_pdu,
+            })
+            .await?;
     }
+
     Ok(())
 }
 
@@ -167,7 +177,8 @@ fn configure_tcp(_workers: usize, _tcp: &Socket) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::server::Service;
+
+    use crate::{prelude::*, server::Service};
 
     use futures::future;
 
@@ -181,7 +192,7 @@ mod tests {
         impl Service for DummyService {
             type Request = Request;
             type Response = Response;
-            type Error = Error;
+            type Error = io::Error;
             type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {

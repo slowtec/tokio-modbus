@@ -3,10 +3,16 @@
 
 # Changelog
 
+## v0.8.0 (Unreleased)
+
+- TCP Server: Replace `NewService` trait with closures and never panic
+- TCP Server: Stabilize "tcp-server" feature
+- RTU Server: Remove `NewService` trait and pass instance directly
+
 ## v0.7.1 (2023-02-28)
 
 - Fix (sync): Panic when using client-side timeouts [#155](https://github.com/slowtec/tokio-modbus/issues/155)
-- tcp-server-unstable: Upgrade socket2 dependency
+- tcp-server: Upgrade socket2 dependency
 
 ## v0.7.0 (2023-02-14)
 
@@ -47,7 +53,7 @@
 ## v0.5.1 (2021-11-21)
 
 - Fix: require tokio/rt for sync feature
-- Changed: Update methods on TCP server to be async (only concerns `tcp-server-unstable` feature)
+- Changed: Update methods on TCP server to be async (only concerns `tcp-server` feature)
 
 ## v0.5.0 (2021-08-20)
 
@@ -73,7 +79,7 @@
 - Make `Exception` and `ExceptionResponse` public
 - Fixed `WriteSingleCoil` response to include data
 - Hide server traits `Service`/`NewService` traits behind `server` feature
-- Hide TCP server implementation behind `tcp-server-unstable` feature
+- Hide TCP server implementation behind `tcp-server` feature
 - Improved documentation
 
 ### Breaking Changes
