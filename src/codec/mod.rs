@@ -33,8 +33,11 @@ fn u8_len(len: usize) -> u8 {
     len as u8
 }
 
-impl From<Request> for Bytes {
-    fn from(req: Request) -> Bytes {
+impl TryFrom<Request> for Bytes {
+    type Error = Error;
+
+    #[allow(clippy::panic_in_result_fn)] // Intentional unreachable!()
+    fn try_from(req: Request) -> Result<Bytes, Self::Error> {
         let cnt = request_byte_count(&req);
         let mut data = BytesMut::with_capacity(cnt);
         use crate::frame::Request::*;
@@ -97,13 +100,15 @@ impl From<Request> for Bytes {
             }
             Disconnect => unreachable!(),
         }
-        data.freeze()
+        Ok(data.freeze())
     }
 }
 
-impl From<RequestPdu> for Bytes {
-    fn from(pdu: RequestPdu) -> Bytes {
-        pdu.0.into()
+impl TryFrom<RequestPdu> for Bytes {
+    type Error = Error;
+
+    fn try_from(pdu: RequestPdu) -> Result<Bytes, Self::Error> {
+        pdu.0.try_into()
     }
 }
 
@@ -601,7 +606,7 @@ mod tests {
 
     #[test]
     fn pdu_into_bytes() {
-        let req_pdu: Bytes = Request::ReadCoils(0x01, 5).into();
+        let req_pdu: Bytes = Request::ReadCoils(0x01, 5).try_into().unwrap();
         let rsp_pdu: Bytes = Response::ReadCoils(vec![]).into();
         let ex_pdu: Bytes = ExceptionResponse {
             function: 0x03,
@@ -621,7 +626,7 @@ mod tests {
         assert_eq!(ex_pdu[0], 0x83);
         assert_eq!(ex_pdu[1], 0x04);
 
-        let req_pdu: Bytes = Request::ReadHoldingRegisters(0x082B, 2).into();
+        let req_pdu: Bytes = Request::ReadHoldingRegisters(0x082B, 2).try_into().unwrap();
         assert_eq!(req_pdu.len(), 5);
         assert_eq!(req_pdu[0], 0x03);
         assert_eq!(req_pdu[1], 0x08);
@@ -632,7 +637,9 @@ mod tests {
 
     #[test]
     fn pdu_with_a_lot_of_data_into_bytes() {
-        let _req_pdu: Bytes = Request::WriteMultipleRegisters(0x01, vec![0; 80]).into();
+        let _req_pdu: Bytes = Request::WriteMultipleRegisters(0x01, vec![0; 80])
+            .try_into()
+            .unwrap();
         let _rsp_pdu: Bytes = Response::ReadInputRegisters(vec![0; 80]).into();
     }
 
@@ -642,7 +649,7 @@ mod tests {
 
         #[test]
         fn read_coils() {
-            let bytes: Bytes = Request::ReadCoils(0x12, 4).into();
+            let bytes: Bytes = Request::ReadCoils(0x12, 4).try_into().unwrap();
             assert_eq!(bytes[0], 1);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x12);
@@ -652,7 +659,7 @@ mod tests {
 
         #[test]
         fn read_discrete_inputs() {
-            let bytes: Bytes = Request::ReadDiscreteInputs(0x03, 19).into();
+            let bytes: Bytes = Request::ReadDiscreteInputs(0x03, 19).try_into().unwrap();
             assert_eq!(bytes[0], 2);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x03);
@@ -662,7 +669,7 @@ mod tests {
 
         #[test]
         fn write_single_coil() {
-            let bytes: Bytes = Request::WriteSingleCoil(0x1234, true).into();
+            let bytes: Bytes = Request::WriteSingleCoil(0x1234, true).try_into().unwrap();
             assert_eq!(bytes[0], 5);
             assert_eq!(bytes[1], 0x12);
             assert_eq!(bytes[2], 0x34);
@@ -673,7 +680,9 @@ mod tests {
         #[test]
         fn write_multiple_coils() {
             let states = vec![true, false, true, true];
-            let bytes: Bytes = Request::WriteMultipleCoils(0x3311, states).into();
+            let bytes: Bytes = Request::WriteMultipleCoils(0x3311, states)
+                .try_into()
+                .unwrap();
             assert_eq!(bytes[0], 0x0F);
             assert_eq!(bytes[1], 0x33);
             assert_eq!(bytes[2], 0x11);
@@ -685,7 +694,7 @@ mod tests {
 
         #[test]
         fn read_input_registers() {
-            let bytes: Bytes = Request::ReadInputRegisters(0x09, 77).into();
+            let bytes: Bytes = Request::ReadInputRegisters(0x09, 77).try_into().unwrap();
             assert_eq!(bytes[0], 4);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x09);
@@ -695,7 +704,7 @@ mod tests {
 
         #[test]
         fn read_holding_registers() {
-            let bytes: Bytes = Request::ReadHoldingRegisters(0x09, 77).into();
+            let bytes: Bytes = Request::ReadHoldingRegisters(0x09, 77).try_into().unwrap();
             assert_eq!(bytes[0], 3);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x09);
@@ -705,7 +714,9 @@ mod tests {
 
         #[test]
         fn write_single_register() {
-            let bytes: Bytes = Request::WriteSingleRegister(0x07, 0xABCD).into();
+            let bytes: Bytes = Request::WriteSingleRegister(0x07, 0xABCD)
+                .try_into()
+                .unwrap();
             assert_eq!(bytes[0], 6);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x07);
@@ -715,7 +726,9 @@ mod tests {
 
         #[test]
         fn write_multiple_registers() {
-            let bytes: Bytes = Request::WriteMultipleRegisters(0x06, vec![0xABCD, 0xEF12]).into();
+            let bytes: Bytes = Request::WriteMultipleRegisters(0x06, vec![0xABCD, 0xEF12])
+                .try_into()
+                .unwrap();
 
             // function code
             assert_eq!(bytes[0], 0x10);
@@ -740,7 +753,9 @@ mod tests {
 
         #[test]
         fn masked_write_register() {
-            let bytes: Bytes = Request::MaskWriteRegister(0xABCD, 0xEF12, 0x2345).into();
+            let bytes: Bytes = Request::MaskWriteRegister(0xABCD, 0xEF12, 0x2345)
+                .try_into()
+                .unwrap();
 
             // function code
             assert_eq!(bytes[0], 0x16);
@@ -761,7 +776,9 @@ mod tests {
         #[test]
         fn read_write_multiple_registers() {
             let data = vec![0xABCD, 0xEF12];
-            let bytes: Bytes = Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, data).into();
+            let bytes: Bytes = Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, data)
+                .try_into()
+                .unwrap();
 
             // function code
             assert_eq!(bytes[0], 0x17);
@@ -794,7 +811,9 @@ mod tests {
 
         #[test]
         fn custom() {
-            let bytes: Bytes = Request::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF]).into();
+            let bytes: Bytes = Request::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF])
+                .try_into()
+                .unwrap();
             assert_eq!(bytes[0], 0x55);
             assert_eq!(bytes[1], 0xCC);
             assert_eq!(bytes[2], 0x88);
