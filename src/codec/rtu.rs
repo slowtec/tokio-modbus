@@ -347,7 +347,7 @@ impl Encoder<RequestAdu> for ClientCodec {
             ));
         }
         let RequestAdu { hdr, pdu, .. } = adu;
-        let pdu_data: Bytes = pdu.into();
+        let pdu_data: Bytes = pdu.try_into()?;
         buf.reserve(pdu_data.len() + 3);
         buf.put_u8(hdr.slave_id);
         buf.put_slice(&pdu_data);

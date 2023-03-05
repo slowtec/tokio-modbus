@@ -144,7 +144,7 @@ impl Encoder<RequestAdu> for ClientCodec {
             ));
         }
         let RequestAdu { hdr, pdu, .. } = adu;
-        let pdu_data: Bytes = pdu.into();
+        let pdu_data: Bytes = pdu.try_into()?;
         buf.reserve(pdu_data.len() + 7);
         buf.put_u16(hdr.transaction_id);
         buf.put_u16(PROTOCOL_ID);
@@ -293,7 +293,7 @@ mod tests {
             assert_eq!(buf[6], UNIT_ID);
 
             let _ = buf.split_to(7);
-            let pdu: Bytes = req.into();
+            let pdu: Bytes = req.try_into().unwrap();
             assert_eq!(buf, pdu);
         }
 
