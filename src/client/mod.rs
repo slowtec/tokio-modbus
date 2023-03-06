@@ -21,6 +21,9 @@ pub mod tcp;
 #[cfg(feature = "sync")]
 pub mod sync;
 
+#[cfg(feature = "tls")]
+pub mod tls;
+
 /// Transport independent asynchronous client trait
 #[async_trait]
 pub trait Client: SlaveContext + Send + Debug {
