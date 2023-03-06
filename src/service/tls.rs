@@ -71,6 +71,7 @@ pub(crate) fn connect_slave(
         let connector = TlsConnector::from(Arc::new(config));
 
         let stream = TcpStream::connect(&socket_addr).await?;
+        stream.set_nodelay(true)?;
 
         let domain = rustls::ServerName::try_from(domain)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dnsname"))?;

@@ -1,8 +1,7 @@
 //! TCP server example
 
 use futures::future;
-use std::{net::SocketAddr, time::Duration};
-use tokio::time::{sleep_until, Instant};
+use std::net::SocketAddr;
 
 use tokio_modbus::{prelude::*, server::tls::Server, server::tls::listener};
 
@@ -33,10 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tokio::select! {
         _ = server_context(socket_addr) => unreachable!(),
-        _ = client_context(socket_addr) => println!("Exiting"),
     }
 
-    Ok(())
 }
 
 async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
@@ -49,25 +46,4 @@ async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
     };
     server.serve(&new_service, on_process_error).await?;
     Ok(())
-}
-
-async fn client_context(socket_addr: SocketAddr) {
-    tokio::join!(
-        async {
-            // Give the server some time for starting up
-            tokio::time::sleep(Duration::from_secs(3)).await;
-
-            println!("Connecting client...");
-            let mut ctx = tls::connect(socket_addr).await.unwrap();
-            println!("Reading input registers...");
-            let response = ctx.read_input_registers(0x01, 2).await.unwrap();
-            println!("The result is '{response:?}'");
-
-            sleep_until(Instant::now() + Duration::from_secs(5)).await;
-
-            let response = ctx.read_input_registers(0x01, 5).await.unwrap();
-            println!("The result is '{response:?}'");
-        },
-        tokio::time::sleep(Duration::from_secs(5))
-    );
 }
