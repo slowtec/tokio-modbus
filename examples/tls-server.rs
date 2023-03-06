@@ -4,8 +4,7 @@ use futures::future;
 use std::{net::SocketAddr, time::Duration};
 use tokio::time::{sleep_until, Instant};
 
-use tokio_modbus::{prelude::*, server::tls::Server};
-use tokio::net::TcpListener;
+use tokio_modbus::{prelude::*, server::tls::Server, server::tls::listener};
 
 struct Service;
 
@@ -42,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
     println!("Starting up server on {socket_addr}");
-    let listener = TcpListener::bind(socket_addr).await?;
+    let listener = listener(socket_addr, 1)?;
     let server = Server::new(listener);
     let new_service = |_socket_addr| Some(Service);
     let on_process_error = |err| {

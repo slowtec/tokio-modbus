@@ -53,7 +53,7 @@ tokio = { version = "1.26.0", default-features = false, features = [
 tokio-serial = { version = "5.4.4", default-features = false }
 
 [features]
-default = ["rtu", "tcp", "rtu-server", "tcp-server", "tls", "tls-server"]
+default = ["rtu", "tcp", "rtu-server", "tcp-server"]
 rtu = ["futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 tls = ["dep:rustls-pemfile", "dep:tokio-rustls", "dep:webpki-roots"]

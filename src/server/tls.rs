@@ -185,7 +185,7 @@ where
 
 /// Start TCP listener - configure and open TCP socket
 #[allow(unused)]
-fn listener(addr: SocketAddr, workers: usize) -> io::Result<TcpListener> {
+pub fn listener(addr: SocketAddr, workers: usize) -> io::Result<TcpListener> {
     let listener = match addr {
         SocketAddr::V4(_) => Socket::new(Domain::IPV4, Type::STREAM, None)?,
         SocketAddr::V6(_) => Socket::new(Domain::IPV6, Type::STREAM, None)?,
