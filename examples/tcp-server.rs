@@ -1,18 +1,29 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! TCP server example
+//! # TCP server example
+//!
+//! This example shows how to start a server and implement basic register
+//! read/write operations.
 
-use std::{net::SocketAddr, time::Duration};
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use futures::future;
 use tokio::net::TcpListener;
 
 use tokio_modbus::{prelude::*, server::tcp::Server};
 
-struct Service;
+struct ExampleService {
+    input_registers: Arc<Mutex<HashMap<u16, u16>>>,
+    holding_registers: Arc<Mutex<HashMap<u16, u16>>>,
+}
 
-impl tokio_modbus::server::Service for Service {
+impl tokio_modbus::server::Service for ExampleService {
     type Request = Request;
     type Response = Response;
     type Error = std::io::Error;
@@ -20,14 +31,112 @@ impl tokio_modbus::server::Service for Service {
 
     fn call(&self, req: Self::Request) -> Self::Future {
         match req {
-            Request::ReadInputRegisters(_addr, cnt) => {
-                let mut registers = vec![0; cnt.into()];
-                registers[2] = 77;
-                future::ready(Ok(Response::ReadInputRegisters(registers)))
+            Request::ReadInputRegisters(addr, cnt) => {
+                match register_read(&self.input_registers.lock().unwrap(), addr, cnt) {
+                    Ok(values) => future::ready(Ok(Response::ReadInputRegisters(values))),
+                    Err(err) => future::ready(Err(err)),
+                }
             }
-            _ => unimplemented!(),
+            Request::ReadHoldingRegisters(addr, cnt) => {
+                match register_read(&self.holding_registers.lock().unwrap(), addr, cnt) {
+                    Ok(values) => future::ready(Ok(Response::ReadHoldingRegisters(values))),
+                    Err(err) => future::ready(Err(err)),
+                }
+            }
+            Request::WriteMultipleRegisters(addr, values) => {
+                match register_write(&mut self.holding_registers.lock().unwrap(), addr, &values) {
+                    Ok(_) => future::ready(Ok(Response::WriteMultipleRegisters(
+                        addr,
+                        values.len() as u16,
+                    ))),
+                    Err(err) => future::ready(Err(err)),
+                }
+            }
+            Request::WriteSingleRegister(addr, value) => {
+                match register_write(
+                    &mut self.holding_registers.lock().unwrap(),
+                    addr,
+                    std::slice::from_ref(&value),
+                ) {
+                    Ok(_) => future::ready(Ok(Response::WriteSingleRegister(addr, value))),
+                    Err(err) => future::ready(Err(err)),
+                }
+            }
+            _ => {
+                eprintln!("SERVER: Unimplemented function code in request: {req:?}");
+                // TODO: We want to return a Modbus Exception response `IllegalFunction`.
+                // Not sure how to directly do that.
+                return future::ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::AddrNotAvailable,
+                    format!("Unimplemented function code in request"),
+                )));
+            }
         }
     }
+}
+
+impl ExampleService {
+    fn new() -> Self {
+        // Insert some test data as register values.
+        let mut input_registers = HashMap::new();
+        input_registers.insert(0, 1234);
+        input_registers.insert(1, 5678);
+        let mut holding_registers = HashMap::new();
+        holding_registers.insert(0, 10);
+        holding_registers.insert(1, 20);
+        holding_registers.insert(2, 30);
+        holding_registers.insert(3, 40);
+        Self {
+            input_registers: Arc::new(Mutex::new(input_registers)),
+            holding_registers: Arc::new(Mutex::new(holding_registers)),
+        }
+    }
+}
+
+/// Helper function implementing reading registers from a HashMap.
+fn register_read(
+    registers: &HashMap<u16, u16>,
+    addr: u16,
+    cnt: u16,
+) -> Result<Vec<u16>, std::io::Error> {
+    let mut response_values = vec![0; cnt.into()];
+    for i in 0..cnt {
+        let reg_addr = addr + i;
+        if let Some(r) = registers.get(&reg_addr) {
+            response_values[i as usize] = *r;
+        } else {
+            // TODO: We want to return a Modbus Exception response `IllegalDataAddress`.
+            // Not sure how to directly do that.
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AddrNotAvailable,
+                format!("no register at address {reg_addr}"),
+            ));
+        }
+    }
+
+    Ok(response_values)
+}
+
+/// Write a holding register. Used by both the write single register
+/// and write multiple registers requests.
+fn register_write(
+    registers: &mut HashMap<u16, u16>,
+    addr: u16,
+    values: &[u16],
+) -> Result<(), std::io::Error> {
+    for (i, value) in values.iter().enumerate() {
+        let reg_addr = addr + i as u16;
+        if let Some(r) = registers.get_mut(&reg_addr) {
+            *r = *value;
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AddrNotAvailable,
+                format!("no register at address {reg_addr}"),
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 #[tokio::main]
@@ -46,7 +155,7 @@ async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
     println!("Starting up server on {socket_addr}");
     let listener = TcpListener::bind(socket_addr).await?;
     let server = Server::new(listener);
-    let new_service = |_socket_addr| Some(Service);
+    let new_service = |_socket_addr| Some(ExampleService::new());
     let on_process_error = |err| {
         eprintln!("{err}");
     };
@@ -60,11 +169,35 @@ async fn client_context(socket_addr: SocketAddr) {
             // Give the server some time for starting up
             tokio::time::sleep(Duration::from_secs(1)).await;
 
-            println!("Connecting client...");
+            println!("CLIENT: Connecting client...");
             let mut ctx = tcp::connect(socket_addr).await.unwrap();
-            println!("Reading input registers...");
-            let response = ctx.read_input_registers(0x00, 7).await.unwrap();
-            println!("The result is '{response:?}'");
+
+            println!("CLIENT: Reading 2 input registers...");
+            let response = ctx.read_input_registers(0x00, 2).await.unwrap();
+            println!("CLIENT: The result is '{response:?}'");
+            assert_eq!(response, vec![1234, 5678]);
+
+            println!("CLIENT: Writing 2 holding registers...");
+            ctx.write_multiple_registers(0x01, &vec![7777, 8888])
+                .await
+                .unwrap();
+
+            // Read back a block including the two registers we wrote.
+            println!("CLIENT: Reading 4 holding registers...");
+            let response = ctx.read_holding_registers(0x00, 4).await.unwrap();
+            println!("CLIENT: The result is '{response:?}'");
+            assert_eq!(response, vec![10, 7777, 8888, 40]);
+
+            // Now we try to read with an invalid register address.
+            // This should return a Modbus exception response with the code
+            // IllegalDataAddress.
+            println!("CLIENT: Reading nonexisting holding register address... (should return IllegalDataAddress)");
+            let response = ctx.read_holding_registers(0x100, 1).await;
+            println!("CLIENT: The result is '{response:?}'");
+            assert!(response.is_err());
+            // TODO: is there a way to get the actual Modbus Exception code? To determine what type of error?
+
+            println!("CLIENT: Done.")
         },
         tokio::time::sleep(Duration::from_secs(5))
     );
