@@ -37,6 +37,11 @@ tokio-serial = { version = "5.4.4", optional = true, default-features = false }
 tokio-util = { version = "0.7.7", default-features = false, features = [
     "codec",
 ] }
+rustls-pemfile = {version="1.0.2", optional = true}
+tokio-rustls = {version="0.23.4", optional = true}
+webpki-roots = {version="0.22", optional = true}
+pkcs8 = { version = "0.10.1", features = ["encryption", "pem", "std"], optional = true }
+pem = { version = "1.1.1", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.69"
@@ -50,9 +55,10 @@ tokio = { version = "1.26.0", default-features = false, features = [
 tokio-serial = { version = "5.4.4", default-features = false }
 
 [features]
-default = ["rtu", "tcp", "rtu-server", "tcp-server"]
+default = ["rtu", "tcp", "rtu-server", "tcp-server", "tls"]
 rtu = ["futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
+tls = ["dep:rustls-pemfile", "dep:tokio-rustls", "dep:webpki-roots", "dep:pkcs8", "dep:pem"]
 rtu-sync = ["rtu", "sync", "dep:tokio-serial"]
 tcp-sync = ["tcp", "sync"]
 rtu-server = ["rtu", "server", "tokio/macros", "dep:tokio-serial"]
@@ -109,3 +115,8 @@ required-features = ["tcp"]
 name = "tcp-server"
 path = "examples/tcp-server.rs"
 required-features = ["tcp-server"]
+
+[[example]]
+name = "tls-client"
+path = "examples/tls-client.rs"
+required-features = ["tls"]
