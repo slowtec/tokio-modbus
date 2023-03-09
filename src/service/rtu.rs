@@ -1,46 +1,38 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::{
+    fmt,
+    io::{Error, ErrorKind},
+};
+
+use futures_util::{sink::SinkExt as _, stream::StreamExt as _};
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_util::codec::Framed;
+
 use crate::{
-    client::Client,
     codec,
     frame::{rtu::*, *},
     slave::*,
 };
 
-use futures_util::{future, sink::SinkExt as _, stream::StreamExt as _};
-use std::{
-    fmt::Debug,
-    future::Future,
-    io::{Error, ErrorKind},
-};
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_util::codec::Framed;
-
-pub(crate) fn connect_slave<T>(
-    transport: T,
-    slave: Slave,
-) -> impl Future<Output = Result<Context<T>, Error>>
-where
-    T: AsyncRead + AsyncWrite + Debug + Unpin + 'static,
-{
-    let framed = Framed::new(transport, codec::rtu::ClientCodec::default());
-
-    let slave_id = slave.into();
-    future::ok(Context {
-        service: framed,
-        slave_id,
-    })
-}
-
 /// Modbus RTU client
 #[derive(Debug)]
-pub(crate) struct Context<T: AsyncRead + AsyncWrite + Debug + Unpin + 'static> {
-    service: Framed<T, codec::rtu::ClientCodec>,
+pub(crate) struct Client<T> {
+    framed: Framed<T, codec::rtu::ClientCodec>,
     slave_id: SlaveId,
 }
 
-impl<T: AsyncRead + AsyncWrite + Unpin + Debug + 'static> Context<T> {
+impl<T> Client<T>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    pub(crate) fn new(transport: T, slave: Slave) -> Self {
+        let framed = Framed::new(transport, codec::rtu::ClientCodec::default());
+        let slave_id = slave.into();
+        Self { framed, slave_id }
+    }
+
     fn next_request_adu<R>(&self, req: R, disconnect: bool) -> RequestAdu
     where
         R: Into<RequestPdu>,
@@ -60,9 +52,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Debug + 'static> Context<T> {
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
 
-        self.service.send(req_adu).await?;
+        self.framed.send(req_adu).await?;
         let res_adu = self
-            .service
+            .framed
             .next()
             .await
             .unwrap_or_else(|| Err(Error::from(ErrorKind::BrokenPipe)))?;
@@ -86,14 +78,17 @@ fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error>
     Ok(())
 }
 
-impl<T: AsyncRead + AsyncWrite + Debug + Unpin + 'static> SlaveContext for Context<T> {
+impl<T> SlaveContext for Client<T> {
     fn set_slave(&mut self, slave: Slave) {
         self.slave_id = slave.into();
     }
 }
 
 #[async_trait::async_trait]
-impl<T: AsyncRead + AsyncWrite + Debug + Unpin + Send + 'static> Client for Context<T> {
+impl<T> crate::client::Client for Client<T>
+where
+    T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
+{
     async fn call(&mut self, req: Request) -> Result<Response, Error> {
         self.call(req).await
     }
@@ -113,42 +108,36 @@ mod tests {
 
     impl Unpin for MockTransport {}
 
+    impl AsyncRead for MockTransport {
+        fn poll_read(
+            self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+            _: &mut ReadBuf<'_>,
+        ) -> Poll<Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    impl AsyncWrite for MockTransport {
+        fn poll_write(self: Pin<&mut Self>, _: &mut Context<'_>, _: &[u8]) -> Poll<Result<usize>> {
+            Poll::Ready(Ok(2))
+        }
+
+        fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_shutdown(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
+            unimplemented!()
+        }
+    }
+
     #[tokio::test]
     async fn handle_broken_pipe() {
-        impl AsyncRead for MockTransport {
-            fn poll_read(
-                self: Pin<&mut Self>,
-                _: &mut Context<'_>,
-                _: &mut ReadBuf<'_>,
-            ) -> Poll<Result<()>> {
-                Poll::Ready(Ok(()))
-            }
-        }
-
-        impl AsyncWrite for MockTransport {
-            fn poll_write(
-                self: Pin<&mut Self>,
-                _: &mut Context<'_>,
-                _: &[u8],
-            ) -> Poll<Result<usize>> {
-                Poll::Ready(Ok(2))
-            }
-
-            fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
-                Poll::Ready(Ok(()))
-            }
-
-            fn poll_shutdown(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
-                unimplemented!()
-            }
-        }
-
-        let transport = MockTransport {};
-        let mut ctx =
-            crate::service::rtu::connect_slave(transport, crate::service::rtu::Slave::broadcast())
-                .await
-                .unwrap();
-        let res = ctx
+        let transport = MockTransport;
+        let mut client =
+            crate::service::rtu::Client::new(transport, crate::service::rtu::Slave::broadcast());
+        let res = client
             .call(crate::service::rtu::Request::ReadCoils(0x00, 5))
             .await;
         assert!(res.is_err());

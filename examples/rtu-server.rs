@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Connecting client...");
     let client_serial = tokio_serial::SerialStream::open(&builder).unwrap();
-    let mut ctx = rtu::connect(client_serial).await?;
+    let mut ctx = rtu::attach(client_serial);
     println!("Reading input registers...");
     let rsp = ctx.read_input_registers(0x00, 7).await?;
     println!("The result is '{rsp:#x?}'"); // The result is '[0x0,0x0,0x77,0x0,0x0,0x0,0x0,]'
