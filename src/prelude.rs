@@ -21,6 +21,12 @@ pub mod tcp {
 }
 
 #[allow(missing_docs)]
+#[cfg(feature = "tls")]
+pub mod tls {
+    pub use crate::client::tls::*;
+}
+
+#[allow(missing_docs)]
 #[cfg(feature = "sync")]
 pub mod sync {
     pub use crate::client::sync::*;
