@@ -3,31 +3,48 @@
 
 //! TCP client connections
 
+use std::{fmt, io::Error, net::SocketAddr};
+
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    net::TcpStream,
+};
+
 use super::*;
 
-use crate::service;
-
-use std::{future::Future, io::Error, net::SocketAddr};
-
 /// Establish a direct connection to a Modbus TCP coupler.
-pub fn connect(socket_addr: SocketAddr) -> impl Future<Output = Result<Context, Error>> {
-    connect_slave(socket_addr, Slave::tcp_device())
+pub async fn connect(socket_addr: SocketAddr) -> Result<Context, Error> {
+    connect_slave(socket_addr, Slave::tcp_device()).await
 }
 
 /// Connect to a physical, broadcast, or custom Modbus device,
 /// probably through a Modbus TCP gateway that is forwarding
 /// messages to/from the corresponding slave device.
-pub fn connect_slave(
-    socket_addr: SocketAddr,
-    slave: Slave,
-) -> impl Future<Output = Result<Context, Error>> {
-    let context_future = service::tcp::connect_slave(socket_addr, slave);
+pub async fn connect_slave(socket_addr: SocketAddr, slave: Slave) -> Result<Context, Error> {
+    let transport = TcpStream::connect(socket_addr).await?;
+    let context = attach_slave(transport, slave);
+    Ok(context)
+}
 
-    async {
-        let context = context_future.await?;
+/// Attach a new client context to a direct transport connection.
+///
+/// The connection could either be an ordinary [`TcpStream`] or a TLS connection.
+pub fn attach<T>(transport: T) -> Context
+where
+    T: AsyncRead + AsyncWrite + Send + Unpin + fmt::Debug + 'static,
+{
+    attach_slave(transport, Slave::tcp_device())
+}
 
-        Ok(Context {
-            client: Box::new(context),
-        })
+/// Attach a new client context to a transport connection.
+///
+/// The connection could either be an ordinary [`TcpStream`] or a TLS connection.
+pub fn attach_slave<T>(transport: T, slave: Slave) -> Context
+where
+    T: AsyncRead + AsyncWrite + Send + Unpin + fmt::Debug + 'static,
+{
+    let client = crate::service::tcp::Client::new(transport, slave);
+    Context {
+        client: Box::new(client),
     }
 }
