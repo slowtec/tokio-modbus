@@ -1,54 +1,44 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::{
+    fmt,
+    io::{Error, ErrorKind},
+    sync::atomic::{AtomicU16, Ordering},
+};
+
+use futures_util::{sink::SinkExt as _, stream::StreamExt as _};
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_util::codec::Framed;
+
 use crate::{
-    client::Client,
     codec,
     frame::{tcp::*, *},
     slave::*,
 };
 
-use futures_util::{sink::SinkExt as _, stream::StreamExt as _};
-use std::{
-    future::Future,
-    io::{Error, ErrorKind},
-    net::SocketAddr,
-    sync::atomic::{AtomicU16, Ordering},
-};
-use tokio::net::TcpStream;
-use tokio_util::codec::Framed;
-
-pub(crate) fn connect_slave(
-    socket_addr: SocketAddr,
-    slave: Slave,
-) -> impl Future<Output = Result<Context, Error>> + 'static {
-    let unit_id: UnitId = slave.into();
-    async move {
-        let service = TcpStream::connect(socket_addr).await?;
-        let framed = Framed::new(service, codec::tcp::ClientCodec::default());
-
-        let context: Context = Context::new(framed, unit_id);
-
-        Ok(context)
-    }
-}
-
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
 
 /// Modbus TCP client
 #[derive(Debug)]
-pub(crate) struct Context {
-    service: Framed<TcpStream, codec::tcp::ClientCodec>,
+pub(crate) struct Client<T> {
+    framed: Framed<T, codec::tcp::ClientCodec>,
     unit_id: UnitId,
     transaction_id: AtomicU16,
 }
 
-impl Context {
-    fn new(service: Framed<TcpStream, codec::tcp::ClientCodec>, unit_id: UnitId) -> Self {
+impl<T> Client<T>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    pub(crate) fn new(transport: T, slave: Slave) -> Self {
+        let framed = Framed::new(transport, codec::tcp::ClientCodec::default());
+        let unit_id: UnitId = slave.into();
+        let transaction_id = AtomicU16::new(INITIAL_TRANSACTION_ID);
         Self {
-            service,
+            framed,
             unit_id,
-            transaction_id: AtomicU16::new(INITIAL_TRANSACTION_ID),
+            transaction_id,
         }
     }
 
@@ -84,9 +74,9 @@ impl Context {
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
 
-        self.service.send(req_adu).await?;
+        self.framed.send(req_adu).await?;
         let res_adu = self
-            .service
+            .framed
             .next()
             .await
             .ok_or_else(Error::last_os_error)??;
@@ -110,15 +100,18 @@ fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error>
     Ok(())
 }
 
-impl SlaveContext for Context {
+impl<T> SlaveContext for Client<T> {
     fn set_slave(&mut self, slave: Slave) {
         self.unit_id = slave.into();
     }
 }
 
 #[async_trait::async_trait]
-impl Client for Context {
+impl<T> crate::client::Client for Client<T>
+where
+    T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
+{
     async fn call(&mut self, req: Request) -> Result<Response, Error> {
-        Context::call(self, req).await
+        Client::call(self, req).await
     }
 }

@@ -7,6 +7,7 @@
 
 - TCP Server: Replace `NewService` trait with closures and never panic
 - TCP Server: Stabilize "tcp-server" feature
+- TCP Client: Allow to attach a generic transport layer, e.g. for TLS support
 - RTU Server: Remove `NewService` trait and pass instance directly
 
 ## v0.7.1 (2023-02-28)
