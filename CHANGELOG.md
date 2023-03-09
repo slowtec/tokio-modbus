@@ -10,6 +10,12 @@
 - TCP Client: Allow to attach a generic transport layer, e.g. for TLS support
 - RTU Server: Remove `NewService` trait and pass instance directly
 
+### Breaking Changes
+
+- RTU: Replaced the async and fallible `connect()` and `connect_slave()`
+  functions with synchronous and infallible variants named `attach()` and
+  `attach_slave()` in correspondence to their TCP counterparts.
+
 ## v0.7.1 (2023-02-28)
 
 - Fix (sync): Panic when using client-side timeouts [#155](https://github.com/slowtec/tokio-modbus/issues/155)

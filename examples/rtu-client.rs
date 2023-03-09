@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let builder = tokio_serial::new(tty_path, 19200);
     let port = SerialStream::open(&builder).unwrap();
 
-    let mut ctx = rtu::connect_slave(port, slave).await?;
+    let mut ctx = rtu::attach_slave(port, slave);
     println!("Reading a sensor value");
     let rsp = ctx.read_holding_registers(0x082B, 2).await?;
     println!("Sensor value is: {rsp:?}");
