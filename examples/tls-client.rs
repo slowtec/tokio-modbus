@@ -9,7 +9,7 @@ use std::{
     io::{self, BufReader},
     net::SocketAddr,
     path::Path,
-    sync::Arc
+    sync::Arc,
 };
 
 use pkcs8::der::Decode;
@@ -29,31 +29,37 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
         None => "PRIVATE KEY",
     };
 
-    if expected_tag.eq("PRIVATE KEY"){
+    if expected_tag.eq("PRIVATE KEY") {
         let private_keys = pkcs8_private_keys(&mut BufReader::new(File::open(path)?))
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid key"))
             .map(|mut keys| keys.drain(..).map(PrivateKey).collect());
-        return private_keys;
-    }else {
+        private_keys
+    } else {
         let content = std::fs::read(path).unwrap();
-        let mut iter = pem::parse_many(content).unwrap()
+        let mut iter = pem::parse_many(content)
+            .unwrap()
             .into_iter()
             .filter(|x| x.tag == expected_tag)
             .map(|x| x.contents);
 
-        let _key = match iter.next() {
+        match iter.next() {
             Some(key) => match password {
                 Some(password) => {
                     //println!("{:?}", key);
                     let encrypted = pkcs8::EncryptedPrivateKeyInfo::from_der(&key).unwrap();
                     let decrypted = encrypted.decrypt(password).unwrap();
-                    let key = decrypted.as_bytes().iter().cloned().collect();
+                    let key = decrypted.as_bytes().to_vec();
                     let key = rustls::PrivateKey(key);
-                    let mut private_keys = Vec::new();
+                    let mut private_keys = vec![];
                     private_keys.push(key);
                     return io::Result::Ok(private_keys);
                 }
-                None => return io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key")),
+                None => {
+                    return io::Result::Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "invalid key",
+                    ))
+                }
             },
             None => {
                 return io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key"));
@@ -108,8 +114,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Reading Holding Registers");
     let data = ctx.read_holding_registers(40000, 68).await?;
-
     println!("Holding Registers Data is '{:?}'", data);
+    ctx.disconnect().await?;
 
     Ok(())
 }
