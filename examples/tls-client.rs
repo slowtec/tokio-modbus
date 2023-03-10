@@ -50,8 +50,7 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
                     let decrypted = encrypted.decrypt(password).unwrap();
                     let key = decrypted.as_bytes().to_vec();
                     let key = rustls::PrivateKey(key);
-                    let mut private_keys = vec![];
-                    private_keys.push(key);
+                    let private_keys = vec![key];
                     return io::Result::Ok(private_keys);
                 }
                 None => {
