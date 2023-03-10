@@ -50,22 +50,22 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
                     let key = decrypted.as_bytes().to_vec();
                     let key = rustls::PrivateKey(key);
                     let private_keys = vec![key];
-                    return io::Result::Ok(private_keys);
+                    io::Result::Ok(private_keys)
                 }
                 None => {
-                    return io::Result::Err(io::Error::new(
+                    io::Result::Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
                         "invalid key",
-                    ));
+                    ))
                 }
             },
             None => {
-                return io::Result::Err(io::Error::new(
+                io::Result::Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
                     "invalid key",
-                ));
+                ))
             }
-        };
+        }
     }
 }
 
