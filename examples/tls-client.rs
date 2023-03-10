@@ -12,6 +12,7 @@ use std::{
     sync::Arc
 };
 
+use pkcs8::der::Decode;
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio_rustls::rustls::{self, Certificate, OwnedTrustAnchor, PrivateKey};
 use tokio_rustls::{webpki, TlsConnector};
@@ -22,10 +23,43 @@ fn load_certs(path: &Path) -> io::Result<Vec<Certificate>> {
         .map(|mut certs| certs.drain(..).map(Certificate).collect())
 }
 
-fn load_keys(path: &Path) -> io::Result<Vec<PrivateKey>> {
-    pkcs8_private_keys(&mut BufReader::new(File::open(path)?))
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid key"))
-        .map(|mut keys| keys.drain(..).map(PrivateKey).collect())
+fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>> {
+    let expected_tag = match &password {
+        Some(_) => "ENCRYPTED PRIVATE KEY",
+        None => "PRIVATE KEY",
+    };
+
+    if expected_tag.eq("PRIVATE KEY"){
+        let private_keys = pkcs8_private_keys(&mut BufReader::new(File::open(path)?))
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid key"))
+            .map(|mut keys| keys.drain(..).map(PrivateKey).collect());
+        return private_keys;
+    }else {
+        let content = std::fs::read(path).unwrap();
+        let mut iter = pem::parse_many(content).unwrap()
+            .into_iter()
+            .filter(|x| x.tag == expected_tag)
+            .map(|x| x.contents);
+
+        let _key = match iter.next() {
+            Some(key) => match password {
+                Some(password) => {
+                    //println!("{:?}", key);
+                    let encrypted = pkcs8::EncryptedPrivateKeyInfo::from_der(&key).unwrap();
+                    let decrypted = encrypted.decrypt(password).unwrap();
+                    let key = decrypted.as_bytes().iter().cloned().collect();
+                    let key = rustls::PrivateKey(key);
+                    let mut private_keys = Vec::new();
+                    private_keys.push(key);
+                    return io::Result::Ok(private_keys);
+                }
+                None => return io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key")),
+            },
+            None => {
+                return io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key"));
+            }
+        };
+    }
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -52,7 +86,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cert_path = Path::new("./pki/client.pem");
     let key_path = Path::new("./pki/client.key");
     let certs = load_certs(cert_path)?;
-    let mut keys = load_keys(key_path)?;
+    let mut keys = load_keys(key_path, None)?;
 
     let config = rustls::ClientConfig::builder()
         .with_safe_defaults()
@@ -67,8 +101,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dnsname"))?;
 
     let transport = connector.connect(domain, stream).await?;
-    let mut ctx = tcp::attach(transport);
 
+    // Tokio modbus transport layer setup
+    let mut ctx = tcp::attach(transport);
 
     println!("Reading Holding Registers");
     let data = ctx.read_holding_registers(40000, 68).await?;
