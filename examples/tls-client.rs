@@ -96,6 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let connector = TlsConnector::from(Arc::new(config));
 
     let stream = TcpStream::connect(&socket_addr).await?;
+    stream.set_nodelay(true);
 
     let domain = rustls::ServerName::try_from(domain)
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dnsname"))?;
