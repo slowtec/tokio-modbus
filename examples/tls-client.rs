@@ -30,10 +30,9 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
     };
 
     if expected_tag.eq("PRIVATE KEY") {
-        let private_keys = pkcs8_private_keys(&mut BufReader::new(File::open(path)?))
+        pkcs8_private_keys(&mut BufReader::new(File::open(path)?))
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid key"))
-            .map(|mut keys| keys.drain(..).map(PrivateKey).collect());
-        private_keys
+            .map(|mut keys| keys.drain(..).map(PrivateKey).collect())
     } else {
         let content = std::fs::read(path).unwrap();
         let mut iter = pem::parse_many(content)
@@ -57,11 +56,14 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
                     return io::Result::Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
                         "invalid key",
-                    ))
+                    ));
                 }
             },
             None => {
-                return io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key"));
+                return io::Result::Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "invalid key",
+                ));
             }
         };
     }
