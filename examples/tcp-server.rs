@@ -65,10 +65,10 @@ impl tokio_modbus::server::Service for ExampleService {
             _ => {
                 println!("SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}");
                 // TODO: We want to return a Modbus Exception response `IllegalFunction`. https://github.com/slowtec/tokio-modbus/issues/165
-                return future::ready(Err(std::io::Error::new(
+                future::ready(Err(std::io::Error::new(
                     std::io::ErrorKind::AddrNotAvailable,
-                    format!("Unimplemented function code in request"),
-                )));
+                    "Unimplemented function code in request".to_string(),
+                )))
             }
         }
     }
@@ -179,7 +179,7 @@ async fn client_context(socket_addr: SocketAddr) {
             assert_eq!(response, vec![1234, 5678]);
 
             println!("CLIENT: Writing 2 holding registers...");
-            ctx.write_multiple_registers(0x01, &vec![7777, 8888])
+            ctx.write_multiple_registers(0x01, &[7777, 8888])
                 .await
                 .unwrap();
 
