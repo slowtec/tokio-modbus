@@ -63,9 +63,8 @@ impl tokio_modbus::server::Service for ExampleService {
                 }
             }
             _ => {
-                eprintln!("SERVER: Unimplemented function code in request: {req:?}");
-                // TODO: We want to return a Modbus Exception response `IllegalFunction`.
-                // Not sure how to directly do that.
+                println!("SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}");
+                // TODO: We want to return a Modbus Exception response `IllegalFunction`. https://github.com/slowtec/tokio-modbus/issues/165
                 return future::ready(Err(std::io::Error::new(
                     std::io::ErrorKind::AddrNotAvailable,
                     format!("Unimplemented function code in request"),
@@ -105,8 +104,8 @@ fn register_read(
         if let Some(r) = registers.get(&reg_addr) {
             response_values[i as usize] = *r;
         } else {
-            // TODO: We want to return a Modbus Exception response `IllegalDataAddress`.
-            // Not sure how to directly do that.
+            // TODO: Return a Modbus Exception response `IllegalDataAddress` https://github.com/slowtec/tokio-modbus/issues/165
+            println!("SERVER: Exception::IllegalDataAddress");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::AddrNotAvailable,
                 format!("no register at address {reg_addr}"),
@@ -129,6 +128,8 @@ fn register_write(
         if let Some(r) = registers.get_mut(&reg_addr) {
             *r = *value;
         } else {
+            // TODO: Return a Modbus Exception response `IllegalDataAddress` https://github.com/slowtec/tokio-modbus/issues/165
+            println!("SERVER: Exception::IllegalDataAddress");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::AddrNotAvailable,
                 format!("no register at address {reg_addr}"),
@@ -195,7 +196,8 @@ async fn client_context(socket_addr: SocketAddr) {
             let response = ctx.read_holding_registers(0x100, 1).await;
             println!("CLIENT: The result is '{response:?}'");
             assert!(response.is_err());
-            // TODO: is there a way to get the actual Modbus Exception code? To determine what type of error?
+            // TODO: How can Modbus client identify Modbus exception responses? E.g. here we expect IllegalDataAddress
+            // Question here: https://github.com/slowtec/tokio-modbus/issues/169
 
             println!("CLIENT: Done.")
         },
