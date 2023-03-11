@@ -9,7 +9,10 @@ use async_trait::async_trait;
 use futures::{self, Future};
 use futures_util::{future::FutureExt as _, sink::SinkExt as _, stream::StreamExt as _};
 use socket2::{Domain, Socket, Type};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    net::TcpListener,
+};
 use tokio_util::codec::Framed;
 
 use crate::{
@@ -108,15 +111,13 @@ impl Server {
 }
 
 /// The request-response loop spawned by serve_until for each client
-async fn process<S, Req, Res>(
-    mut framed: Framed<TcpStream, ServerCodec>,
-    service: S,
-) -> io::Result<()>
+async fn process<S, T, Req, Res>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Result<()>
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
     S::Request: From<RequestAdu> + Send,
     S::Response: Into<OptionalResponsePdu> + Send,
     S::Error: Into<io::Error>,
+    T: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
         let Some(request) = framed.next().await.transpose()? else {
