@@ -44,7 +44,6 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
         match iter.next() {
             Some(key) => match password {
                 Some(password) => {
-                    //println!("{:?}", key);
                     let encrypted = pkcs8::EncryptedPrivateKeyInfo::from_der(&key).unwrap();
                     let decrypted = encrypted.decrypt(password).unwrap();
                     let key = decrypted.as_bytes().to_vec();
@@ -52,19 +51,9 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
                     let private_keys = vec![key];
                     io::Result::Ok(private_keys)
                 }
-                None => {
-                    io::Result::Err(io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "invalid key",
-                    ))
-                }
+                None => io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key")),
             },
-            None => {
-                io::Result::Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "invalid key",
-                ))
-            }
+            None => io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key")),
         }
     }
 }
