@@ -16,7 +16,10 @@ use std::{
 use futures::future;
 use tokio::net::TcpListener;
 
-use tokio_modbus::{prelude::*, server::tcp::Server};
+use tokio_modbus::{
+    prelude::*,
+    server::tcp::{accept_tcp_connection, Server},
+};
 
 struct ExampleService {
     input_registers: Arc<Mutex<HashMap<u16, u16>>>,
@@ -156,11 +159,14 @@ async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
     println!("Starting up server on {socket_addr}");
     let listener = TcpListener::bind(socket_addr).await?;
     let server = Server::new(listener);
-    let new_service = |_socket_addr| Some(ExampleService::new());
+    let new_service = |_socket_addr| Ok(Some(ExampleService::new()));
+    let on_connected = |stream, socket_addr| async move {
+        accept_tcp_connection(stream, socket_addr, new_service).await
+    };
     let on_process_error = |err| {
         eprintln!("{err}");
     };
-    server.serve(&new_service, on_process_error).await?;
+    server.serve(&on_connected, on_process_error).await?;
     Ok(())
 }
 
