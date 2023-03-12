@@ -11,7 +11,7 @@ use futures_util::{future::FutureExt as _, sink::SinkExt as _, stream::StreamExt
 use socket2::{Domain, Socket, Type};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
-    net::TcpListener,
+    net::{TcpListener, TcpStream},
 };
 use tokio_util::codec::Framed;
 
@@ -33,6 +33,23 @@ pub trait BindSocket {
     async fn bind_socket(addr: SocketAddr) -> Result<Socket, Self::Error>;
 }
 
+/// Accept unencrypted TCP connections.
+pub async fn accept_tcp_connection<S, NewService>(
+    stream: TcpStream,
+    socket_addr: SocketAddr,
+    new_service: NewService,
+) -> io::Result<Option<(S, TcpStream)>>
+where
+    S: Service + Send + Sync + 'static,
+    S::Request: From<RequestAdu> + Send,
+    S::Response: Into<OptionalResponsePdu> + Send,
+    S::Error: Into<io::Error>,
+    NewService: Fn(SocketAddr) -> io::Result<Option<S>>,
+{
+    let service = new_service(socket_addr)?;
+    Ok(service.map(|service| (service, stream)))
+}
+
 #[derive(Debug)]
 pub struct Server {
     listener: TcpListener,
@@ -45,8 +62,15 @@ impl Server {
         Self { listener }
     }
 
-    /// Start a Modbus TCP server task.
-    pub async fn serve<S, OnConnected, OnProcessError>(
+    /// Listens for incoming connections and starts a Modbus TCP server task for
+    /// each connection.
+    ///
+    /// `OnConnected` is responsible for creating both the service and the
+    /// transport layer for the underlying TCP stream. If `OnConnected` returns
+    /// with `Err` then listening stops and [`Self::serve()`] returns with an error.
+    /// If `OnConnected` returns `Ok(None)` then the connection is rejected
+    /// but [`Self::serve()`] continues listening for new connections.
+    pub async fn serve<S, T, F, OnConnected, OnProcessError>(
         &self,
         on_connected: &OnConnected,
         on_process_error: OnProcessError,
@@ -56,19 +80,22 @@ impl Server {
         S::Request: From<RequestAdu> + Send,
         S::Response: Into<OptionalResponsePdu> + Send,
         S::Error: Into<io::Error>,
-        OnConnected: Fn(SocketAddr) -> Option<S>,
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        OnConnected: Fn(TcpStream, SocketAddr) -> F,
+        F: Future<Output = io::Result<Option<(S, T)>>>,
         OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
     {
         loop {
             let (stream, socket_addr) = self.listener.accept().await?;
             log::debug!("Accepted connection from {socket_addr}");
 
-            let Some(service) = on_connected(socket_addr) else {
+            let Some((service, transport)) = on_connected(stream, socket_addr).await? else {
                 log::debug!("No service for connection from {socket_addr}");
                 continue;
             };
             let on_process_error = on_process_error.clone();
-            let framed = Framed::new(stream, ServerCodec::default());
+
+            let framed = Framed::new(transport, ServerCodec::default());
 
             tokio::spawn(async move {
                 log::debug!("Processing requests from {socket_addr}");
@@ -83,7 +110,7 @@ impl Server {
     ///
     /// Warning: Request processing is not scoped and could be aborted at any internal await point!
     /// See also: <https://rust-lang.github.io/wg-async/vision/roadmap/scopes.html#cancellation>
-    pub async fn serve_until<S, X, OnConnected, OnProcessError>(
+    pub async fn serve_until<S, T, F, X, OnConnected, OnProcessError>(
         self,
         on_connected: &OnConnected,
         on_process_error: OnProcessError,
@@ -94,8 +121,10 @@ impl Server {
         S::Request: From<RequestAdu> + Send,
         S::Response: Into<OptionalResponsePdu> + Send,
         S::Error: Into<io::Error>,
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         X: Future<Output = ()> + Sync + Send + Unpin + 'static,
-        OnConnected: Fn(SocketAddr) -> Option<S>,
+        OnConnected: Fn(TcpStream, SocketAddr) -> F,
+        F: Future<Output = io::Result<Option<(S, T)>>>,
         OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
     {
         let abort_signal = abort_signal.fuse();
