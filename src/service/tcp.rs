@@ -18,6 +18,7 @@ use crate::{
 };
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
+const MAX_RETRIES: usize = 10;
 
 /// Modbus TCP client
 #[derive(Debug)]
@@ -75,15 +76,27 @@ where
         let req_hdr = req_adu.hdr;
 
         self.framed.send(req_adu).await?;
-        let res_adu = self
-            .framed
-            .next()
-            .await
-            .ok_or_else(Error::last_os_error)??;
+        
+        let mut retries = 0;
+        loop {
+            let res_adu = self
+                .framed
+                .next()
+                .await
+                .ok_or_else(Error::last_os_error)??;
 
-        match res_adu.pdu {
-            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
-            ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+            match res_adu.pdu {
+                ResponsePdu(Ok(res)) => if let Err(e) = verify_response_header(req_hdr, res_adu.hdr) {
+                    if retries >= MAX_RETRIES {
+                        return Err(e);
+                    }
+                    retries += 1;
+                    continue;
+                } else {
+                    return Ok(res);
+                },
+                ResponsePdu(Err(err)) => return Err(Error::new(ErrorKind::Other, err)),
+            };
         }
     }
 }
