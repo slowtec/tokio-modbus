@@ -43,9 +43,7 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
     } else {
         let content = std::fs::read(path)?;
         let mut iter = pem::parse_many(content)
-            .map_err(|err| {
-               io::Error::new(io::ErrorKind::InvalidData, err.to_string())
-            })?
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))?
             .into_iter()
             .filter(|x| x.tag == expected_tag)
             .map(|x| x.contents);
@@ -53,14 +51,12 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
         match iter.next() {
             Some(key) => match password {
                 Some(password) => {
-                    let encrypted = pkcs8::EncryptedPrivateKeyInfo::from_der(&key)
-                        .map_err(|err| {
-                            io::Error::new(io::ErrorKind::InvalidData, err.to_string())
-                        })?;
-                    let decrypted = encrypted.decrypt(password)
-                        .map_err(|err| {
-                            io::Error::new(io::ErrorKind::InvalidData, err.to_string())
-                        })?;
+                    let encrypted = pkcs8::EncryptedPrivateKeyInfo::from_der(&key).map_err(|err| {
+                        io::Error::new(io::ErrorKind::InvalidData, err.to_string())
+                    })?;
+                    let decrypted = encrypted.decrypt(password).map_err(|err| {
+                        io::Error::new(io::ErrorKind::InvalidData, err.to_string())
+                    })?;
                     let key = decrypted.as_bytes().to_vec();
                     let key = rustls::PrivateKey(key);
                     let private_keys = vec![key];
