@@ -51,9 +51,10 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
         match iter.next() {
             Some(key) => match password {
                 Some(password) => {
-                    let encrypted = pkcs8::EncryptedPrivateKeyInfo::from_der(&key).map_err(|err| {
-                        io::Error::new(io::ErrorKind::InvalidData, err.to_string())
-                    })?;
+                    let encrypted =
+                        pkcs8::EncryptedPrivateKeyInfo::from_der(&key).map_err(|err| {
+                            io::Error::new(io::ErrorKind::InvalidData, err.to_string())
+                        })?;
                     let decrypted = encrypted.decrypt(password).map_err(|err| {
                         io::Error::new(io::ErrorKind::InvalidData, err.to_string())
                     })?;
@@ -203,7 +204,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
     println!("Starting up server on {socket_addr}");
     let listener = TcpListener::bind(socket_addr).await?;
@@ -253,13 +253,13 @@ async fn client_context(socket_addr: SocketAddr) {
                 )
             });
             root_cert_store.add_server_trust_anchors(trust_anchors);
-        
+
             let domain = "localhost";
             let cert_path = Path::new("./pki/client.pem");
             let key_path = Path::new("./pki/client.key");
             let certs = load_certs(cert_path).unwrap();
             let mut keys = load_keys(key_path, None).unwrap();
-        
+
             let config = rustls::ClientConfig::builder()
                 .with_safe_defaults()
                 .with_root_certificates(root_cert_store)
@@ -267,16 +267,16 @@ async fn client_context(socket_addr: SocketAddr) {
                 .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))
                 .unwrap();
             let connector = TlsConnector::from(Arc::new(config));
-        
+
             let stream = TcpStream::connect(&socket_addr).await.unwrap();
             stream.set_nodelay(true).unwrap();
-        
+
             let domain = rustls::ServerName::try_from(domain)
                 .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dnsname"))
                 .unwrap();
-        
+
             let transport = connector.connect(domain, stream).await.unwrap();
-        
+
             // Tokio modbus transport layer setup
             let mut ctx = tcp::attach(transport);
 
