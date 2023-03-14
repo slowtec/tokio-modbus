@@ -91,6 +91,7 @@ where
                         return Err(e);
                     }
                     retries += 1;
+                    log::info!("Try to recover from header mismatch: expected/request = {:?}, actual/response = {:?}, retries = {:?}", req_hdr, res_adu.hdr, retries);
                     continue;
                 } else {
                     return Ok(res);
