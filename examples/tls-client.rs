@@ -77,7 +77,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pem = BufReader::new(File::open(ca_path)?);
     let certs = rustls_pemfile::certs(&mut pem)?;
     let trust_anchors = certs.iter().map(|cert| {
-        let ta = webpki::TrustAnchor::try_from_cert_der(&cert[..]).expect("cert should parse as anchor!");
+        let ta = webpki::TrustAnchor::try_from_cert_der(&cert[..])
+            .expect("cert should parse as anchor!");
         OwnedTrustAnchor::from_subject_spki_name_constraints(
             ta.subject,
             ta.spki,
