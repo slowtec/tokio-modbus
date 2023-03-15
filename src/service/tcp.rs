@@ -18,7 +18,6 @@ use crate::{
 };
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
-const MAX_RETRIES: usize = 10;
 
 /// Modbus TCP client
 #[derive(Debug)]
@@ -26,13 +25,14 @@ pub(crate) struct Client<T> {
     framed: Framed<T, codec::tcp::ClientCodec>,
     unit_id: UnitId,
     transaction_id: AtomicU16,
+    max_recover_tries: usize,
 }
 
 impl<T> Client<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
-    pub(crate) fn new(transport: T, slave: Slave) -> Self {
+    pub(crate) fn new(transport: T, slave: Slave, max_recover_tries: usize) -> Self {
         let framed = Framed::new(transport, codec::tcp::ClientCodec::default());
         let unit_id: UnitId = slave.into();
         let transaction_id = AtomicU16::new(INITIAL_TRANSACTION_ID);
@@ -40,6 +40,7 @@ where
             framed,
             unit_id,
             transaction_id,
+            max_recover_tries,
         }
     }
 
@@ -87,7 +88,7 @@ where
 
             match res_adu.pdu {
                 ResponsePdu(Ok(res)) => if let Err(e) = verify_response_header(req_hdr, res_adu.hdr) {
-                    if retries >= MAX_RETRIES {
+                    if retries >= self.max_recover_tries {
                         return Err(e);
                     }
                     retries += 1;
