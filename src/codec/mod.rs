@@ -38,9 +38,9 @@ impl TryFrom<Request> for Bytes {
 
     #[allow(clippy::panic_in_result_fn)] // Intentional unreachable!()
     fn try_from(req: Request) -> Result<Bytes, Self::Error> {
+        use crate::frame::Request::*;
         let cnt = request_byte_count(&req);
         let mut data = BytesMut::with_capacity(cnt);
-        use crate::frame::Request::*;
         data.put_u8(req_to_fn_code(&req));
         match req {
             ReadCoils(address, quantity)
@@ -114,9 +114,9 @@ impl TryFrom<RequestPdu> for Bytes {
 
 impl From<Response> for Bytes {
     fn from(rsp: Response) -> Bytes {
+        use crate::frame::Response::*;
         let cnt = response_byte_count(&rsp);
         let mut data = BytesMut::with_capacity(cnt);
-        use crate::frame::Response::*;
         data.put_u8(rsp_to_fn_code(&rsp));
         match rsp {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
@@ -173,8 +173,7 @@ impl From<ExceptionResponse> for Bytes {
 
 impl From<ResponsePdu> for Bytes {
     fn from(pdu: ResponsePdu) -> Bytes {
-        // TODO: Replace with Result::map_or_else() when available
-        pdu.0.map(Into::into).unwrap_or_else(Into::into)
+        pdu.0.map_or_else(Into::into, Into::into)
     }
 }
 
