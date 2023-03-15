@@ -139,7 +139,7 @@ impl Server {
     }
 }
 
-/// The request-response loop spawned by serve_until for each client
+/// The request-response loop spawned by [`serve_until`] for each client
 async fn process<S, T, Req, Res>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Result<()>
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,

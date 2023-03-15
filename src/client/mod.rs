@@ -378,14 +378,13 @@ mod tests {
         // The protocol will always return entire bytes with, i.e.
         // a multiple of 8 coils.
         let response_coils = [true, false, false, true, false, true, false, true].to_vec();
-        for num_coils in 1usize..8usize {
+        for num_coils in 1..8 {
             let mut client = Box::<ClientMock>::default();
             client.set_next_response(Ok(Response::ReadCoils(response_coils.clone())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
-            let coils =
-                futures::executor::block_on(context.read_coils(1, num_coils as u16)).unwrap();
-            assert_eq!(&response_coils[0..num_coils], &coils[..]);
+            let coils = futures::executor::block_on(context.read_coils(1, num_coils)).unwrap();
+            assert_eq!(&response_coils[0..num_coils as usize], &coils[..]);
         }
     }
 
@@ -394,15 +393,14 @@ mod tests {
         // The protocol will always return entire bytes with, i.e.
         // a multiple of 8 coils.
         let response_inputs = [true, false, false, true, false, true, false, true].to_vec();
-        for num_inputs in 1usize..8usize {
+        for num_inputs in 1..8 {
             let mut client = Box::<ClientMock>::default();
             client.set_next_response(Ok(Response::ReadDiscreteInputs(response_inputs.clone())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
             let inputs =
-                futures::executor::block_on(context.read_discrete_inputs(1, num_inputs as u16))
-                    .unwrap();
-            assert_eq!(&response_inputs[0..num_inputs], &inputs[..]);
+                futures::executor::block_on(context.read_discrete_inputs(1, num_inputs)).unwrap();
+            assert_eq!(&response_inputs[0..num_inputs as usize], &inputs[..]);
         }
     }
 }

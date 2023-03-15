@@ -27,14 +27,14 @@ pub struct Server {
 }
 
 impl Server {
-    /// set up a new Server instance from an interface path and baud rate
+    /// set up a new [`Server`] instance from an interface path and baud rate
     pub fn new_from_path<P: AsRef<Path>>(p: P, baud_rate: u32) -> io::Result<Self> {
         let serial =
             SerialStream::open(&tokio_serial::new(p.as_ref().to_string_lossy(), baud_rate))?;
         Ok(Server { serial })
     }
 
-    /// set up a new Server instance based on a pre-configured SerialStream instance
+    /// set up a new [`Server`] instance based on a pre-configured [`SerialStream`] instance
     #[must_use]
     pub fn new(serial: SerialStream) -> Self {
         Server { serial }

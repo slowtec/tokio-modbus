@@ -87,7 +87,7 @@ impl Context {
     ///
     /// The timeout is disabled by passing `None`.
     pub fn set_timeout(&mut self, duration: impl Into<Option<Duration>>) {
-        self.timeout = duration.into()
+        self.timeout = duration.into();
     }
 
     /// Disables the timeout for all subsequent operations.
