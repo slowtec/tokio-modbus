@@ -161,7 +161,7 @@ async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
     let server = Server::new(listener);
     let new_service = |_socket_addr| Ok(Some(ExampleService::new()));
     let on_connected = |stream, socket_addr| async move {
-        accept_tcp_connection(stream, socket_addr, new_service).await
+        accept_tcp_connection(stream, socket_addr, new_service)
     };
     let on_process_error = |err| {
         eprintln!("{err}");

@@ -34,7 +34,7 @@ pub trait BindSocket {
 }
 
 /// Accept unencrypted TCP connections.
-pub async fn accept_tcp_connection<S, NewService>(
+pub fn accept_tcp_connection<S, NewService>(
     stream: TcpStream,
     socket_addr: SocketAddr,
     new_service: NewService,
