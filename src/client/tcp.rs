@@ -26,14 +26,11 @@ pub async fn connect_slave(socket_addr: SocketAddr, slave: Slave) -> Result<Cont
     Ok(context)
 }
 
-/// Connect to a physical, broadcast, or custom Modbus device,
-/// and can enable recover strategy when modbus header mismatch,
-/// when one response frame isn't arrived in specified time due
-/// to tcp retransmission, in the next reading or writing previous
-/// reponse frame will arrived, with this strategy the mismatched
-/// response frame can be discarded. This strategy is inspired by
-/// libmodbus's error recovery: 
-/// https://libmodbus.org/reference/modbus_set_error_recovery/
+/// Connect to a physical, broadcast, or custom Modbus device
+/// with recover tries,
+///
+/// Discard unmatched frame until matched one arrived or
+/// max_recover_retries reached.
 pub async fn connect_slave_recover(socket_addr: SocketAddr, slave: Slave, max_recover_retries: usize) -> Result<Context, Error> {
     let transport = TcpStream::connect(socket_addr).await?;
     let context = attach_slave_recover(transport, slave, max_recover_retries);
