@@ -222,8 +222,11 @@ async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
         let acceptor = TlsAcceptor::from(Arc::new(config));
 
         let service = ExampleService::new();
-        let stream = acceptor.accept(stream).await?;
-        Ok(Some((service, stream)))
+        let stream = acceptor.accept(stream).await;
+        match stream {
+            Ok(stream) => Ok(Some((service, stream))),
+            Err(_) => Ok(None)
+        }
     };
     let on_process_error = |err| {
         eprintln!("{err}");
