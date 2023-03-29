@@ -225,7 +225,7 @@ async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
         let stream = acceptor.accept(stream).await;
         match stream {
             Ok(stream) => Ok(Some((service, stream))),
-            Err(_) => Ok(None)
+            Err(_) => Ok(None),
         }
     };
     let on_process_error = |err| {
