@@ -479,8 +479,8 @@ mod tests {
         ];
         let response = Response::ReadDeviceIdentification(1, 1, true, 0, objs.clone());
 
-        let mut client = Box::new(ClientMock::default());
-        client.set_next_response(Ok(response.clone()));
+        let mut client = Box::<ClientMock>::default();
+        client.set_next_response(Ok(response));
         let mut context = Context { client };
         context.set_slave(Slave(1));
         let resp = futures::executor::block_on(context.read_device_identification(1, 1)).unwrap();
