@@ -22,7 +22,8 @@ use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_modbus::{prelude::*, server::tcp::Server};
 use tokio_rustls::rustls::{self, Certificate, OwnedTrustAnchor, PrivateKey};
-use tokio_rustls::{webpki, TlsAcceptor, TlsConnector};
+use tokio_rustls::{TlsAcceptor, TlsConnector};
+use webpki::TrustAnchor;
 
 fn load_certs(path: &Path) -> io::Result<Vec<Certificate>> {
     certs(&mut BufReader::new(File::open(path)?))
@@ -45,8 +46,8 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
         let mut iter = pem::parse_many(content)
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))?
             .into_iter()
-            .filter(|x| x.tag == expected_tag)
-            .map(|x| x.contents);
+            .filter(|x| x.tag() == expected_tag)
+            .map(|x| x.contents().to_vec());
 
         match iter.next() {
             Some(key) => match password {
@@ -248,7 +249,7 @@ async fn client_context(socket_addr: SocketAddr) {
             let mut pem = BufReader::new(File::open(ca_path).unwrap());
             let certs = rustls_pemfile::certs(&mut pem).unwrap();
             let trust_anchors = certs.iter().map(|cert| {
-                let ta = webpki::TrustAnchor::try_from_cert_der(&cert[..]).unwrap();
+                let ta = TrustAnchor::try_from_cert_der(&cert[..]).unwrap();
                 OwnedTrustAnchor::from_subject_spki_name_constraints(
                     ta.subject,
                     ta.spki,

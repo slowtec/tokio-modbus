@@ -24,15 +24,15 @@ all-features = true
 # <https://users.rust-lang.org/t/psa-please-specify-precise-dependency-versions-in-cargo-toml/71277>
 
 [dependencies]
-async-trait = "0.1.66"
+async-trait = "0.1.68"
 byteorder = "1.4.3"
 bytes = "1.4.0"
-futures = { version = "0.3.26", optional = true }
-futures-util = { version = "0.3.26", optional = true, default-features = false }
+futures = { version = "0.3.28", optional = true }
+futures-util = { version = "0.3.28", optional = true, default-features = false }
 log = "0.4.17"
 smallvec = { version = "1.10.0", default-features = false }
 socket2 = { version = "0.5.1", optional = true, default-features = false }
-tokio = { version = "1.26.0", default-features = false }
+tokio = { version = "1.27.0", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4.4", optional = true, default-features = false }
 tokio-util = { version = "0.7.7", default-features = false, features = [
@@ -40,20 +40,20 @@ tokio-util = { version = "0.7.7", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-anyhow = "1.0.69"
+anyhow = "1.0.70"
 env_logger = "0.10.0"
-futures = "0.3.26"
-tokio = { version = "1.26.0", default-features = false, features = [
+futures = "0.3.28"
+tokio = { version = "1.27.0", default-features = false, features = [
     "macros",
     "rt-multi-thread",
     "time",
 ] }
 tokio-serial = { version = "5.4.4", default-features = false }
 rustls-pemfile = "1.0.2"
-tokio-rustls = "0.23.4"
-webpki-roots = "0.22.6"
-pkcs8 = { version = "0.10.1", features = ["encryption", "pem", "std"] }
-pem = "1.1.1"
+tokio-rustls = "0.24.0"
+pkcs8 = { version = "0.10.2", features = ["encryption", "pem", "std"] }
+pem = "2.0.0"
+webpki = "0.22.0"
 
 [features]
 default = ["rtu", "tcp", "rtu-server", "tcp-server"]

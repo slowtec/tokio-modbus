@@ -18,7 +18,8 @@ use std::{
 use pkcs8::der::Decode;
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio_rustls::rustls::{self, Certificate, OwnedTrustAnchor, PrivateKey};
-use tokio_rustls::{webpki, TlsConnector};
+use tokio_rustls::TlsConnector;
+use webpki::TrustAnchor;
 
 fn load_certs(path: &Path) -> io::Result<Vec<Certificate>> {
     certs(&mut BufReader::new(File::open(path)?))
@@ -41,8 +42,8 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
         let mut iter = pem::parse_many(content)
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err.to_string()))?
             .into_iter()
-            .filter(|x| x.tag == expected_tag)
-            .map(|x| x.contents);
+            .filter(|x| x.tag() == expected_tag)
+            .map(|x| x.contents().to_vec());
 
         match iter.next() {
             Some(key) => match password {
@@ -77,8 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pem = BufReader::new(File::open(ca_path)?);
     let certs = rustls_pemfile::certs(&mut pem)?;
     let trust_anchors = certs.iter().map(|cert| {
-        let ta = webpki::TrustAnchor::try_from_cert_der(&cert[..])
-            .expect("cert should parse as anchor!");
+        let ta = TrustAnchor::try_from_cert_der(&cert[..]).expect("cert should parse as anchor!");
         OwnedTrustAnchor::from_subject_spki_name_constraints(
             ta.subject,
             ta.spki,
