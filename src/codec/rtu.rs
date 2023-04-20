@@ -238,29 +238,28 @@ fn decode<F>(
 where
     F: Fn(&BytesMut) -> Result<Option<usize>>,
 {
-    // TODO: Transform this loop into idiomatic code
-    loop {
-        let mut retry = false;
-        let res = get_pdu_len(buf)
-            .and_then(|pdu_len| {
-                debug_assert!(!retry);
+    const MAX_RETRIES: usize = 20;
+
+    for _i in 0..MAX_RETRIES {
+        match get_pdu_len(buf) {
+            Ok(pdu_len) => {
                 if let Some(pdu_len) = pdu_len {
-                    frame_decoder.decode(buf, pdu_len)
+                    return frame_decoder.decode(buf, pdu_len);
                 } else {
                     // Incomplete frame
-                    Ok(None)
+                    return Ok(None);
                 }
-            })
-            .or_else(|err| {
+            }
+            Err(err) => {
                 log::warn!("Failed to decode {} frame: {}", pdu_type, err);
                 frame_decoder.recover_on_error(buf);
-                retry = true;
-                Ok(None)
-            });
-        if !retry {
-            return res;
+            }
         }
     }
+
+    // Maximum number of retries exceeded.
+    log::error!("Giving up to decode frame after {} retries", MAX_RETRIES);
+    Err(Error::new(ErrorKind::InvalidData, "Too many retries"))
 }
 
 impl Decoder for ClientCodec {
