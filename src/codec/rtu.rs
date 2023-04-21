@@ -267,30 +267,22 @@ impl Decoder for ClientCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
-        self.decoder
-            .decode(buf)
-            .and_then(|frame| {
-                if let Some((slave_id, pdu_data)) = frame {
-                    let hdr = Header { slave_id };
-                    // Decoding of the PDU should are unlikely to fail due
-                    // to transmission errors, because the frame's bytes
-                    // have already been verified with the CRC.
-                    ResponsePdu::try_from(pdu_data)
-                        .map(|pdu| Some(ResponseAdu { hdr, pdu }))
-                        .map_err(|err| {
-                            // Unrecoverable error
-                            log::error!("Failed to decode response PDU: {}", err);
-                            err
-                        })
-                } else {
-                    Ok(None)
-                }
-            })
-            .map_err(|_| {
-                // Decoding the transport frame is non-destructive and must
-                // never fail!
-                unreachable!();
-            })
+        if let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? {
+            let hdr = Header { slave_id };
+
+            // Decoding of the PDU is unlikely to fail due
+            // to transmission errors, because the frame's bytes
+            // have already been verified with the CRC.
+            ResponsePdu::try_from(pdu_data)
+                .map(|pdu| Some(ResponseAdu { hdr, pdu }))
+                .map_err(|err| {
+                    // Unrecoverable error
+                    log::error!("Failed to decode response PDU: {}", err);
+                    err
+                })
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -299,36 +291,28 @@ impl Decoder for ServerCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu>> {
-        self.decoder
-            .decode(buf)
-            .and_then(|frame| {
-                if let Some((slave_id, pdu_data)) = frame {
-                    let hdr = Header { slave_id };
-                    // Decoding of the PDU should are unlikely to fail due
-                    // to transmission errors, because the frame's bytes
-                    // have already been verified with the CRC.
-                    RequestPdu::try_from(pdu_data)
-                        .map(|pdu| {
-                            Some(RequestAdu {
-                                hdr,
-                                pdu,
-                                disconnect: false,
-                            })
-                        })
-                        .map_err(|err| {
-                            // Unrecoverable error
-                            log::error!("Failed to decode request PDU: {}", err);
-                            err
-                        })
-                } else {
-                    Ok(None)
-                }
-            })
-            .map_err(|_| {
-                // Decoding the transport frame is non-destructive and must
-                // never fail!
-                unreachable!();
-            })
+        if let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? {
+            let hdr = Header { slave_id };
+
+            // Decoding of the PDU is unlikely to fail due
+            // to transmission errors, because the frame's bytes
+            // have already been verified with the CRC.
+            RequestPdu::try_from(pdu_data)
+                .map(|pdu| {
+                    Some(RequestAdu {
+                        hdr,
+                        pdu,
+                        disconnect: false,
+                    })
+                })
+                .map_err(|err| {
+                    // Unrecoverable error
+                    log::error!("Failed to decode request PDU: {}", err);
+                    err
+                })
+        } else {
+            Ok(None)
+        }
     }
 }
 
