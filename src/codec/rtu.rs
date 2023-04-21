@@ -36,42 +36,47 @@ impl FrameDecoder {
         buf: &mut BytesMut,
         pdu_len: usize,
     ) -> Result<Option<(SlaveId, Bytes)>> {
+        const CRC_BYTE_COUNT: usize = 2;
+
         let adu_len = 1 + pdu_len;
-        if buf.len() >= adu_len + 2 {
-            let mut adu_buf = buf.split_to(adu_len);
-            let crc_buf = buf.split_to(2);
-            // Read trailing CRC and verify ADU
-            match Cursor::new(&crc_buf).read_u16::<BigEndian>() {
-                Ok(crc) => match check_crc(&adu_buf, crc) {
-                    Ok(()) => {
-                        if !self.dropped_bytes.is_empty() {
-                            log::warn!(
-                                "Successfully decoded frame after dropping {} byte(s): {:X?}",
-                                self.dropped_bytes.len(),
-                                self.dropped_bytes
-                            );
-                            self.dropped_bytes.clear();
-                        }
-                        let slave_id = adu_buf.split_to(1)[0];
-                        let pdu_data = adu_buf.freeze();
-                        return Ok(Some((slave_id, pdu_data)));
-                    }
-                    Err(err) => Err(err),
-                },
-                Err(err) => Err(err),
+
+        if buf.len() < adu_len + CRC_BYTE_COUNT {
+            // Incomplete frame
+            return Ok(None);
+        }
+
+        let mut adu_buf = buf.split_to(adu_len);
+        let crc_buf = buf.split_to(CRC_BYTE_COUNT);
+
+        // Read trailing CRC and verify ADU
+        match Cursor::new(&crc_buf)
+            .read_u16::<BigEndian>()
+            .and_then(|crc| check_crc(&adu_buf, crc))
+        {
+            Ok(()) => {
+                if !self.dropped_bytes.is_empty() {
+                    log::warn!(
+                        "Successfully decoded frame after dropping {} byte(s): {:X?}",
+                        self.dropped_bytes.len(),
+                        self.dropped_bytes
+                    );
+                    self.dropped_bytes.clear();
+                }
+                let slave_id = adu_buf.split_to(1)[0];
+                let pdu_data = adu_buf.freeze();
+
+                Ok(Some((slave_id, pdu_data)))
             }
-            .map_err(|err| {
+            Err(err) => {
                 // Restore the input buffer
                 let rem_buf = buf.split();
                 debug_assert!(buf.is_empty());
                 buf.unsplit(adu_buf);
                 buf.unsplit(crc_buf);
                 buf.unsplit(rem_buf);
-                err
-            })
-        } else {
-            // Incomplete frame
-            Ok(None)
+
+                Err(err)
+            }
         }
     }
 
