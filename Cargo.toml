@@ -31,7 +31,7 @@ futures = { version = "0.3.28", optional = true }
 futures-util = { version = "0.3.28", optional = true, default-features = false }
 log = "0.4.17"
 smallvec = { version = "1.10.0", default-features = false }
-socket2 = { version = "0.5.1", optional = true, default-features = false }
+socket2 = { version = "0.5.2", optional = true, default-features = false }
 tokio = { version = "1.27.0", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4.4", optional = true, default-features = false }
@@ -52,7 +52,7 @@ tokio-serial = { version = "5.4.4", default-features = false }
 rustls-pemfile = "1.0.2"
 tokio-rustls = "0.24.0"
 pkcs8 = { version = "0.10.2", features = ["encryption", "pem", "std"] }
-pem = "2.0.0"
+pem = "2.0.1"
 webpki = "0.22.0"
 
 [features]
