@@ -246,12 +246,12 @@ where
     for _i in 0..MAX_RETRIES {
         match get_pdu_len(buf) {
             Ok(pdu_len) => {
-                if let Some(pdu_len) = pdu_len {
-                    return frame_decoder.decode(buf, pdu_len);
-                } else {
+                let Some(pdu_len) = pdu_len else {
                     // Incomplete frame
                     return Ok(None);
-                }
+                };
+
+                return frame_decoder.decode(buf, pdu_len);
             }
             Err(err) => {
                 log::warn!("Failed to decode {} frame: {}", pdu_type, err);
