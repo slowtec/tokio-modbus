@@ -36,43 +36,46 @@ impl FrameDecoder {
         buf: &mut BytesMut,
         pdu_len: usize,
     ) -> Result<Option<(SlaveId, Bytes)>> {
+        const CRC_BYTE_COUNT: usize = 2;
+
         let adu_len = 1 + pdu_len;
-        if buf.len() >= adu_len + 2 {
-            let mut adu_buf = buf.split_to(adu_len);
-            let crc_buf = buf.split_to(2);
-            // Read trailing CRC and verify ADU
-            match Cursor::new(&crc_buf).read_u16::<BigEndian>() {
-                Ok(crc) => match check_crc(&adu_buf, crc) {
-                    Ok(()) => {
-                        if !self.dropped_bytes.is_empty() {
-                            log::warn!(
-                                "Successfully decoded frame after dropping {} byte(s): {:X?}",
-                                self.dropped_bytes.len(),
-                                self.dropped_bytes
-                            );
-                            self.dropped_bytes.clear();
-                        }
-                        let slave_id = adu_buf.split_to(1)[0];
-                        let pdu_data = adu_buf.freeze();
-                        return Ok(Some((slave_id, pdu_data)));
-                    }
-                    Err(err) => Err(err),
-                },
-                Err(err) => Err(err),
-            }
-            .map_err(|err| {
-                // Restore the input buffer
-                let rem_buf = buf.split();
-                debug_assert!(buf.is_empty());
-                buf.unsplit(adu_buf);
-                buf.unsplit(crc_buf);
-                buf.unsplit(rem_buf);
-                err
-            })
-        } else {
+
+        if buf.len() < adu_len + CRC_BYTE_COUNT {
             // Incomplete frame
-            Ok(None)
+            return Ok(None);
         }
+
+        let mut adu_buf = buf.split_to(adu_len);
+        let crc_buf = buf.split_to(CRC_BYTE_COUNT);
+
+        // Read trailing CRC and verify ADU
+        let crc_result = Cursor::new(&crc_buf)
+            .read_u16::<BigEndian>()
+            .and_then(|crc| check_crc(&adu_buf, crc));
+
+        if let Err(err) = crc_result {
+            // CRC is invalid - restore the input buffer
+            let rem_buf = buf.split();
+            debug_assert!(buf.is_empty());
+            buf.unsplit(adu_buf);
+            buf.unsplit(crc_buf);
+            buf.unsplit(rem_buf);
+
+            return Err(err);
+        }
+
+        if !self.dropped_bytes.is_empty() {
+            log::warn!(
+                "Successfully decoded frame after dropping {} byte(s): {:X?}",
+                self.dropped_bytes.len(),
+                self.dropped_bytes
+            );
+            self.dropped_bytes.clear();
+        }
+        let slave_id = adu_buf.split_to(1)[0];
+        let pdu_data = adu_buf.freeze();
+
+        Ok(Some((slave_id, pdu_data)))
     }
 
     pub(crate) fn recover_on_error(&mut self, buf: &mut BytesMut) {
@@ -238,29 +241,30 @@ fn decode<F>(
 where
     F: Fn(&BytesMut) -> Result<Option<usize>>,
 {
-    // TODO: Transform this loop into idiomatic code
-    loop {
-        let mut retry = false;
-        let res = get_pdu_len(buf)
-            .and_then(|pdu_len| {
-                debug_assert!(!retry);
-                if let Some(pdu_len) = pdu_len {
-                    frame_decoder.decode(buf, pdu_len)
-                } else {
-                    // Incomplete frame
-                    Ok(None)
-                }
-            })
-            .or_else(|err| {
-                log::warn!("Failed to decode {} frame: {}", pdu_type, err);
-                frame_decoder.recover_on_error(buf);
-                retry = true;
-                Ok(None)
-            });
-        if !retry {
-            return res;
+    const MAX_RETRIES: usize = 20;
+
+    for _i in 0..MAX_RETRIES {
+        let result = get_pdu_len(buf).and_then(|pdu_len| {
+            let Some(pdu_len) = pdu_len else {
+                // Incomplete frame
+                return Ok(None);
+            };
+
+            frame_decoder.decode(buf, pdu_len)
+        });
+
+        if let Err(err) = result {
+            log::warn!("Failed to decode {pdu_type} frame: {err}");
+            frame_decoder.recover_on_error(buf);
+            continue;
         }
+
+        return result;
     }
+
+    // Maximum number of retries exceeded.
+    log::error!("Giving up to decode frame after {MAX_RETRIES} retries");
+    Err(Error::new(ErrorKind::InvalidData, "Too many retries"))
 }
 
 impl Decoder for ClientCodec {
@@ -268,29 +272,21 @@ impl Decoder for ClientCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
-        self.decoder
-            .decode(buf)
-            .and_then(|frame| {
-                if let Some((slave_id, pdu_data)) = frame {
-                    let hdr = Header { slave_id };
-                    // Decoding of the PDU should are unlikely to fail due
-                    // to transmission errors, because the frame's bytes
-                    // have already been verified with the CRC.
-                    ResponsePdu::try_from(pdu_data)
-                        .map(|pdu| Some(ResponseAdu { hdr, pdu }))
-                        .map_err(|err| {
-                            // Unrecoverable error
-                            log::error!("Failed to decode response PDU: {}", err);
-                            err
-                        })
-                } else {
-                    Ok(None)
-                }
-            })
-            .map_err(|_| {
-                // Decoding the transport frame is non-destructive and must
-                // never fail!
-                unreachable!();
+        let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
+            return Ok(None)
+        };
+
+        let hdr = Header { slave_id };
+
+        // Decoding of the PDU is unlikely to fail due
+        // to transmission errors, because the frame's bytes
+        // have already been verified with the CRC.
+        ResponsePdu::try_from(pdu_data)
+            .map(|pdu| Some(ResponseAdu { hdr, pdu }))
+            .map_err(|err| {
+                // Unrecoverable error
+                log::error!("Failed to decode response PDU: {}", err);
+                err
             })
     }
 }
@@ -300,35 +296,27 @@ impl Decoder for ServerCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu>> {
-        self.decoder
-            .decode(buf)
-            .and_then(|frame| {
-                if let Some((slave_id, pdu_data)) = frame {
-                    let hdr = Header { slave_id };
-                    // Decoding of the PDU should are unlikely to fail due
-                    // to transmission errors, because the frame's bytes
-                    // have already been verified with the CRC.
-                    RequestPdu::try_from(pdu_data)
-                        .map(|pdu| {
-                            Some(RequestAdu {
-                                hdr,
-                                pdu,
-                                disconnect: false,
-                            })
-                        })
-                        .map_err(|err| {
-                            // Unrecoverable error
-                            log::error!("Failed to decode request PDU: {}", err);
-                            err
-                        })
-                } else {
-                    Ok(None)
-                }
+        let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
+            return Ok(None)
+        };
+
+        let hdr = Header { slave_id };
+
+        // Decoding of the PDU is unlikely to fail due
+        // to transmission errors, because the frame's bytes
+        // have already been verified with the CRC.
+        RequestPdu::try_from(pdu_data)
+            .map(|pdu| {
+                Some(RequestAdu {
+                    hdr,
+                    pdu,
+                    disconnect: false,
+                })
             })
-            .map_err(|_| {
-                // Decoding the transport frame is non-destructive and must
-                // never fail!
-                unreachable!();
+            .map_err(|err| {
+                // Unrecoverable error
+                log::error!("Failed to decode request PDU: {}", err);
+                err
             })
     }
 }
