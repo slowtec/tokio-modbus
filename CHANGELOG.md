@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.8.0 (Unreleased)
+## v0.8.0 (2023-04-24)
 
 - TCP Server: Replace `NewService` trait with closures and never panic
 - TCP Server: Stabilize "tcp-server" feature
