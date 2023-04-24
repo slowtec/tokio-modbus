@@ -11,6 +11,8 @@
 - RTU Server: Remove `NewService` trait and pass instance directly
 - Fix (sync): No timeout while establishing serial RTU connections
 - Add: TLS client and server examples
+- Fix: Limit retrying Modbus RTU communication to 20 times instead of looping infinitely
+- Increase Minimum Supported Rust Version to 1.65
 
 ### Breaking Changes
 
