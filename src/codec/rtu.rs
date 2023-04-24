@@ -244,20 +244,22 @@ where
     const MAX_RETRIES: usize = 20;
 
     for _i in 0..MAX_RETRIES {
-        match get_pdu_len(buf) {
-            Ok(pdu_len) => {
-                let Some(pdu_len) = pdu_len else {
-                    // Incomplete frame
-                    return Ok(None);
-                };
+        let result = get_pdu_len(buf).and_then(|pdu_len| {
+            let Some(pdu_len) = pdu_len else {
+                // Incomplete frame
+                return Ok(None);
+            };
 
-                return frame_decoder.decode(buf, pdu_len);
-            }
-            Err(err) => {
-                log::warn!("Failed to decode {} frame: {}", pdu_type, err);
-                frame_decoder.recover_on_error(buf);
-            }
+            frame_decoder.decode(buf, pdu_len)
+        });
+
+        if let Err(err) = result {
+            log::warn!("Failed to decode {pdu_type} frame: {err}");
+            frame_decoder.recover_on_error(buf);
+            continue;
         }
+
+        return result;
     }
 
     // Maximum number of retries exceeded.
