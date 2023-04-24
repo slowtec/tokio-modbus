@@ -15,6 +15,7 @@ keywords = ["fieldbus", "modbus", "hardware", "automation"]
 homepage = "https://github.com/slowtec/tokio-modbus"
 repository = "https://github.com/slowtec/tokio-modbus"
 edition = "2021"
+rust-version = "1.65"
 include = ["/src", "/CHANGELOG.md", "/README.md", "/LICENSES"]
 
 [package.metadata.docs.rs]
