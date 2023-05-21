@@ -71,7 +71,7 @@ tcp-server = [
     "tokio/rt-multi-thread",
 ]
 # The following features are internal and must not be used in dependencies.
-sync = ["dep:futures", "tokio/time"]
+sync = ["dep:futures", "tokio/time", "tokio/rt"]
 server = ["dep:futures"]
 
 [badges]
