@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::future::Future;
+use std::ops::Deref;
 
 /// A Modbus server service.
 pub trait Service {
@@ -19,4 +20,20 @@ pub trait Service {
 
     /// Process the request and return the response asynchronously.
     fn call(&self, req: Self::Request) -> Self::Future;
+}
+
+impl<D> Service for D
+where
+    D: Deref,
+    D::Target: Service,
+{
+    type Request = <D::Target as Service>::Request;
+    type Response = <D::Target as Service>::Response;
+    type Error = <D::Target as Service>::Error;
+    type Future = <D::Target as Service>::Future;
+
+    /// A forwarding blanket impl to support smart pointers around [`Service`].
+    fn call(&self, req: Self::Request) -> Self::Future {
+        self.deref().call(req)
+    }
 }
