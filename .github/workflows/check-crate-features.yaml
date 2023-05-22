@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+# SPDX-License-Identifier: CC0-1.0
+
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+
+name: check-crate-features
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runner_os }}
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-msvc
+        crate-feature:
+          - rtu
+          - tcp
+          - rtu-sync
+          - tcp-sync
+          - rtu-server
+          - tcp-server
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner_os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            runner_os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            runner_os: windows-latest
+
+    steps:
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Generate Cargo.lock
+        run: cargo generate-lockfile
+
+      - name: Cache Rust toolchain and build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Distinguished by the action name to avoid sharing across different actions!
+          shared-key: "check-crate-features"
+
+      - name: Check crate feature
+        run: cargo check --workspace --locked --no-default-features --features ${{ matrix.crate-feature }}
