@@ -236,9 +236,8 @@ mod tests {
             response: Response::ReadInputRegisters(vec![0x33]),
         });
         let svc = |_socket_addr| Ok(Some(Arc::clone(&service)));
-        let on_connected = |stream, socket_addr| async move {
-            accept_tcp_connection(stream, socket_addr, svc)
-        };
+        let on_connected =
+            |stream, socket_addr| async move { accept_tcp_connection(stream, socket_addr, svc) };
 
         // bind 0 to let the OS pick a random port
         let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
