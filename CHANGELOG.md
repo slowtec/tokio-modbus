@@ -3,6 +3,12 @@
 
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- Remove `*-sync` features
+
 ## v0.8.0 (2023-04-24)
 
 - TCP Server: Replace `NewService` trait with closures and never panic

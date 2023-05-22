@@ -23,7 +23,7 @@ and the _slave_ is called _server_ in this library.
 
 - Pure Rust library
 - Modbus TCP or RTU at your choice
-- Both `async` (non-blocking, default) and `sync` (blocking, optional)
+- `async` (non-blocking)
 - Client API
 - Server implementations
   - for _out-of-the-box_ usage or
@@ -43,8 +43,6 @@ tokio-modbus = "*"
 
 - `"rtu"`: Asynchronous RTU client (default)
 - `"tcp"`: Asynchronous TCP client (default)
-- `"rtu-sync`: Synchronous RTU client
-- `"tcp-sync"`: Synchronous TCP client
 - `"rtu-server"`: (Asynchronous) RTU server
 - `"tcp-server"`: (Asynchronous) TCP server
 

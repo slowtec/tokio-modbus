@@ -60,8 +60,6 @@ webpki = "0.22.0"
 default = ["rtu", "tcp", "rtu-server", "tcp-server"]
 rtu = ["futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
-rtu-sync = ["rtu", "sync", "dep:tokio-serial"]
-tcp-sync = ["tcp", "sync"]
 rtu-server = ["rtu", "server", "tokio/macros", "dep:tokio-serial"]
 tcp-server = [
     "tcp",
@@ -71,16 +69,10 @@ tcp-server = [
     "tokio/rt-multi-thread",
 ]
 # The following features are internal and must not be used in dependencies.
-sync = ["dep:futures", "tokio/time"]
 server = ["dep:futures"]
 
 [badges]
 maintenance = { status = "actively-developed" }
-
-[[example]]
-name = "rtu-client-sync"
-path = "examples/rtu-client-sync.rs"
-required-features = ["rtu-sync"]
 
 [[example]]
 name = "rtu-client"
@@ -101,11 +93,6 @@ required-features = ["rtu-server"]
 name = "tcp-client-custom-fn"
 path = "examples/tcp-client-custom-fn.rs"
 required-features = ["tcp"]
-
-[[example]]
-name = "tcp-client-sync"
-path = "examples/tcp-client-sync.rs"
-required-features = ["tcp-sync"]
 
 [[example]]
 name = "tcp-client"
