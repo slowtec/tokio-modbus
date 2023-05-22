@@ -3,6 +3,10 @@
 
 # Changelog
 
+## v0.8.1 (2023-05-22)
+
+- Fix `rtu-sync` build
+
 ## v0.8.0 (2023-04-24)
 
 - TCP Server: Replace `NewService` trait with closures and never panic
