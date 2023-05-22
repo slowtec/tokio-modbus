@@ -210,7 +210,45 @@ mod tests {
 
     use crate::{prelude::*, server::Service};
 
+    use std::sync::Arc;
+
     use futures::future;
+
+    #[tokio::test]
+    async fn delegate_service_through_deref_for_server() {
+        #[derive(Clone)]
+        struct DummyService {
+            response: Response,
+        }
+
+        impl Service for DummyService {
+            type Request = Request;
+            type Response = Response;
+            type Error = io::Error;
+            type Future = future::Ready<Result<Self::Response, Self::Error>>;
+
+            fn call(&self, _: Self::Request) -> Self::Future {
+                future::ready(Ok(self.response.clone()))
+            }
+        }
+
+        let service = Arc::new(DummyService {
+            response: Response::ReadInputRegisters(vec![0x33]),
+        });
+        let svc = |_socket_addr| Ok(Some(Arc::clone(&service)));
+        let on_connected = |stream, socket_addr| async move {
+            accept_tcp_connection(stream, socket_addr, svc)
+        };
+
+        // bind 0 to let the OS pick a random port
+        let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
+        let listener = TcpListener::bind(addr).await.unwrap();
+        let server = Server::new(listener);
+
+        // passes type-check is the goal here
+        // added `mem::drop` to satisfy `must_use` compiler warnings
+        std::mem::drop(server.serve(&on_connected, |_err| {}));
+    }
 
     #[tokio::test]
     async fn service_wrapper() {
