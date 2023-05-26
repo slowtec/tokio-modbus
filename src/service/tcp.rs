@@ -4,11 +4,14 @@
 use std::{
     fmt,
     io::{Error, ErrorKind},
+    pin::Pin,
     sync::atomic::{AtomicU16, Ordering},
+    task::{Context, Poll},
 };
 
+use futures_util::task::noop_waker_ref;
 use futures_util::{sink::SinkExt as _, stream::StreamExt as _};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::codec::Framed;
 
 use crate::{
@@ -74,6 +77,11 @@ where
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
 
+        let mut buf = [0];
+        while let Poll::Ready(Ok(_)) = Pin::new(self.framed.get_mut()).poll_read(
+            &mut Context::from_waker(noop_waker_ref()),
+            &mut ReadBuf::new(&mut buf),
+        ) {}
         self.framed.send(req_adu).await?;
         let res_adu = self
             .framed
