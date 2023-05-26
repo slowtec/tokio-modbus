@@ -60,6 +60,8 @@ where
             &mut Context::from_waker(noop_waker_ref()),
             &mut ReadBuf::new(&mut buf),
         ) {}
+        self.framed.write_buffer_mut().clear();
+        self.framed.read_buffer_mut().clear();
         self.framed.send(req_adu).await?;
         let res_adu = self
             .framed
