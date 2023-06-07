@@ -74,6 +74,8 @@ where
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
 
+        self.framed.read_buffer_mut().clear();
+
         self.framed.send(req_adu).await?;
         let res_adu = self
             .framed
