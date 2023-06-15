@@ -3,6 +3,10 @@
 
 # Changelog
 
+## v0.8.2 (2023-06-15)
+
+- Clear rx buffer before sending to help with error recovery on unreliable physical connections [#198](https://github.com/slowtec/tokio-modbus/pull/198)
+
 ## v0.8.1 (2023-05-22)
 
 - Fix `rtu-sync` build
