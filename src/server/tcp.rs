@@ -41,7 +41,7 @@ pub fn accept_tcp_connection<S, NewService>(
 ) -> io::Result<Option<(S, TcpStream)>>
 where
     S: Service + Send + Sync + 'static,
-    S::Request: From<RequestAdu> + Send,
+    S::Request: From<RequestAdu<'static>> + Send,
     S::Response: Into<OptionalResponsePdu> + Send,
     S::Error: Into<io::Error>,
     NewService: Fn(SocketAddr) -> io::Result<Option<S>>,
@@ -77,7 +77,7 @@ impl Server {
     ) -> io::Result<()>
     where
         S: Service + Send + Sync + 'static,
-        S::Request: From<RequestAdu> + Send,
+        S::Request: From<RequestAdu<'static>> + Send,
         S::Response: Into<OptionalResponsePdu> + Send,
         S::Error: Into<io::Error>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -118,7 +118,7 @@ impl Server {
     ) -> io::Result<Terminated>
     where
         S: Service + Send + Sync + 'static,
-        S::Request: From<RequestAdu> + Send,
+        S::Request: From<RequestAdu<'static>> + Send,
         S::Response: Into<OptionalResponsePdu> + Send,
         S::Error: Into<io::Error>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -143,7 +143,7 @@ impl Server {
 async fn process<S, T, Req, Res>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Result<()>
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
-    S::Request: From<RequestAdu> + Send,
+    S::Request: From<RequestAdu<'static>> + Send,
     S::Response: Into<OptionalResponsePdu> + Send,
     S::Error: Into<io::Error>,
     T: AsyncRead + AsyncWrite + Unpin,
@@ -222,7 +222,7 @@ mod tests {
         }
 
         impl Service for DummyService {
-            type Request = Request;
+            type Request = Request<'static>;
             type Response = Response;
             type Error = io::Error;
             type Future = future::Ready<Result<Self::Response, Self::Error>>;
@@ -257,7 +257,7 @@ mod tests {
         }
 
         impl Service for DummyService {
-            type Request = Request;
+            type Request = Request<'static>;
             type Response = Response;
             type Error = io::Error;
             type Future = future::Ready<Result<Self::Response, Self::Error>>;

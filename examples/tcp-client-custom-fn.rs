@@ -3,6 +3,8 @@
 
 //! Custom function client example
 
+use std::borrow::Cow;
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_modbus::prelude::*;
@@ -12,7 +14,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx = tcp::connect(socket_addr).await?;
 
     println!("Fetching the coupler ID");
-    let rsp = ctx.call(Request::Custom(0x66, vec![0x11, 0x42])).await?;
+    let rsp = ctx
+        .call(Request::Custom(0x66, Cow::Borrowed(&[0x11, 0x42])))
+        .await?;
 
     match rsp {
         Response::Custom(f, rsp) => {

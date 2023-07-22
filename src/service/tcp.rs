@@ -57,9 +57,9 @@ where
         }
     }
 
-    fn next_request_adu<R>(&self, req: R, disconnect: bool) -> RequestAdu
+    fn next_request_adu<'a, R>(&self, req: R, disconnect: bool) -> RequestAdu<'a>
     where
-        R: Into<RequestPdu>,
+        R: Into<RequestPdu<'a>>,
     {
         RequestAdu {
             hdr: self.next_request_hdr(self.unit_id),
@@ -68,7 +68,7 @@ where
         }
     }
 
-    pub(crate) async fn call(&mut self, req: Request) -> Result<Response, Error> {
+    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
         log::debug!("Call {:?}", req);
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
@@ -113,7 +113,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
         Client::call(self, req).await
     }
 }

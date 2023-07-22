@@ -77,7 +77,7 @@ struct ExampleService {
 }
 
 impl tokio_modbus::server::Service for ExampleService {
-    type Request = Request;
+    type Request = Request<'static>;
     type Response = Response;
     type Error = std::io::Error;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;

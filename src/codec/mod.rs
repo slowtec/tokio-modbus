@@ -32,11 +32,11 @@ fn u8_len(len: usize) -> u8 {
     len as u8
 }
 
-impl TryFrom<Request> for Bytes {
+impl<'a> TryFrom<Request<'a>> for Bytes {
     type Error = Error;
 
     #[allow(clippy::panic_in_result_fn)] // Intentional unreachable!()
-    fn try_from(req: Request) -> Result<Bytes, Self::Error> {
+    fn try_from(req: Request<'a>) -> Result<Bytes, Self::Error> {
         use crate::frame::Request::*;
         let cnt = request_byte_count(&req);
         let mut data = BytesMut::with_capacity(cnt);
@@ -72,8 +72,8 @@ impl TryFrom<Request> for Bytes {
                 let len = words.len();
                 data.put_u16(u16_len(len));
                 data.put_u8(u8_len(len * 2));
-                for w in words {
-                    data.put_u16(w);
+                for w in &*words {
+                    data.put_u16(*w);
                 }
             }
             MaskWriteRegister(address, and_mask, or_mask) => {
@@ -88,13 +88,13 @@ impl TryFrom<Request> for Bytes {
                 let n = words.len();
                 data.put_u16(u16_len(n));
                 data.put_u8(u8_len(n * 2));
-                for w in words {
-                    data.put_u16(w);
+                for w in &*words {
+                    data.put_u16(*w);
                 }
             }
             Custom(_, custom_data) => {
-                for d in custom_data {
-                    data.put_u8(d);
+                for d in &*custom_data {
+                    data.put_u8(*d);
                 }
             }
             Disconnect => unreachable!(),
@@ -103,10 +103,10 @@ impl TryFrom<Request> for Bytes {
     }
 }
 
-impl TryFrom<RequestPdu> for Bytes {
+impl<'a> TryFrom<RequestPdu<'a>> for Bytes {
     type Error = Error;
 
-    fn try_from(pdu: RequestPdu) -> Result<Bytes, Self::Error> {
+    fn try_from(pdu: RequestPdu<'a>) -> Result<Bytes, Self::Error> {
         pdu.0.try_into()
     }
 }
@@ -176,7 +176,7 @@ impl From<ResponsePdu> for Bytes {
     }
 }
 
-impl TryFrom<Bytes> for Request {
+impl TryFrom<Bytes> for Request<'static> {
     type Error = Error;
 
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
@@ -198,7 +198,7 @@ impl TryFrom<Bytes> for Request {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
                 }
                 let x = &bytes[6..];
-                WriteMultipleCoils(address, unpack_coils(x, quantity))
+                WriteMultipleCoils(address, unpack_coils(x, quantity).into())
             }
             0x04 => ReadInputRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
             0x03 => {
@@ -217,7 +217,7 @@ impl TryFrom<Bytes> for Request {
                 for _ in 0..quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
-                WriteMultipleRegisters(address, data)
+                WriteMultipleRegisters(address, data.into())
             }
             0x16 => {
                 let address = rdr.read_u16::<BigEndian>()?;
@@ -238,9 +238,9 @@ impl TryFrom<Bytes> for Request {
                 for _ in 0..write_quantity {
                     data.push(rdr.read_u16::<BigEndian>()?);
                 }
-                ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data)
+                ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
             }
-            fn_code if fn_code < 0x80 => Custom(fn_code, bytes[1..].into()),
+            fn_code if fn_code < 0x80 => Custom(fn_code, bytes[1..].to_vec().into()),
             fn_code => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
@@ -252,7 +252,7 @@ impl TryFrom<Bytes> for Request {
     }
 }
 
-impl TryFrom<Bytes> for RequestPdu {
+impl TryFrom<Bytes> for RequestPdu<'static> {
     type Error = Error;
 
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
@@ -430,7 +430,7 @@ fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
     res
 }
 
-fn req_to_fn_code(req: &Request) -> u8 {
+fn req_to_fn_code(req: &Request<'_>) -> u8 {
     use crate::frame::Request::*;
     match *req {
         ReadCoils(_, _) => 0x01,
@@ -465,7 +465,7 @@ fn rsp_to_fn_code(rsp: &Response) -> u8 {
     }
 }
 
-fn request_byte_count(req: &Request) -> usize {
+fn request_byte_count(req: &Request<'_>) -> usize {
     use crate::frame::Request::*;
     match *req {
         ReadCoils(_, _)
@@ -501,6 +501,8 @@ fn response_byte_count(rsp: &Response) -> usize {
 
 #[cfg(test)]
 mod tests {
+
+    use std::borrow::Cow;
 
     use super::*;
 
@@ -547,17 +549,23 @@ mod tests {
         assert_eq!(req_to_fn_code(&ReadCoils(0, 0)), 1);
         assert_eq!(req_to_fn_code(&ReadDiscreteInputs(0, 0)), 2);
         assert_eq!(req_to_fn_code(&WriteSingleCoil(0, true)), 5);
-        assert_eq!(req_to_fn_code(&WriteMultipleCoils(0, vec![])), 0x0F);
+        assert_eq!(
+            req_to_fn_code(&WriteMultipleCoils(0, Cow::Borrowed(&[]))),
+            0x0F
+        );
         assert_eq!(req_to_fn_code(&ReadInputRegisters(0, 0)), 0x04);
         assert_eq!(req_to_fn_code(&ReadHoldingRegisters(0, 0)), 0x03);
         assert_eq!(req_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
-        assert_eq!(req_to_fn_code(&WriteMultipleRegisters(0, vec![])), 0x10);
+        assert_eq!(
+            req_to_fn_code(&WriteMultipleRegisters(0, Cow::Borrowed(&[]))),
+            0x10
+        );
         assert_eq!(req_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
         assert_eq!(
-            req_to_fn_code(&ReadWriteMultipleRegisters(0, 0, 0, vec![])),
+            req_to_fn_code(&ReadWriteMultipleRegisters(0, 0, 0, Cow::Borrowed(&[]))),
             0x17
         );
-        assert_eq!(req_to_fn_code(&Custom(88, vec![])), 88);
+        assert_eq!(req_to_fn_code(&Custom(88, Cow::Borrowed(&[]))), 88);
     }
 
     #[test]
@@ -635,7 +643,7 @@ mod tests {
 
     #[test]
     fn pdu_with_a_lot_of_data_into_bytes() {
-        let _req_pdu: Bytes = Request::WriteMultipleRegisters(0x01, vec![0; 80])
+        let _req_pdu: Bytes = Request::WriteMultipleRegisters(0x01, Cow::Borrowed(&[0; 80]))
             .try_into()
             .unwrap();
         let _rsp_pdu: Bytes = Response::ReadInputRegisters(vec![0; 80]).into();
@@ -677,8 +685,8 @@ mod tests {
 
         #[test]
         fn write_multiple_coils() {
-            let states = vec![true, false, true, true];
-            let bytes: Bytes = Request::WriteMultipleCoils(0x3311, states)
+            let states = [true, false, true, true];
+            let bytes: Bytes = Request::WriteMultipleCoils(0x3311, Cow::Borrowed(&states))
                 .try_into()
                 .unwrap();
             assert_eq!(bytes[0], 0x0F);
@@ -724,9 +732,10 @@ mod tests {
 
         #[test]
         fn write_multiple_registers() {
-            let bytes: Bytes = Request::WriteMultipleRegisters(0x06, vec![0xABCD, 0xEF12])
-                .try_into()
-                .unwrap();
+            let bytes: Bytes =
+                Request::WriteMultipleRegisters(0x06, Cow::Borrowed(&[0xABCD, 0xEF12]))
+                    .try_into()
+                    .unwrap();
 
             // function code
             assert_eq!(bytes[0], 0x10);
@@ -773,10 +782,11 @@ mod tests {
 
         #[test]
         fn read_write_multiple_registers() {
-            let data = vec![0xABCD, 0xEF12];
-            let bytes: Bytes = Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, data)
-                .try_into()
-                .unwrap();
+            let data = [0xABCD, 0xEF12];
+            let bytes: Bytes =
+                Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, Cow::Borrowed(&data))
+                    .try_into()
+                    .unwrap();
 
             // function code
             assert_eq!(bytes[0], 0x17);
@@ -809,7 +819,7 @@ mod tests {
 
         #[test]
         fn custom() {
-            let bytes: Bytes = Request::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF])
+            let bytes: Bytes = Request::Custom(0x55, Cow::Borrowed(&[0xCC, 0x88, 0xAA, 0xFF]))
                 .try_into()
                 .unwrap();
             assert_eq!(bytes[0], 0x55);
@@ -870,7 +880,7 @@ mod tests {
             let req = Request::try_from(bytes).unwrap();
             assert_eq!(
                 req,
-                Request::WriteMultipleCoils(0x3311, vec![true, false, true, true])
+                Request::WriteMultipleCoils(0x3311, Cow::Borrowed(&[true, false, true, true]))
             );
         }
 
@@ -908,7 +918,7 @@ mod tests {
             let req = Request::try_from(bytes).unwrap();
             assert_eq!(
                 req,
-                Request::WriteMultipleRegisters(0x06, vec![0xABCD, 0xEF12])
+                Request::WriteMultipleRegisters(0x06, Cow::Borrowed(&[0xABCD, 0xEF12]))
             );
         }
 
@@ -929,10 +939,10 @@ mod tests {
                 0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12,
             ]);
             let req = Request::try_from(bytes).unwrap();
-            let data = vec![0xABCD, 0xEF12];
+            let data = [0xABCD, 0xEF12];
             assert_eq!(
                 req,
-                Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, data)
+                Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, Cow::Borrowed(&data))
             );
         }
 
@@ -940,7 +950,10 @@ mod tests {
         fn custom() {
             let bytes = Bytes::from(vec![0x55, 0xCC, 0x88, 0xAA, 0xFF]);
             let req = Request::try_from(bytes).unwrap();
-            assert_eq!(req, Request::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF]));
+            assert_eq!(
+                req,
+                Request::Custom(0x55, Cow::Borrowed(&[0xCC, 0x88, 0xAA, 0xFF]))
+            );
         }
     }
 

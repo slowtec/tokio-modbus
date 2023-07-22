@@ -12,7 +12,7 @@ use tokio_modbus::{prelude::*, server::rtu::Server};
 struct Service;
 
 impl tokio_modbus::server::Service for Service {
-    type Request = SlaveRequest;
+    type Request = SlaveRequest<'static>;
     type Response = Response;
     type Error = std::io::Error;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;

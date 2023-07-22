@@ -292,10 +292,10 @@ impl Decoder for ClientCodec {
 }
 
 impl Decoder for ServerCodec {
-    type Item = RequestAdu;
+    type Item = RequestAdu<'static>;
     type Error = Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu<'static>>> {
         let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
             return Ok(None)
         };
@@ -321,10 +321,10 @@ impl Decoder for ServerCodec {
     }
 }
 
-impl Encoder<RequestAdu> for ClientCodec {
+impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
     type Error = Error;
 
-    fn encode(&mut self, adu: RequestAdu, buf: &mut BytesMut) -> Result<()> {
+    fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> Result<()> {
         if adu.disconnect {
             // The disconnect happens implicitly after letting this request
             // fail by returning an error. This will drop the attached

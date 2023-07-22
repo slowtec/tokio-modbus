@@ -13,9 +13,9 @@ pub(crate) struct Header {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RequestAdu {
+pub struct RequestAdu<'a> {
     pub(crate) hdr: Header,
-    pub(crate) pdu: RequestPdu,
+    pub(crate) pdu: RequestPdu<'a>,
     pub(crate) disconnect: bool,
 }
 
@@ -25,15 +25,15 @@ pub(crate) struct ResponseAdu {
     pub(crate) pdu: ResponsePdu,
 }
 
-impl From<RequestAdu> for Request {
-    fn from(from: RequestAdu) -> Self {
+impl<'a> From<RequestAdu<'a>> for Request<'a> {
+    fn from(from: RequestAdu<'a>) -> Self {
         from.pdu.into()
     }
 }
 
 #[cfg(feature = "server")]
-impl From<RequestAdu> for SlaveRequest {
-    fn from(from: RequestAdu) -> Self {
+impl<'a> From<RequestAdu<'a>> for SlaveRequest<'a> {
+    fn from(from: RequestAdu<'a>) -> Self {
         Self {
             slave: from.hdr.unit_id,
             request: from.pdu.into(),
