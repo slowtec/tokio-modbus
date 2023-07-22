@@ -44,7 +44,7 @@ impl Server {
     pub async fn serve_forever<S>(self, service: S) -> io::Result<()>
     where
         S: Service + Send + Sync + 'static,
-        S::Request: From<RequestAdu> + Send,
+        S::Request: From<RequestAdu<'static>> + Send,
         S::Response: Into<OptionalResponsePdu> + Send,
         S::Error: Into<io::Error>,
     {
@@ -59,7 +59,7 @@ impl Server {
     pub async fn serve_until<S, X>(self, service: S, abort_signal: X) -> io::Result<Terminated>
     where
         S: Service + Send + Sync + 'static,
-        S::Request: From<RequestAdu> + Send,
+        S::Request: From<RequestAdu<'static>> + Send,
         S::Response: Into<OptionalResponsePdu> + Send,
         S::Error: Into<io::Error>,
         X: Future<Output = ()> + Sync + Send + Unpin + 'static,
@@ -84,7 +84,7 @@ async fn process<S, Req, Res>(
 ) -> io::Result<()>
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
-    S::Request: From<RequestAdu> + Send,
+    S::Request: From<RequestAdu<'static>> + Send,
     S::Response: Into<OptionalResponsePdu> + Send,
     S::Error: Into<io::Error>,
 {

@@ -3,6 +3,14 @@
 
 # Changelog
 
+## v0.9.0 (Unreleased)
+
+- Avoid allocations when writing multiple coils/registers
+
+### Breaking Changes
+
+- `Request` requires a lifetime and stores multiple coils/registers wrapped into `Cow`.
+
 ## v0.8.2 (2023-06-15)
 
 - Clear rx buffer before sending to help with error recovery on unreliable physical connections [#198](https://github.com/slowtec/tokio-modbus/pull/198)

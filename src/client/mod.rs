@@ -4,6 +4,7 @@
 //! Modbus clients
 
 use std::{
+    borrow::Cow,
     fmt::Debug,
     io::{Error, ErrorKind},
 };
@@ -25,7 +26,7 @@ pub mod sync;
 #[async_trait]
 pub trait Client: SlaveContext + Send + Debug {
     /// Invoke a Modbus function
-    async fn call(&mut self, request: Request) -> Result<Response, Error>;
+    async fn call(&mut self, request: Request<'_>) -> Result<Response, Error>;
 }
 
 /// Asynchronous Modbus reader
@@ -50,10 +51,10 @@ pub trait Reader: Client {
     /// the name of the operation might suggest!
     async fn read_write_multiple_registers(
         &mut self,
-        _: Address,
-        _: Quantity,
-        _: Address,
-        _: &[Word],
+        read_addr: Address,
+        read_count: Quantity,
+        write_addr: Address,
+        write_data: &[Word],
     ) -> Result<Vec<Word>, Error>;
 }
 
@@ -67,10 +68,11 @@ pub trait Writer: Client {
     async fn write_single_register(&mut self, _: Address, _: Word) -> Result<(), Error>;
 
     /// Write multiple coils (0x0F)
-    async fn write_multiple_coils(&mut self, _: Address, _: &[Coil]) -> Result<(), Error>;
+    async fn write_multiple_coils(&mut self, addr: Address, data: &'_ [Coil]) -> Result<(), Error>;
 
     /// Write multiple holding registers (0x10)
-    async fn write_multiple_registers(&mut self, _: Address, _: &[Word]) -> Result<(), Error>;
+    async fn write_multiple_registers(&mut self, addr: Address, data: &[Word])
+        -> Result<(), Error>;
 
     /// Set or clear individual bits of a holding register (0x16)
     async fn masked_write_register(&mut self, _: Address, _: Word, _: Word) -> Result<(), Error>;
@@ -111,7 +113,7 @@ impl From<Context> for Box<dyn Client> {
 
 #[async_trait]
 impl Client for Context {
-    async fn call<'a>(&'a mut self, request: Request) -> Result<Response, Error> {
+    async fn call(&mut self, request: Request<'_>) -> Result<Response, Error> {
         self.client.call(request).await
     }
 }
@@ -202,7 +204,7 @@ impl Reader for Context {
     async fn read_write_multiple_registers<'a>(
         &'a mut self,
         read_addr: Address,
-        read_cnt: Quantity,
+        read_count: Quantity,
         write_addr: Address,
         write_data: &[Word],
     ) -> Result<Vec<Word>, Error> {
@@ -210,14 +212,14 @@ impl Reader for Context {
             .client
             .call(Request::ReadWriteMultipleRegisters(
                 read_addr,
-                read_cnt,
+                read_count,
                 write_addr,
-                write_data.to_vec(),
+                Cow::Borrowed(write_data),
             ))
             .await?;
 
         if let Response::ReadWriteMultipleRegisters(rsp) = rsp {
-            if rsp.len() != read_cnt.into() {
+            if rsp.len() != read_count.into() {
                 return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
             }
             Ok(rsp)
@@ -253,7 +255,7 @@ impl Writer for Context {
         let cnt = coils.len();
         let rsp = self
             .client
-            .call(Request::WriteMultipleCoils(addr, coils.to_vec()))
+            .call(Request::WriteMultipleCoils(addr, Cow::Borrowed(coils)))
             .await?;
 
         if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
@@ -294,7 +296,7 @@ impl Writer for Context {
         let cnt = data.len();
         let rsp = self
             .client
-            .call(Request::WriteMultipleRegisters(addr, data.to_vec()))
+            .call(Request::WriteMultipleRegisters(addr, Cow::Borrowed(data)))
             .await?;
 
         if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
@@ -337,7 +339,7 @@ mod tests {
     #[derive(Default, Debug)]
     pub(crate) struct ClientMock {
         slave: Option<Slave>,
-        last_request: Mutex<Option<Request>>,
+        last_request: Mutex<Option<Request<'static>>>,
         next_response: Option<Result<Response, Error>>,
     }
 
@@ -347,7 +349,7 @@ mod tests {
             self.slave
         }
 
-        pub(crate) fn last_request(&self) -> &Mutex<Option<Request>> {
+        pub(crate) fn last_request(&self) -> &Mutex<Option<Request<'static>>> {
             &self.last_request
         }
 
@@ -358,8 +360,8 @@ mod tests {
 
     #[async_trait]
     impl Client for ClientMock {
-        async fn call<'a>(&'a mut self, request: Request) -> Result<Response, Error> {
-            *self.last_request.lock().unwrap() = Some(request);
+        async fn call(&mut self, request: Request<'_>) -> Result<Response, Error> {
+            *self.last_request.lock().unwrap() = Some(request.into_owned());
             match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
                 Err(err) => Err(Error::new(err.kind(), format!("{err}"))),
@@ -377,10 +379,10 @@ mod tests {
     fn read_some_coils() {
         // The protocol will always return entire bytes with, i.e.
         // a multiple of 8 coils.
-        let response_coils = [true, false, false, true, false, true, false, true].to_vec();
+        let response_coils = [true, false, false, true, false, true, false, true];
         for num_coils in 1..8 {
             let mut client = Box::<ClientMock>::default();
-            client.set_next_response(Ok(Response::ReadCoils(response_coils.clone())));
+            client.set_next_response(Ok(Response::ReadCoils(response_coils.to_vec())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
             let coils = futures::executor::block_on(context.read_coils(1, num_coils)).unwrap();
@@ -392,10 +394,10 @@ mod tests {
     fn read_some_discrete_inputs() {
         // The protocol will always return entire bytes with, i.e.
         // a multiple of 8 coils.
-        let response_inputs = [true, false, false, true, false, true, false, true].to_vec();
+        let response_inputs = [true, false, false, true, false, true, false, true];
         for num_inputs in 1..8 {
             let mut client = Box::<ClientMock>::default();
-            client.set_next_response(Ok(Response::ReadDiscreteInputs(response_inputs.clone())));
+            client.set_next_response(Ok(Response::ReadDiscreteInputs(response_inputs.to_vec())));
             let mut context = Context { client };
             context.set_slave(Slave(1));
             let inputs =

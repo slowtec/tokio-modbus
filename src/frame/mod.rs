@@ -7,7 +7,7 @@ pub(crate) mod rtu;
 #[cfg(feature = "tcp")]
 pub(crate) mod tcp;
 
-use std::{error, fmt};
+use std::{borrow::Cow, error, fmt};
 
 /// A Modbus function code is represented by an unsigned 8 bit integer.
 pub type FunctionCode = u8;
@@ -36,7 +36,7 @@ pub type Quantity = u16;
 
 /// A request represents a message from the client (master) to the server (slave).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Request {
+pub enum Request<'a> {
     /// A request to read multiple coils.
     /// The first parameter is the address of the first coil to read.
     /// The second parameter is the number of coils to read.
@@ -55,7 +55,7 @@ pub enum Request {
     /// A request to write multiple coils.
     /// The first parameter is the address of the first coil to write.
     /// The second parameter is the vector of values to write to the coils.
-    WriteMultipleCoils(Address, Vec<Coil>),
+    WriteMultipleCoils(Address, Cow<'a, [Coil]>),
 
     /// A request to read multiple input registers.
     /// The first parameter is the address of the first input register to read.
@@ -75,7 +75,7 @@ pub enum Request {
     /// A request to write to multiple registers.
     /// The first parameter is the address of the first register to write.
     /// The second parameter is the vector of values to write to the registers.
-    WriteMultipleRegisters(Address, Vec<Word>),
+    WriteMultipleRegisters(Address, Cow<'a, [Word]>),
 
     /// A request to set or clear individual bits of a holding register.
     /// The first parameter is the address of the holding register.
@@ -88,12 +88,12 @@ pub enum Request {
     /// The second parameter is the number of registers to read.
     /// The third parameter is the address of the first register to write.
     /// The fourth parameter is the vector of values to write to the registers.
-    ReadWriteMultipleRegisters(Address, Quantity, Address, Vec<Word>),
+    ReadWriteMultipleRegisters(Address, Quantity, Address, Cow<'a, [Word]>),
 
     /// A raw Modbus request.
     /// The first parameter is the Modbus function code.
     /// The second parameter is the raw bytes of the request.
-    Custom(FunctionCode, Vec<u8>),
+    Custom(FunctionCode, Cow<'a, [u8]>),
 
     /// A poison pill for stopping the client service and to release
     /// the underlying transport, e.g. for disconnecting from an
@@ -107,14 +107,58 @@ pub enum Request {
     Disconnect,
 }
 
+impl<'a> Request<'a> {
+    /// Converts the request into an owned instance with `'static'` lifetime.
+    #[must_use]
+    pub fn into_owned(self) -> Request<'static> {
+        use Request::*;
+
+        match self {
+            ReadCoils(addr, qty) => ReadCoils(addr, qty),
+            ReadDiscreteInputs(addr, qty) => ReadDiscreteInputs(addr, qty),
+            WriteSingleCoil(addr, coil) => WriteSingleCoil(addr, coil),
+            WriteMultipleCoils(addr, coils) => {
+                WriteMultipleCoils(addr, Cow::Owned(coils.into_owned()))
+            }
+            ReadInputRegisters(addr, qty) => ReadInputRegisters(addr, qty),
+            ReadHoldingRegisters(addr, qty) => ReadHoldingRegisters(addr, qty),
+            WriteSingleRegister(addr, word) => WriteSingleRegister(addr, word),
+            WriteMultipleRegisters(addr, words) => {
+                WriteMultipleRegisters(addr, Cow::Owned(words.into_owned()))
+            }
+            MaskWriteRegister(addr, and_mask, or_mask) => {
+                MaskWriteRegister(addr, and_mask, or_mask)
+            }
+            ReadWriteMultipleRegisters(addr, qty, write_addr, words) => {
+                ReadWriteMultipleRegisters(addr, qty, write_addr, Cow::Owned(words.into_owned()))
+            }
+            Custom(func, bytes) => Custom(func, Cow::Owned(bytes.into_owned())),
+            Disconnect => Disconnect,
+        }
+    }
+}
+
 /// A Modbus request with slave included
 #[cfg(feature = "server")]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SlaveRequest {
+pub struct SlaveRequest<'a> {
     /// Slave Id from the request
     pub slave: crate::slave::SlaveId,
     /// A `Request` enum
-    pub request: Request,
+    pub request: Request<'a>,
+}
+
+#[cfg(feature = "server")]
+impl<'a> SlaveRequest<'a> {
+    /// Converts the request into an owned instance with `'static'` lifetime.
+    #[must_use]
+    pub fn into_owned(self) -> SlaveRequest<'static> {
+        let Self { slave, request } = self;
+        SlaveRequest {
+            slave,
+            request: request.into_owned(),
+        }
+    }
 }
 
 /// The data of a successful request.
@@ -227,16 +271,16 @@ pub struct ExceptionResponse {
 
 /// Represents a message from the client (slave) to the server (master).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RequestPdu(pub(crate) Request);
+pub(crate) struct RequestPdu<'a>(pub(crate) Request<'a>);
 
-impl From<Request> for RequestPdu {
-    fn from(from: Request) -> Self {
+impl<'a> From<Request<'a>> for RequestPdu<'a> {
+    fn from(from: Request<'a>) -> Self {
         RequestPdu(from)
     }
 }
 
-impl From<RequestPdu> for Request {
-    fn from(from: RequestPdu) -> Self {
+impl<'a> From<RequestPdu<'a>> for Request<'a> {
+    fn from(from: RequestPdu<'a>) -> Self {
         from.0
     }
 }
