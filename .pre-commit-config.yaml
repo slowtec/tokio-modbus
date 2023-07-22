@@ -44,7 +44,7 @@ repos:
       - id: codespell
         args: [--ignore-words=.codespellignore]
   - repo: https://github.com/sirosen/check-jsonschema
-    rev: 0.23.2
+    rev: 0.23.3
     hooks:
       - id: check-github-actions
       - id: check-github-workflows
@@ -57,7 +57,7 @@ repos:
           - markdown
   # https://reuse.software
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v2.0.0
+    rev: v2.1.0
     hooks:
       - id: reuse
   - repo: https://github.com/doublify/pre-commit-rust
