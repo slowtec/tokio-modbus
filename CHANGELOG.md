@@ -5,11 +5,13 @@
 
 ## v0.9.0 (Unreleased)
 
-- Avoid allocations when writing multiple coils/registers
+- Optimization: Avoid allocations when writing multiple coils/registers.
+- Optimization: Avoid allocations when receiving custom responses.
 
 ### Breaking Changes
 
-- `Request` requires a lifetime and stores multiple coils/registers wrapped into `Cow`.
+- `Request`: Requires a lifetime and stores multiple coils/registers wrapped into `Cow` to avoid allocations.
+- `Response::Custom`: The payload is returned as `Bytes` instead of `Vec` to avoid allocations.
 
 ## v0.8.2 (2023-06-15)
 

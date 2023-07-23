@@ -16,6 +16,13 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 #![doc = include_str!("../README.md")]
 
+/// Re-export the `bytes` crate
+///
+/// Needed to prevent version conflicts with types that are exposed by the public API.
+///
+/// Used by [`Response::Custom`].
+pub use bytes;
+
 pub mod prelude;
 
 pub mod client;

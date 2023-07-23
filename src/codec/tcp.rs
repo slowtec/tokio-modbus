@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::*;
-
-use crate::frame::tcp::*;
+use std::io::{Error, ErrorKind, Result};
 
 use byteorder::{BigEndian, ByteOrder};
-use bytes::{BufMut, Bytes, BytesMut};
-use std::io::{Error, ErrorKind, Result};
 use tokio_util::codec::{Decoder, Encoder};
+
+use crate::{
+    bytes::{BufMut, Bytes, BytesMut},
+    frame::tcp::*,
+};
+
+use super::*;
 
 const HEADER_LEN: usize = 7;
 
@@ -174,7 +177,7 @@ impl Encoder<ResponseAdu> for ServerCodec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::Bytes;
+    use crate::bytes::Bytes;
 
     mod client {
 
