@@ -9,6 +9,8 @@ pub(crate) mod tcp;
 
 use std::{borrow::Cow, error, fmt};
 
+use crate::bytes::Bytes;
+
 /// A Modbus function code is represented by an unsigned 8 bit integer.
 pub type FunctionCode = u8;
 
@@ -220,7 +222,7 @@ pub enum Response {
     /// Response to a raw Modbus request
     /// The first parameter contains the returned Modbus function code
     /// The second parameter contains the bytes read following the function code
-    Custom(FunctionCode, Vec<u8>),
+    Custom(FunctionCode, Bytes),
 }
 
 /// A server (slave) exception.

@@ -1,18 +1,23 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::{
+    convert::TryFrom,
+    io::{self, Cursor, Error, ErrorKind},
+};
+
+use byteorder::{BigEndian, ReadBytesExt as _};
+
+use crate::{
+    bytes::{BufMut, Bytes, BytesMut},
+    frame::*,
+};
+
 #[cfg(feature = "rtu")]
 pub(crate) mod rtu;
 
 #[cfg(feature = "tcp")]
 pub(crate) mod tcp;
-
-use crate::frame::*;
-
-use byteorder::{BigEndian, ReadBytesExt as _};
-use bytes::{BufMut, Bytes, BytesMut};
-use std::convert::TryFrom;
-use std::io::{self, Cursor, Error, ErrorKind};
 
 #[allow(clippy::cast_possible_truncation)]
 fn u16_len(len: usize) -> u16 {
@@ -328,7 +333,10 @@ impl TryFrom<Bytes> for Response {
                 }
                 ReadWriteMultipleRegisters(data)
             }
-            _ => Custom(fn_code, bytes[1..].into()),
+            _ => {
+                let mut bytes = bytes;
+                Custom(fn_code, bytes.split_off(1))
+            }
         };
         Ok(rsp)
     }
@@ -581,7 +589,7 @@ mod tests {
         assert_eq!(rsp_to_fn_code(&WriteMultipleRegisters(0, 0)), 0x10);
         assert_eq!(rsp_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
         assert_eq!(rsp_to_fn_code(&ReadWriteMultipleRegisters(vec![])), 0x17);
-        assert_eq!(rsp_to_fn_code(&Custom(99, vec![])), 99);
+        assert_eq!(rsp_to_fn_code(&Custom(99, Bytes::from_static(&[]))), 99);
     }
 
     #[test]
@@ -1064,7 +1072,8 @@ mod tests {
 
         #[test]
         fn custom() {
-            let bytes: Bytes = Response::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF]).into();
+            let bytes: Bytes =
+                Response::Custom(0x55, Bytes::from_static(&[0xCC, 0x88, 0xAA, 0xFF])).into();
             assert_eq!(bytes[0], 0x55);
             assert_eq!(bytes[1], 0xCC);
             assert_eq!(bytes[2], 0x88);
@@ -1186,7 +1195,10 @@ mod tests {
         fn custom() {
             let bytes = Bytes::from(vec![0x55, 0xCC, 0x88, 0xAA, 0xFF]);
             let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::Custom(0x55, vec![0xCC, 0x88, 0xAA, 0xFF]));
+            assert_eq!(
+                rsp,
+                Response::Custom(0x55, Bytes::from_static(&[0xCC, 0x88, 0xAA, 0xFF]))
+            );
         }
     }
 }

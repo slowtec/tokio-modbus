@@ -1,15 +1,19 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::*;
-
-use crate::{frame::rtu::*, slave::SlaveId};
+use std::io::{Cursor, Error, ErrorKind, Result};
 
 use byteorder::BigEndian;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 use smallvec::SmallVec;
-use std::io::{Cursor, Error, ErrorKind, Result};
 use tokio_util::codec::{Decoder, Encoder};
+
+use crate::{
+    bytes::{Buf, BufMut, Bytes, BytesMut},
+    frame::rtu::*,
+    slave::SlaveId,
+};
+
+use super::*;
 
 // [Modbus over Serial Line Specification and Implementation Guide V1.02](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf), page 13
 // "The maximum size of a Modbus RTU frame is 256 bytes."
@@ -364,7 +368,7 @@ impl Encoder<ResponseAdu> for ServerCodec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::Bytes;
+    use crate::bytes::Bytes;
 
     #[test]
     fn test_calc_crc() {
