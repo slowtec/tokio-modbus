@@ -182,7 +182,7 @@ async fn client_context(socket_addr: SocketAddr) {
             println!("CLIENT: Reading 2 input registers...");
             let response = ctx.read_input_registers(0x00, 2).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert_eq!(response, vec![1234, 5678]);
+            assert_eq!(response, [1234, 5678]);
 
             println!("CLIENT: Writing 2 holding registers...");
             ctx.write_multiple_registers(0x01, &[7777, 8888])
@@ -193,7 +193,7 @@ async fn client_context(socket_addr: SocketAddr) {
             println!("CLIENT: Reading 4 holding registers...");
             let response = ctx.read_holding_registers(0x00, 4).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert_eq!(response, vec![10, 7777, 8888, 40]);
+            assert_eq!(response, [10, 7777, 8888, 40]);
 
             // Now we try to read with an invalid register address.
             // This should return a Modbus exception response with the code
