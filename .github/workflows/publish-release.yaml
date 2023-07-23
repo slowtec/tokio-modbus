@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+# SPDX-License-Identifier: CC0-1.0
+
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+
+name: publish-release
+
+permissions:
+  contents: read
+
+on:
+  push:
+    tags:
+      # Only match release version tags
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  cargo-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/checkout@v3
+
+      - name: Publish release on crates.io
+        env:
+          API_TOKEN: ${{ secrets.CRATES_IO_PUBLISH_UPDATE_TOKEN }}
+        run: cargo publish --token ${API_TOKEN}
