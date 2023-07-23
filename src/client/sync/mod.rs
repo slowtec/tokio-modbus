@@ -3,8 +3,6 @@
 
 //! Synchronous Modbus client
 
-#![allow(missing_docs)]
-
 #[cfg(feature = "rtu-sync")]
 pub mod rtu;
 
