@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.9.0 (Unreleased)
+## v0.9.0 (2023-07-26)
 
 - Optimization: Avoid allocations when writing multiple coils/registers.
 - Optimization: Avoid allocations when receiving custom responses.
