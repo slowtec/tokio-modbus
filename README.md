@@ -4,8 +4,8 @@
 # tokio-modbus
 
 A pure [Rust](https://www.rust-lang.org)
-[Modbus](https://en.wikipedia.org/wiki/Modbus) library
-based on [tokio](https://tokio.rs).
+[Modbus](https://en.wikipedia.org/wiki/Modbus) library based on
+[tokio](https://tokio.rs).
 
 [![Crates.io](https://img.shields.io/crates/v/tokio-modbus.svg)](https://crates.io/crates/tokio-modbus)
 [![Docs.rs](https://docs.rs/tokio-modbus/badge.svg)](https://docs.rs/tokio-modbus/)
@@ -14,10 +14,10 @@ based on [tokio](https://tokio.rs).
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE-MIT)
 [![Apache 2.0 licensed](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE-APACHE)
 
-Modbus is based on a [_master/slave_](<https://en.wikipedia.org/wiki/Master/slave_(technology)>)
-communication pattern.
-To avoid confusion with the Tokio terminology the _master_ is called _client_
-and the _slave_ is called _server_ in this library.
+Modbus is based on a
+[_master/slave_](<https://en.wikipedia.org/wiki/Master/slave_(technology)>)
+communication pattern. To avoid confusion with the Tokio terminology the
+_master_ is called _client_ and the _slave_ is called _server_ in this library.
 
 ## Features
 
@@ -50,7 +50,8 @@ tokio-modbus = "*"
 
 #### Examples
 
-If you only need an asynchronous TCP client add the following line to your Cargo.toml file:
+If you only need an asynchronous TCP client add the following line to your
+Cargo.toml file:
 
 ```toml
 [dependencies]
@@ -80,10 +81,9 @@ tokio-modbus = { version = "*", default-features = false, features = ["tcp-serve
 
 ## Examples
 
-Various examples for Modbus RTU and TCP using either the asynchronous
-or synchronous API can be found in the
-[examples](https://github.com/slowtec/tokio-modbus/tree/main/examples)
-folder.
+Various examples for Modbus RTU and TCP using either the asynchronous or
+synchronous API can be found in the
+[examples](https://github.com/slowtec/tokio-modbus/tree/main/examples) folder.
 
 ## Testing
 

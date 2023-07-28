@@ -8,3 +8,8 @@ overrides:
       tabWidth: 2
       # in double quotes you can use escapes
       singleQuote: false
+  - files:
+      - "**/*.md"
+    options:
+      printWidth: 80
+      proseWrap: always
