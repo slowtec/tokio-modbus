@@ -3,7 +3,7 @@
 
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow
 
-name: check-crate-features
+name: continuous-integration
 
 permissions:
   contents: read
@@ -24,24 +24,28 @@ jobs:
   run:
     strategy:
       matrix:
-        crate-feature:
-          - rtu
-          - tcp
-          - rtu-sync
-          - tcp-sync
-          - rtu-server
-          - tcp-server
         include:
           - target: aarch64-apple-darwin
             runner_os: macos-latest
+            # Runner (x86-64) and target are not compatible.
+            run_tests: false
           - target: x86_64-pc-windows-msvc
             runner_os: windows-latest
+            run_tests: true
           - target: x86_64-unknown-linux-musl
             runner_os: ubuntu-latest
+            run_tests: true
 
     runs-on: ${{ matrix.runner_os }}
 
     steps:
+      - name: Install dependencies for musl libc
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: >-
+          sudo apt update &&
+          sudo apt -y install
+          musl-tools
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -61,5 +65,19 @@ jobs:
           # Two jobs might share the same default target but have different build targets.
           key: ${{ matrix.target }}
 
-      - name: Check crate feature
-        run: cargo check --workspace --locked --no-default-features --target ${{ matrix.target }} --features ${{ matrix.crate-feature }}
+      - name: Build tests with all features enabled
+        run: >-
+          cargo test --workspace --locked --target ${{ matrix.target }} --all-features --all-targets
+          --no-run
+
+      - name: Run tests with all features enabled
+        if: matrix.run_tests
+        run: >-
+          cargo test --workspace --locked --target ${{ matrix.target }} --all-features --all-targets
+          -- --nocapture --quiet
+
+      - name: Build workspace documentation with all features enabled
+        run: cargo doc --workspace --locked --target ${{ matrix.target }} --all-features
+
+      - name: Build release with default features
+        run: cargo build --locked --target ${{ matrix.target }} --all-targets --profile release
