@@ -61,9 +61,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           # The cache should not be shared between different workflows and jobs.
-          shared-key: ${{ github.workflow }}-${{ github.job }}
           # Two jobs might share the same default target but have different build targets.
-          key: ${{ matrix.target }}
+          shared-key: ${{ github.workflow }}-${{ github.job }}-${{ matrix.target }}
 
       - name: Build tests with all features enabled
         run: >-
