@@ -12,6 +12,12 @@ use tokio::{
 
 use super::*;
 
+/// Establish a direct connection to a modbus tcp coupler using an already-allocated and configured `TcpStream`.
+pub async fn connect_with_tcp_stream(stream: TcpStream) -> Result<Context, Error> {
+    let context = attach_slave(stream, Slave::tcp_device());
+    Ok(context)
+}
+
 /// Establish a direct connection to a Modbus TCP coupler.
 pub async fn connect(socket_addr: SocketAddr) -> Result<Context, Error> {
     connect_slave(socket_addr, Slave::tcp_device()).await
