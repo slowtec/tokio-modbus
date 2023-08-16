@@ -25,15 +25,15 @@ all-features = true
 # <https://users.rust-lang.org/t/psa-please-specify-precise-dependency-versions-in-cargo-toml/71277>
 
 [dependencies]
-async-trait = "0.1.72"
+async-trait = "0.1.73"
 byteorder = "1.4.3"
 bytes = "1.4.0"
 futures = { version = "0.3.28", optional = true }
 futures-util = { version = "0.3.28", optional = true, default-features = false }
-log = "0.4.19"
+log = "0.4.20"
 smallvec = { version = "1.11.0", default-features = false }
 socket2 = { version = "0.5.3", optional = true, default-features = false }
-tokio = { version = "1.29.1", default-features = false }
+tokio = { version = "1.31.0", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4.4", optional = true, default-features = false }
 tokio-util = { version = "0.7.8", default-features = false, features = [
@@ -41,10 +41,10 @@ tokio-util = { version = "0.7.8", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-anyhow = "1.0.72"
+anyhow = "1.0.74"
 env_logger = "0.10.0"
 futures = "0.3.28"
-tokio = { version = "1.29.1", default-features = false, features = [
+tokio = { version = "1.31.0", default-features = false, features = [
     "macros",
     "rt-multi-thread",
     "time",
