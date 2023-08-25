@@ -99,9 +99,10 @@ where
             .call(request.into())
             .await
             .map_err(Into::into)?
-            .into() else {
-                log::debug!("Sending no response for request {hdr:?}");
-                continue;
+            .into()
+        else {
+            log::debug!("Sending no response for request {hdr:?}");
+            continue;
         };
 
         framed

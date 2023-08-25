@@ -159,9 +159,10 @@ where
             .call(request.into())
             .await
             .map_err(Into::into)?
-            .into() else {
-                log::trace!("Sending no response for request {hdr:?}");
-                continue;
+            .into()
+        else {
+            log::trace!("Sending no response for request {hdr:?}");
+            continue;
         };
 
         framed

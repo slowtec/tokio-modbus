@@ -277,7 +277,7 @@ impl Decoder for ClientCodec {
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
         let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
-            return Ok(None)
+            return Ok(None);
         };
 
         let hdr = Header { slave_id };
@@ -301,7 +301,7 @@ impl Decoder for ServerCodec {
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu<'static>>> {
         let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
-            return Ok(None)
+            return Ok(None);
         };
 
         let hdr = Header { slave_id };
