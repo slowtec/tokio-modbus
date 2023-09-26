@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+# SPDX-License-Identifier: CC0-1.0
+
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+
+name: dependency-audit
+
+permissions:
+  contents: read
+
+on:
+  push:
+    paths:
+      - "**/Cargo.toml"
+  schedule:
+    # Weekly, i.e. on Sunday at 04:37 UTC
+    - cron: "37 4 * * 0"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Cargo.lock
+        run: cargo generate-lockfile
+
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check
+          arguments: >-
+            --all-features
+            --locked
