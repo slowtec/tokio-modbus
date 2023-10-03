@@ -295,7 +295,7 @@ mod tests {
             assert_eq!(buf[5], 0x6);
             assert_eq!(buf[6], UNIT_ID);
 
-            _ = buf.split_to(7);
+            drop(buf.split_to(7));
             let pdu: Bytes = req.try_into().unwrap();
             assert_eq!(buf, pdu);
         }
