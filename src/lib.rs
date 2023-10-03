@@ -1,15 +1,19 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-#![warn(rustdoc::broken_intra_doc_links)]
 #![doc = include_str!("../README.md")]
-#![warn(rust_2018_idioms)]
-#![warn(rust_2021_compatibility)]
+// Opt-in for allowed-by-default lints (in alphabetical order)
+// See also: <https://doc.rust-lang.org/rustc/lints>
+#![warn(future_incompatible)]
+#![warn(let_underscore)]
 #![warn(missing_debug_implementations)]
 //#![warn(missing_docs)] // TODO
+#![warn(rust_2018_idioms)]
+#![warn(rust_2021_compatibility)]
 #![warn(unreachable_pub)]
 #![warn(unsafe_code)]
-#![warn(rustdoc::broken_intra_doc_links)]
+#![warn(unused)]
+// Clippy lints
 #![warn(clippy::pedantic)]
 // Additional restrictions
 #![warn(clippy::clone_on_ref_ptr)]
