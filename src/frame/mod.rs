@@ -27,9 +27,9 @@ pub enum FunctionCode {
     Custom(u8),                 // => code,
 }
 
-impl Into<u8> for FunctionCode {
-    fn into(self) -> u8 {
-        match self {
+impl From<FunctionCode> for u8 {
+    fn from(val: FunctionCode) -> u8 {
+        match val {
             FunctionCode::ReadCoils => 0x01,
             FunctionCode::ReadDiscreteInputs => 0x02,
             FunctionCode::WriteSingleCoil => 0x05,
@@ -81,7 +81,7 @@ impl std::fmt::Display for FunctionCode {
                 f.write_str("FunctionCode::ReadWriteMultipleRegisters")
             }
             FunctionCode::Custom(value) => {
-                f.write_str(format!("FunctionCode::Custom({})", value).as_str())
+                f.write_str(format!("FunctionCode::Custom({value})").as_str())
             }
         }
     }
@@ -392,7 +392,7 @@ pub struct ExceptionResponse {
     pub exception: Exception,
 }
 
-/// Convenience trait for downcasting std::io::Error to ExceptionResponse
+/// Convenience trait for downcasting `std::io::Error` to `ExceptionResponse`
 pub trait ExtractExceptionResponse {
     fn exception_response(self) -> Result<ExceptionResponse, std::io::Error>;
 }
@@ -401,7 +401,10 @@ fn try_downcast_error<T>(error: std::io::Error) -> Result<T, std::io::Error>
 where
     T: error::Error + Send + Sync + 'static,
 {
-    match error.get_ref().map(|inner| inner.is::<T>()) {
+    match error
+        .get_ref()
+        .map(<(dyn std::error::Error + std::marker::Send + std::marker::Sync + 'static)>::is::<T>)
+    {
         Some(true) => Ok(*error.into_inner().unwrap().downcast::<T>().unwrap()),
         _ => Err(error),
     }

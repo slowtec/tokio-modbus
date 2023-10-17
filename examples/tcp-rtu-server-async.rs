@@ -1,7 +1,12 @@
-/// This example combines a rtu-server and a tcp-server with the same underlying data structure
-/// You can test this on your computer by generating a virtual serial interface with
-/// sudo socat -d -d pty,raw,nonblock,echo=0,link=/dev/tty-simu-server pty,raw,echo=0,link=/dev/tty-simu-client
-///
+// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+//! # TCP / RTU server with shared data
+//!
+//! This example combines a rtu-server and a tcp-server with the same underlying data structure.
+//! You can test this on your computer by generating a virtual serial interface with:
+//! sudo socat -d -d pty,raw,nonblock,echo=0,link=/dev/tty-simu-server pty,raw,echo=0,link=/dev/tty-simu-client
+//!
 use std::{
     borrow::Cow, collections::HashMap, net::SocketAddr, pin::Pin, sync::Arc, time::Duration,
 };
@@ -16,9 +21,9 @@ use tokio_serial::SerialStream;
 
 pub struct ModbusResult(Result<Response, ExceptionResponse>);
 
-impl Into<ResponsePdu> for ModbusResult {
-    fn into(self) -> ResponsePdu {
-        self.0.into()
+impl From<ModbusResult> for ResponsePdu {
+    fn from(value: ModbusResult) -> Self {
+        value.0.into()
     }
 }
 
@@ -206,13 +211,12 @@ impl ExampleData {
     }
 
     fn new() -> Self {
-        let data = ExampleData {
+        ExampleData {
             input_registers: Arc::new(Mutex::new(HashMap::new())),
             holding_registers: Arc::new(Mutex::new(HashMap::new())),
             discrete_inputs: Arc::new(Mutex::new(HashMap::new())),
             coils: Arc::new(Mutex::new(HashMap::new())),
-        };
-        data
+        }
     }
 }
 
@@ -375,12 +379,11 @@ async fn rtu_client_context(tty_path: &str) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket_addr: SocketAddr = "127.0.0.1:5502".parse().unwrap();
-    let socket_addr_server = socket_addr.clone();
     let data = Arc::new(ExampleData::new());
     data.restore().await;
-    let data_cloned = data.clone();
-    let server_handle = tokio::task::spawn(async move {
-        server_context(socket_addr_server, "/dev/tty-simu-server", data_cloned).await
+    let server_handle = tokio::task::spawn({
+        let data = data.clone();
+        async move { server_context(socket_addr, "/dev/tty-simu-server", data).await }
     });
     // Give the server some time for starting up
     tokio::time::sleep(Duration::from_secs(1)).await;
