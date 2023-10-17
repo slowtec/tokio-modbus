@@ -45,7 +45,7 @@ impl<'a> TryFrom<Request<'a>> for Bytes {
         use crate::frame::Request::*;
         let cnt = request_byte_count(&req);
         let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(req_to_fn_code(&req));
+        data.put_u8(req.function_code().into());
         match req {
             ReadCoils(address, quantity)
             | ReadDiscreteInputs(address, quantity)
@@ -121,7 +121,7 @@ impl From<Response> for Bytes {
         use crate::frame::Response::*;
         let cnt = response_byte_count(&rsp);
         let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(rsp_to_fn_code(&rsp));
+        data.put_u8(rsp.function_code().into());
         match rsp {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
                 let packed_coils = pack_coils(&coils);
@@ -168,8 +168,9 @@ impl From<Response> for Bytes {
 impl From<ExceptionResponse> for Bytes {
     fn from(ex: ExceptionResponse) -> Bytes {
         let mut data = BytesMut::with_capacity(2);
-        debug_assert!(ex.function < 0x80);
-        data.put_u8(ex.function + 0x80);
+        let function: u8 = ex.function.into();
+        debug_assert!(function < 0x80);
+        data.put_u8(function + 0x80);
         data.put_u8(ex.exception.into());
         data.freeze()
     }
@@ -187,15 +188,19 @@ impl TryFrom<Bytes> for Request<'static> {
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
         use crate::frame::Request::*;
         let mut rdr = Cursor::new(&bytes);
-        let fn_code = rdr.read_u8()?;
+        let fn_code: FunctionCode = rdr.read_u8()?.into();
         let req = match fn_code {
-            0x01 => ReadCoils(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x02 => ReadDiscreteInputs(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x05 => WriteSingleCoil(
+            FunctionCode::ReadCoils => {
+                ReadCoils(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
+            }
+            FunctionCode::ReadDiscreteInputs => {
+                ReadDiscreteInputs(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
+            }
+            FunctionCode::WriteSingleCoil => WriteSingleCoil(
                 rdr.read_u16::<BigEndian>()?,
                 coil_to_bool(rdr.read_u16::<BigEndian>()?)?,
             ),
-            0x0F => {
+            FunctionCode::WriteMultipleCoils => {
                 let address = rdr.read_u16::<BigEndian>()?;
                 let quantity = rdr.read_u16::<BigEndian>()?;
                 let byte_count = rdr.read_u8()?;
@@ -205,13 +210,17 @@ impl TryFrom<Bytes> for Request<'static> {
                 let x = &bytes[6..];
                 WriteMultipleCoils(address, unpack_coils(x, quantity).into())
             }
-            0x04 => ReadInputRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x03 => {
+            FunctionCode::ReadInputRegisters => {
+                ReadInputRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
+            }
+            FunctionCode::ReadHoldingRegisters => {
                 ReadHoldingRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
             }
-            0x06 => WriteSingleRegister(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
+            FunctionCode::WriteSingleRegister => {
+                WriteSingleRegister(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
+            }
 
-            0x10 => {
+            FunctionCode::WriteMultipleRegisters => {
                 let address = rdr.read_u16::<BigEndian>()?;
                 let quantity = rdr.read_u16::<BigEndian>()?;
                 let byte_count = rdr.read_u8()?;
@@ -224,13 +233,13 @@ impl TryFrom<Bytes> for Request<'static> {
                 }
                 WriteMultipleRegisters(address, data.into())
             }
-            0x16 => {
+            FunctionCode::MaskWriteRegister => {
                 let address = rdr.read_u16::<BigEndian>()?;
                 let and_mask = rdr.read_u16::<BigEndian>()?;
                 let or_mask = rdr.read_u16::<BigEndian>()?;
                 MaskWriteRegister(address, and_mask, or_mask)
             }
-            0x17 => {
+            FunctionCode::ReadWriteMultipleRegisters => {
                 let read_address = rdr.read_u16::<BigEndian>()?;
                 let read_quantity = rdr.read_u16::<BigEndian>()?;
                 let write_address = rdr.read_u16::<BigEndian>()?;
@@ -245,8 +254,10 @@ impl TryFrom<Bytes> for Request<'static> {
                 }
                 ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
             }
-            fn_code if fn_code < 0x80 => Custom(fn_code, bytes[1..].to_vec().into()),
-            fn_code => {
+            FunctionCode::Custom(fn_code) if fn_code < 0x80 => {
+                Custom(FunctionCode::Custom(fn_code), bytes[1..].to_vec().into())
+            }
+            FunctionCode::Custom(fn_code) => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
                     format!("Invalid function code: 0x{fn_code:0>2X}"),
@@ -335,7 +346,7 @@ impl TryFrom<Bytes> for Response {
             }
             _ => {
                 let mut bytes = bytes;
-                Custom(fn_code, bytes.split_off(1))
+                Custom(FunctionCode::Custom(fn_code), bytes.split_off(1))
             }
         };
         Ok(rsp)
@@ -355,6 +366,7 @@ impl TryFrom<Bytes> for ExceptionResponse {
             ));
         }
         let function = fn_err_code - 0x80;
+        let function = FunctionCode::from(function);
         let exception = Exception::try_from(rdr.read_u8()?)?;
         Ok(ExceptionResponse {
             function,
@@ -438,41 +450,6 @@ fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
     res
 }
 
-fn req_to_fn_code(req: &Request<'_>) -> u8 {
-    use crate::frame::Request::*;
-    match *req {
-        ReadCoils(_, _) => 0x01,
-        ReadDiscreteInputs(_, _) => 0x02,
-        WriteSingleCoil(_, _) => 0x05,
-        WriteMultipleCoils(_, _) => 0x0F,
-        ReadInputRegisters(_, _) => 0x04,
-        ReadHoldingRegisters(_, _) => 0x03,
-        WriteSingleRegister(_, _) => 0x06,
-        WriteMultipleRegisters(_, _) => 0x10,
-        MaskWriteRegister(_, _, _) => 0x16,
-        ReadWriteMultipleRegisters(_, _, _, _) => 0x17,
-        Custom(code, _) => code,
-        Disconnect => unreachable!(),
-    }
-}
-
-fn rsp_to_fn_code(rsp: &Response) -> u8 {
-    use crate::frame::Response::*;
-    match *rsp {
-        ReadCoils(_) => 0x01,
-        ReadDiscreteInputs(_) => 0x02,
-        WriteSingleCoil(_, _) => 0x05,
-        WriteMultipleCoils(_, _) => 0x0F,
-        ReadInputRegisters(_) => 0x04,
-        ReadHoldingRegisters(_) => 0x03,
-        WriteSingleRegister(_, _) => 0x06,
-        WriteMultipleRegisters(_, _) => 0x10,
-        MaskWriteRegister(_, _, _) => 0x16,
-        ReadWriteMultipleRegisters(_) => 0x17,
-        Custom(code, _) => code,
-    }
-}
-
 fn request_byte_count(req: &Request<'_>) -> usize {
     use crate::frame::Request::*;
     match *req {
@@ -552,50 +529,9 @@ mod tests {
     }
 
     #[test]
-    fn function_code_from_request() {
-        use crate::frame::Request::*;
-        assert_eq!(req_to_fn_code(&ReadCoils(0, 0)), 1);
-        assert_eq!(req_to_fn_code(&ReadDiscreteInputs(0, 0)), 2);
-        assert_eq!(req_to_fn_code(&WriteSingleCoil(0, true)), 5);
-        assert_eq!(
-            req_to_fn_code(&WriteMultipleCoils(0, Cow::Borrowed(&[]))),
-            0x0F
-        );
-        assert_eq!(req_to_fn_code(&ReadInputRegisters(0, 0)), 0x04);
-        assert_eq!(req_to_fn_code(&ReadHoldingRegisters(0, 0)), 0x03);
-        assert_eq!(req_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
-        assert_eq!(
-            req_to_fn_code(&WriteMultipleRegisters(0, Cow::Borrowed(&[]))),
-            0x10
-        );
-        assert_eq!(req_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
-        assert_eq!(
-            req_to_fn_code(&ReadWriteMultipleRegisters(0, 0, 0, Cow::Borrowed(&[]))),
-            0x17
-        );
-        assert_eq!(req_to_fn_code(&Custom(88, Cow::Borrowed(&[]))), 88);
-    }
-
-    #[test]
-    fn function_code_from_response() {
-        use crate::frame::Response::*;
-        assert_eq!(rsp_to_fn_code(&ReadCoils(vec![])), 1);
-        assert_eq!(rsp_to_fn_code(&ReadDiscreteInputs(vec![])), 2);
-        assert_eq!(rsp_to_fn_code(&WriteSingleCoil(0x0, false)), 5);
-        assert_eq!(rsp_to_fn_code(&WriteMultipleCoils(0x0, 0x0)), 0x0F);
-        assert_eq!(rsp_to_fn_code(&ReadInputRegisters(vec![])), 0x04);
-        assert_eq!(rsp_to_fn_code(&ReadHoldingRegisters(vec![])), 0x03);
-        assert_eq!(rsp_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
-        assert_eq!(rsp_to_fn_code(&WriteMultipleRegisters(0, 0)), 0x10);
-        assert_eq!(rsp_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
-        assert_eq!(rsp_to_fn_code(&ReadWriteMultipleRegisters(vec![])), 0x17);
-        assert_eq!(rsp_to_fn_code(&Custom(99, Bytes::from_static(&[]))), 99);
-    }
-
-    #[test]
     fn exception_response_into_bytes() {
         let bytes: Bytes = ExceptionResponse {
-            function: 0x03,
+            function: FunctionCode::ReadHoldingRegisters,
             exception: Exception::IllegalDataAddress,
         }
         .into();
@@ -612,7 +548,7 @@ mod tests {
         assert_eq!(
             rsp,
             ExceptionResponse {
-                function: 0x03,
+                function: FunctionCode::ReadHoldingRegisters,
                 exception: Exception::IllegalDataAddress,
             }
         );
@@ -623,7 +559,7 @@ mod tests {
         let req_pdu: Bytes = Request::ReadCoils(0x01, 5).try_into().unwrap();
         let rsp_pdu: Bytes = Response::ReadCoils(vec![]).into();
         let ex_pdu: Bytes = ExceptionResponse {
-            function: 0x03,
+            function: FunctionCode::ReadHoldingRegisters,
             exception: Exception::ServerDeviceFailure,
         }
         .into();
@@ -827,9 +763,12 @@ mod tests {
 
         #[test]
         fn custom() {
-            let bytes: Bytes = Request::Custom(0x55, Cow::Borrowed(&[0xCC, 0x88, 0xAA, 0xFF]))
-                .try_into()
-                .unwrap();
+            let bytes: Bytes = Request::Custom(
+                FunctionCode::Custom(0x55),
+                Cow::Borrowed(&[0xCC, 0x88, 0xAA, 0xFF]),
+            )
+            .try_into()
+            .unwrap();
             assert_eq!(bytes[0], 0x55);
             assert_eq!(bytes[1], 0xCC);
             assert_eq!(bytes[2], 0x88);
@@ -960,7 +899,10 @@ mod tests {
             let req = Request::try_from(bytes).unwrap();
             assert_eq!(
                 req,
-                Request::Custom(0x55, Cow::Borrowed(&[0xCC, 0x88, 0xAA, 0xFF]))
+                Request::Custom(
+                    FunctionCode::Custom(0x55),
+                    Cow::Borrowed(&[0xCC, 0x88, 0xAA, 0xFF])
+                )
             );
         }
     }
@@ -1072,8 +1014,11 @@ mod tests {
 
         #[test]
         fn custom() {
-            let bytes: Bytes =
-                Response::Custom(0x55, Bytes::from_static(&[0xCC, 0x88, 0xAA, 0xFF])).into();
+            let bytes: Bytes = Response::Custom(
+                FunctionCode::Custom(0x55),
+                Bytes::from_static(&[0xCC, 0x88, 0xAA, 0xFF]),
+            )
+            .into();
             assert_eq!(bytes[0], 0x55);
             assert_eq!(bytes[1], 0xCC);
             assert_eq!(bytes[2], 0x88);
@@ -1197,7 +1142,10 @@ mod tests {
             let rsp = Response::try_from(bytes).unwrap();
             assert_eq!(
                 rsp,
-                Response::Custom(0x55, Bytes::from_static(&[0xCC, 0x88, 0xAA, 0xFF]))
+                Response::Custom(
+                    FunctionCode::Custom(0x55),
+                    Bytes::from_static(&[0xCC, 0x88, 0xAA, 0xFF])
+                )
             );
         }
     }
