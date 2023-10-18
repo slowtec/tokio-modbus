@@ -5,8 +5,6 @@
 
 use std::borrow::Cow;
 
-use tokio_modbus::FunctionCode;
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_modbus::prelude::*;
@@ -17,10 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Fetching the coupler ID");
     let rsp = ctx
-        .call(Request::Custom(
-            FunctionCode::Custom(0x66),
-            Cow::Borrowed(&[0x11, 0x42]),
-        ))
+        .call(Request::Custom(0x66, Cow::Borrowed(&[0x11, 0x42])))
         .await?;
 
     match rsp {

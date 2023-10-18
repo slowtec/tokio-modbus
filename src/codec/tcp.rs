@@ -243,10 +243,7 @@ mod tests {
             assert_eq!(hdr.transaction_id, TRANSACTION_ID);
             assert_eq!(hdr.unit_id, UNIT_ID);
             if let ResponsePdu(Err(err)) = pdu {
-                assert_eq!(
-                    format!("{err}"),
-                    "Modbus function FunctionCode::ReadDiscreteInputs: Illegal data value"
-                );
+                assert_eq!(format!("{err}"), "Modbus function 2: Illegal data value");
                 assert_eq!(buf.len(), 1);
             } else {
                 panic!("unexpected response")

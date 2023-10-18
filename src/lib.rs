@@ -43,8 +43,8 @@ mod codec;
 
 mod frame;
 pub use self::frame::{
-    Address, Exception, ExceptionResponse, ExtractExceptionResponse, FunctionCode, GetFunctionCode,
-    Quantity, Request, Response, ResponsePdu,
+    Address, Exception, ExceptionResponse, ExtractExceptionResponse, FunctionCode, Quantity,
+    Request, Response, ResponsePdu,
 };
 
 mod service;

@@ -710,10 +710,7 @@ mod tests {
 
             let ResponseAdu { pdu, .. } = codec.decode(&mut buf).unwrap().unwrap();
             if let ResponsePdu(Err(err)) = pdu {
-                assert_eq!(
-                    format!("{err}"),
-                    "Modbus function FunctionCode::ReadDiscreteInputs: Illegal data value"
-                );
+                assert_eq!(format!("{err}"), "Modbus function 2: Illegal data value");
                 assert_eq!(buf.len(), 0);
             } else {
                 panic!("unexpected response")

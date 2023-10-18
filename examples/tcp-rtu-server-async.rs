@@ -14,8 +14,7 @@ use tokio::{net::TcpListener, sync::Mutex};
 use tokio_modbus::{
     prelude::*,
     server::tcp::{accept_tcp_connection, Server},
-    Address, Exception, ExceptionResponse, ExtractExceptionResponse, GetFunctionCode, Quantity,
-    ResponsePdu,
+    Address, Exception, ExceptionResponse, ExtractExceptionResponse, Quantity, ResponsePdu,
 };
 use tokio_serial::SerialStream;
 
