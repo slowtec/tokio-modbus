@@ -314,6 +314,29 @@ pub struct ExceptionResponse {
     pub(crate) exception: Exception,
 }
 
+impl ExceptionResponse {
+    /// Create a new [`ExceptionResponse`] for `function` with `exception`.
+    #[must_use]
+    pub const fn new(function: FunctionCode, exception: Exception) -> Self {
+        Self {
+            function,
+            exception,
+        }
+    }
+
+    /// Return the function code associated with the [`Exception`].
+    #[must_use]
+    pub const fn function(&self) -> FunctionCode {
+        self.function
+    }
+
+    /// Return the [`Exception`].
+    #[must_use]
+    pub const fn exception(&self) -> Exception {
+        self.exception
+    }
+}
+
 /// Represents a message from the client (slave) to the server (master).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RequestPdu<'a>(pub(crate) Request<'a>);
