@@ -121,7 +121,7 @@ impl From<Response> for Bytes {
         use crate::frame::Response::*;
         let cnt = response_byte_count(&rsp);
         let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(rsp_to_fn_code(&rsp));
+        data.put_u8(rsp.function_code());
         match rsp {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
                 let packed_coils = pack_coils(&coils);
@@ -438,23 +438,6 @@ fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
     res
 }
 
-fn rsp_to_fn_code(rsp: &Response) -> u8 {
-    use crate::frame::Response::*;
-    match *rsp {
-        ReadCoils(_) => 0x01,
-        ReadDiscreteInputs(_) => 0x02,
-        WriteSingleCoil(_, _) => 0x05,
-        WriteMultipleCoils(_, _) => 0x0F,
-        ReadInputRegisters(_) => 0x04,
-        ReadHoldingRegisters(_) => 0x03,
-        WriteSingleRegister(_, _) => 0x06,
-        WriteMultipleRegisters(_, _) => 0x10,
-        MaskWriteRegister(_, _, _) => 0x16,
-        ReadWriteMultipleRegisters(_) => 0x17,
-        Custom(code, _) => code,
-    }
-}
-
 fn request_byte_count(req: &Request<'_>) -> usize {
     use crate::frame::Request::*;
     match *req {
@@ -562,17 +545,18 @@ mod tests {
     #[test]
     fn function_code_from_response() {
         use crate::frame::Response::*;
-        assert_eq!(rsp_to_fn_code(&ReadCoils(vec![])), 1);
-        assert_eq!(rsp_to_fn_code(&ReadDiscreteInputs(vec![])), 2);
-        assert_eq!(rsp_to_fn_code(&WriteSingleCoil(0x0, false)), 5);
-        assert_eq!(rsp_to_fn_code(&WriteMultipleCoils(0x0, 0x0)), 0x0F);
-        assert_eq!(rsp_to_fn_code(&ReadInputRegisters(vec![])), 0x04);
-        assert_eq!(rsp_to_fn_code(&ReadHoldingRegisters(vec![])), 0x03);
-        assert_eq!(rsp_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
-        assert_eq!(rsp_to_fn_code(&WriteMultipleRegisters(0, 0)), 0x10);
-        assert_eq!(rsp_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
-        assert_eq!(rsp_to_fn_code(&ReadWriteMultipleRegisters(vec![])), 0x17);
-        assert_eq!(rsp_to_fn_code(&Custom(99, Bytes::from_static(&[]))), 99);
+
+        assert_eq!(ReadCoils(vec![]).function_code(), 1);
+        assert_eq!(ReadDiscreteInputs(vec![]).function_code(), 2);
+        assert_eq!(WriteSingleCoil(0x0, false).function_code(), 5);
+        assert_eq!(WriteMultipleCoils(0x0, 0x0).function_code(), 0x0F);
+        assert_eq!(ReadInputRegisters(vec![]).function_code(), 0x04);
+        assert_eq!(ReadHoldingRegisters(vec![]).function_code(), 0x03);
+        assert_eq!(WriteSingleRegister(0, 0).function_code(), 0x06);
+        assert_eq!(WriteMultipleRegisters(0, 0).function_code(), 0x10);
+        assert_eq!(MaskWriteRegister(0, 0, 0).function_code(), 0x16);
+        assert_eq!(ReadWriteMultipleRegisters(vec![]).function_code(), 0x17);
+        assert_eq!(Custom(99, Bytes::from_static(&[])).function_code(), 99);
     }
 
     #[test]

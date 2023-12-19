@@ -246,6 +246,28 @@ pub enum Response {
     Custom(FunctionCode, Bytes),
 }
 
+impl Response {
+    /// Return the [`FunctionCode`] associated with the [`Response`].
+    #[must_use]
+    pub const fn function_code(&self) -> FunctionCode {
+        use Response::*;
+
+        match self {
+            ReadCoils(_) => 0x01,
+            ReadDiscreteInputs(_) => 0x02,
+            WriteSingleCoil(_, _) => 0x05,
+            WriteMultipleCoils(_, _) => 0x0F,
+            ReadInputRegisters(_) => 0x04,
+            ReadHoldingRegisters(_) => 0x03,
+            WriteSingleRegister(_, _) => 0x06,
+            WriteMultipleRegisters(_, _) => 0x10,
+            MaskWriteRegister(_, _, _) => 0x16,
+            ReadWriteMultipleRegisters(_) => 0x17,
+            Custom(code, _) => *code,
+        }
+    }
+}
+
 /// A server (slave) exception.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
