@@ -310,8 +310,8 @@ impl Exception {
 /// A server (slave) exception response.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExceptionResponse {
-    pub function: FunctionCode,
-    pub exception: Exception,
+    pub(crate) function: FunctionCode,
+    pub(crate) exception: Exception,
 }
 
 /// Represents a message from the client (slave) to the server (master).
