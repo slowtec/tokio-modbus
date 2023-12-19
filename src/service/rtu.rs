@@ -3,7 +3,7 @@
 
 use std::{
     fmt,
-    io::{Error, ErrorKind},
+    io::{self, ErrorKind},
 };
 
 use futures_util::{sink::SinkExt as _, stream::StreamExt as _};
@@ -14,6 +14,7 @@ use crate::{
     codec,
     frame::{rtu::*, *},
     slave::*,
+    Error, Result,
 };
 
 /// Modbus RTU client
@@ -47,7 +48,7 @@ where
         }
     }
 
-    async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
@@ -59,23 +60,23 @@ where
             .framed
             .next()
             .await
-            .unwrap_or_else(|| Err(Error::from(ErrorKind::BrokenPipe)))?;
+            .unwrap_or_else(|| Err(io::Error::from(ErrorKind::BrokenPipe)))?;
 
         match res_adu.pdu {
             ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
-            ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+            ResponsePdu(Err(err)) => Err(Error::Exception(err)),
         }
     }
 }
 
-fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error> {
+fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<()> {
     if req_hdr != rsp_hdr {
-        return Err(Error::new(
+        return Err(io::Error::new(
             ErrorKind::InvalidData,
             format!(
                 "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
             ),
-        ));
+        ).into());
     }
     Ok(())
 }
@@ -91,7 +92,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         self.call(req).await
     }
 }
@@ -103,7 +104,10 @@ mod tests {
         pin::Pin,
         task::{Context, Poll},
     };
+    use std::io::ErrorKind;
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
+
+    use crate::Error;
 
     #[derive(Debug)]
     struct MockTransport;
@@ -144,6 +148,6 @@ mod tests {
             .await;
         assert!(res.is_err());
         let err = res.err().unwrap();
-        assert_eq!(err.kind(), std::io::ErrorKind::BrokenPipe);
+        assert!(matches!(err, Error::Io(err) if err.kind() == ErrorKind::BrokenPipe));
     }
 }

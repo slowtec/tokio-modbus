@@ -19,9 +19,10 @@ use crate::{
     codec::tcp::ServerCodec,
     frame::{
         tcp::{RequestAdu, ResponseAdu},
-        OptionalResponsePdu,
+        OptionalResponsePdu, ResponsePdu,
     },
     server::service::Service,
+    Error, Result,
 };
 
 use super::Terminated;
@@ -30,7 +31,7 @@ use super::Terminated;
 pub trait BindSocket {
     type Error;
 
-    async fn bind_socket(addr: SocketAddr) -> Result<Socket, Self::Error>;
+    async fn bind_socket(addr: SocketAddr) -> std::result::Result<Socket, Self::Error>;
 }
 
 /// Accept unencrypted TCP connections.
@@ -38,12 +39,12 @@ pub fn accept_tcp_connection<S, NewService>(
     stream: TcpStream,
     socket_addr: SocketAddr,
     new_service: NewService,
-) -> io::Result<Option<(S, TcpStream)>>
+) -> Result<Option<(S, TcpStream)>>
 where
     S: Service + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
     S::Response: Into<OptionalResponsePdu> + Send,
-    S::Error: Into<io::Error>,
+    S::Error: Into<Error>,
     NewService: Fn(SocketAddr) -> io::Result<Option<S>>,
 {
     let service = new_service(socket_addr)?;
@@ -74,15 +75,15 @@ impl Server {
         &self,
         on_connected: &OnConnected,
         on_process_error: OnProcessError,
-    ) -> io::Result<()>
+    ) -> Result<()>
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
         S::Response: Into<OptionalResponsePdu> + Send,
-        S::Error: Into<io::Error>,
+        S::Error: Into<Error>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
-        F: Future<Output = io::Result<Option<(S, T)>>>,
+        F: Future<Output = Result<Option<(S, T)>>>,
         OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
     {
         loop {
@@ -100,7 +101,10 @@ impl Server {
             tokio::spawn(async move {
                 log::debug!("Processing requests from {socket_addr}");
                 if let Err(err) = process(framed, service).await {
-                    on_process_error(err);
+                    match err {
+                        Error::Io(err) => on_process_error(err),
+                        Error::Exception(exception) => log::debug!("catch exception: {exception}"),
+                    }
                 }
             });
         }
@@ -115,16 +119,16 @@ impl Server {
         on_connected: &OnConnected,
         on_process_error: OnProcessError,
         abort_signal: X,
-    ) -> io::Result<Terminated>
+    ) -> Result<Terminated>
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
         S::Response: Into<OptionalResponsePdu> + Send,
-        S::Error: Into<io::Error>,
+        S::Error: Into<Error>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         X: Future<Output = ()> + Sync + Send + Unpin + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
-        F: Future<Output = io::Result<Option<(S, T)>>>,
+        F: Future<Output = Result<Option<(S, T)>>>,
         OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
     {
         let abort_signal = abort_signal.fuse();
@@ -140,12 +144,12 @@ impl Server {
 }
 
 /// The request-response loop spawned by [`serve_until`] for each client
-async fn process<S, T, Req, Res>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Result<()>
+async fn process<S, T, Req, Res>(mut framed: Framed<T, ServerCodec>, service: S) -> Result<()>
 where
     S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
     S::Response: Into<OptionalResponsePdu> + Send,
-    S::Error: Into<io::Error>,
+    S::Error: Into<Error>,
     T: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
@@ -155,22 +159,23 @@ where
         };
 
         let hdr = request.hdr;
-        let OptionalResponsePdu(Some(response_pdu)) = service
+
+        let pdu: ResponsePdu = match service
             .call(request.into())
             .await
-            .map_err(Into::into)?
-            .into()
-        else {
-            log::trace!("Sending no response for request {hdr:?}");
-            continue;
+            .map(Into::into)
+            .map_err(Into::into)
+        {
+            Ok(OptionalResponsePdu(Some(response_pdu))) => response_pdu,
+            Ok(OptionalResponsePdu(None)) => {
+                log::trace!("Sending no response for request {hdr:?}");
+                continue;
+            }
+            Err(Error::Exception(exception)) => exception.into(),
+            Err(Error::Io(err)) => return Err(Error::Io(err)),
         };
 
-        framed
-            .send(ResponseAdu {
-                hdr,
-                pdu: response_pdu,
-            })
-            .await?;
+        framed.send(ResponseAdu { hdr, pdu }).await?;
     }
 
     Ok(())
@@ -225,8 +230,8 @@ mod tests {
         impl Service for DummyService {
             type Request = Request<'static>;
             type Response = Response;
-            type Error = io::Error;
-            type Future = future::Ready<Result<Self::Response, Self::Error>>;
+            type Error = Error;
+            type Future = future::Ready<std::result::Result<Self::Response, Self::Error>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
                 future::ready(Ok(self.response.clone()))
@@ -260,8 +265,8 @@ mod tests {
         impl Service for DummyService {
             type Request = Request<'static>;
             type Response = Response;
-            type Error = io::Error;
-            type Future = future::Ready<Result<Self::Response, Self::Error>>;
+            type Error = Error;
+            type Future = future::Ready<std::result::Result<Self::Response, Self::Error>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
                 future::ready(Ok(self.response.clone()))

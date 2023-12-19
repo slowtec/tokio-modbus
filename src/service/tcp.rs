@@ -3,7 +3,7 @@
 
 use std::{
     fmt,
-    io::{Error, ErrorKind},
+    io::{self, ErrorKind},
     sync::atomic::{AtomicU16, Ordering},
 };
 
@@ -15,6 +15,7 @@ use crate::{
     codec,
     frame::{tcp::*, *},
     slave::*,
+    Error, Result,
 };
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
@@ -68,7 +69,7 @@ where
         }
     }
 
-    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         log::debug!("Call {:?}", req);
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
@@ -81,23 +82,23 @@ where
             .framed
             .next()
             .await
-            .ok_or_else(Error::last_os_error)??;
+            .ok_or_else(io::Error::last_os_error)??;
 
         match res_adu.pdu {
             ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
-            ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+            ResponsePdu(Err(err)) => Err(Error::Exception(err)),
         }
     }
 }
 
-fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error> {
+fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<()> {
     if req_hdr != rsp_hdr {
-        return Err(Error::new(
+        return Err(io::Error::new(
             ErrorKind::InvalidData,
             format!(
                 "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
             ),
-        ));
+        ).into());
     }
     Ok(())
 }
@@ -113,7 +114,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         Client::call(self, req).await
     }
 }
