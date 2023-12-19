@@ -19,6 +19,7 @@ use tokio::net::TcpListener;
 use tokio_modbus::{
     prelude::*,
     server::tcp::{accept_tcp_connection, Server},
+    Error, Exception, ExceptionResponse,
 };
 
 struct ExampleService {
@@ -29,21 +30,27 @@ struct ExampleService {
 impl tokio_modbus::server::Service for ExampleService {
     type Request = Request<'static>;
     type Response = Response;
-    type Error = std::io::Error;
-    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+    type Error = Error;
+    type Future = future::Ready<std::result::Result<Self::Response, Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
+        let function_code = req.function_code();
+
         match req {
             Request::ReadInputRegisters(addr, cnt) => {
                 match register_read(&self.input_registers.lock().unwrap(), addr, cnt) {
                     Ok(values) => future::ready(Ok(Response::ReadInputRegisters(values))),
-                    Err(err) => future::ready(Err(err)),
+                    Err(err) => {
+                        future::ready(Err(ExceptionResponse::new(function_code, err).into()))
+                    }
                 }
             }
             Request::ReadHoldingRegisters(addr, cnt) => {
                 match register_read(&self.holding_registers.lock().unwrap(), addr, cnt) {
                     Ok(values) => future::ready(Ok(Response::ReadHoldingRegisters(values))),
-                    Err(err) => future::ready(Err(err)),
+                    Err(err) => {
+                        future::ready(Err(ExceptionResponse::new(function_code, err).into()))
+                    }
                 }
             }
             Request::WriteMultipleRegisters(addr, values) => {
@@ -52,7 +59,9 @@ impl tokio_modbus::server::Service for ExampleService {
                         addr,
                         values.len() as u16,
                     ))),
-                    Err(err) => future::ready(Err(err)),
+                    Err(err) => {
+                        future::ready(Err(ExceptionResponse::new(function_code, err).into()))
+                    }
                 }
             }
             Request::WriteSingleRegister(addr, value) => {
@@ -62,16 +71,18 @@ impl tokio_modbus::server::Service for ExampleService {
                     std::slice::from_ref(&value),
                 ) {
                     Ok(_) => future::ready(Ok(Response::WriteSingleRegister(addr, value))),
-                    Err(err) => future::ready(Err(err)),
+                    Err(err) => {
+                        future::ready(Err(ExceptionResponse::new(function_code, err).into()))
+                    }
                 }
             }
             _ => {
                 println!("SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}");
-                // TODO: We want to return a Modbus Exception response `IllegalFunction`. https://github.com/slowtec/tokio-modbus/issues/165
-                future::ready(Err(std::io::Error::new(
-                    std::io::ErrorKind::AddrNotAvailable,
-                    "Unimplemented function code in request".to_string(),
-                )))
+                future::ready(Err(ExceptionResponse::new(
+                    function_code,
+                    Exception::IllegalFunction,
+                )
+                .into()))
             }
         }
     }
@@ -100,19 +111,15 @@ fn register_read(
     registers: &HashMap<u16, u16>,
     addr: u16,
     cnt: u16,
-) -> Result<Vec<u16>, std::io::Error> {
+) -> std::result::Result<Vec<u16>, Exception> {
     let mut response_values = vec![0; cnt.into()];
     for i in 0..cnt {
         let reg_addr = addr + i;
         if let Some(r) = registers.get(&reg_addr) {
             response_values[i as usize] = *r;
         } else {
-            // TODO: Return a Modbus Exception response `IllegalDataAddress` https://github.com/slowtec/tokio-modbus/issues/165
             println!("SERVER: Exception::IllegalDataAddress");
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AddrNotAvailable,
-                format!("no register at address {reg_addr}"),
-            ));
+            return Err(Exception::IllegalDataAddress);
         }
     }
 
@@ -125,18 +132,14 @@ fn register_write(
     registers: &mut HashMap<u16, u16>,
     addr: u16,
     values: &[u16],
-) -> Result<(), std::io::Error> {
+) -> std::result::Result<(), Exception> {
     for (i, value) in values.iter().enumerate() {
         let reg_addr = addr + i as u16;
         if let Some(r) = registers.get_mut(&reg_addr) {
             *r = *value;
         } else {
-            // TODO: Return a Modbus Exception response `IllegalDataAddress` https://github.com/slowtec/tokio-modbus/issues/165
             println!("SERVER: Exception::IllegalDataAddress");
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AddrNotAvailable,
-                format!("no register at address {reg_addr}"),
-            ));
+            return Err(Exception::IllegalDataAddress);
         }
     }
 
@@ -144,7 +147,7 @@ fn register_write(
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let socket_addr = "127.0.0.1:5502".parse().unwrap();
 
     tokio::select! {
@@ -202,8 +205,9 @@ async fn client_context(socket_addr: SocketAddr) {
             let response = ctx.read_holding_registers(0x100, 1).await;
             println!("CLIENT: The result is '{response:?}'");
             assert!(response.is_err());
-            // TODO: How can Modbus client identify Modbus exception responses? E.g. here we expect IllegalDataAddress
-            // Question here: https://github.com/slowtec/tokio-modbus/issues/169
+            assert!(
+                matches!(response, Err(Error::Exception(err)) if err.exception() == Exception::IllegalDataAddress)
+            );
 
             println!("CLIENT: Done.")
         },
