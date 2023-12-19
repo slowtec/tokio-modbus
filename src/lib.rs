@@ -46,5 +46,8 @@ pub use self::frame::{Address, Exception, FunctionCode, Quantity, Request, Respo
 
 mod service;
 
+mod error;
+pub use error::{Error, Result};
+
 #[cfg(feature = "server")]
 pub mod server;
