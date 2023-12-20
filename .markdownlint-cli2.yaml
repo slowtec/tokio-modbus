@@ -27,6 +27,10 @@ config:
   # fenced code block should be allowed depending on the use case.
   code-block-style: false
 
+  # MD024/no-duplicate-heading: Multiple headings with the same content
+  # Used in CHANGELOG.md
+  no-duplicate-heading: false
+
   # MD026/no-trailing-punctuation: Trailing punctuation in heading
   # Used in README.md
   no-trailing-punctuation: false
