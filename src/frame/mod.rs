@@ -86,18 +86,6 @@ impl FunctionCode {
     }
 }
 
-impl From<FunctionCode> for u8 {
-    fn from(fc: FunctionCode) -> Self {
-        fc.value()
-    }
-}
-
-impl From<u8> for FunctionCode {
-    fn from(value: u8) -> Self {
-        Self::new(value)
-    }
-}
-
 impl Display for FunctionCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value())

@@ -45,7 +45,7 @@ impl<'a> TryFrom<Request<'a>> for Bytes {
         use crate::frame::Request::*;
         let cnt = request_byte_count(&req);
         let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(req.function_code().into());
+        data.put_u8(req.function_code().value());
         match req {
             ReadCoils(address, quantity)
             | ReadDiscreteInputs(address, quantity)
@@ -121,7 +121,7 @@ impl From<Response> for Bytes {
         use crate::frame::Response::*;
         let cnt = response_byte_count(&rsp);
         let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(rsp.function_code().into());
+        data.put_u8(rsp.function_code().value());
         match rsp {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
                 let packed_coils = pack_coils(&coils);
