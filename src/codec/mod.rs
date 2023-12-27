@@ -45,7 +45,7 @@ impl<'a> TryFrom<Request<'a>> for Bytes {
         use crate::frame::Request::*;
         let cnt = request_byte_count(&req);
         let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(req_to_fn_code(&req));
+        data.put_u8(req.function_code().into());
         match req {
             ReadCoils(address, quantity)
             | ReadDiscreteInputs(address, quantity)
@@ -121,7 +121,7 @@ impl From<Response> for Bytes {
         use crate::frame::Response::*;
         let cnt = response_byte_count(&rsp);
         let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(rsp_to_fn_code(&rsp));
+        data.put_u8(rsp.function_code().into());
         match rsp {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
                 let packed_coils = pack_coils(&coils);
@@ -168,8 +168,8 @@ impl From<Response> for Bytes {
 impl From<ExceptionResponse> for Bytes {
     fn from(ex: ExceptionResponse) -> Bytes {
         let mut data = BytesMut::with_capacity(2);
-        debug_assert!(ex.function < 0x80);
-        data.put_u8(ex.function + 0x80);
+        debug_assert!(ex.function.value() < 0x80);
+        data.put_u8(ex.function.value() + 0x80);
         data.put_u8(ex.exception.into());
         data.freeze()
     }
@@ -357,7 +357,7 @@ impl TryFrom<Bytes> for ExceptionResponse {
         let function = fn_err_code - 0x80;
         let exception = Exception::try_from(rdr.read_u8()?)?;
         Ok(ExceptionResponse {
-            function,
+            function: FunctionCode::new(function),
             exception,
         })
     }
@@ -595,7 +595,7 @@ mod tests {
     #[test]
     fn exception_response_into_bytes() {
         let bytes: Bytes = ExceptionResponse {
-            function: 0x03,
+            function: FunctionCode::ReadHoldingRegisters,
             exception: Exception::IllegalDataAddress,
         }
         .into();
@@ -612,7 +612,7 @@ mod tests {
         assert_eq!(
             rsp,
             ExceptionResponse {
-                function: 0x03,
+                function: FunctionCode::ReadHoldingRegisters,
                 exception: Exception::IllegalDataAddress,
             }
         );
@@ -623,7 +623,7 @@ mod tests {
         let req_pdu: Bytes = Request::ReadCoils(0x01, 5).try_into().unwrap();
         let rsp_pdu: Bytes = Response::ReadCoils(vec![]).into();
         let ex_pdu: Bytes = ExceptionResponse {
-            function: 0x03,
+            function: FunctionCode::ReadHoldingRegisters,
             exception: Exception::ServerDeviceFailure,
         }
         .into();
