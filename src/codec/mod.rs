@@ -438,24 +438,6 @@ fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
     res
 }
 
-fn req_to_fn_code(req: &Request<'_>) -> u8 {
-    use crate::frame::Request::*;
-    match *req {
-        ReadCoils(_, _) => 0x01,
-        ReadDiscreteInputs(_, _) => 0x02,
-        WriteSingleCoil(_, _) => 0x05,
-        WriteMultipleCoils(_, _) => 0x0F,
-        ReadInputRegisters(_, _) => 0x04,
-        ReadHoldingRegisters(_, _) => 0x03,
-        WriteSingleRegister(_, _) => 0x06,
-        WriteMultipleRegisters(_, _) => 0x10,
-        MaskWriteRegister(_, _, _) => 0x16,
-        ReadWriteMultipleRegisters(_, _, _, _) => 0x17,
-        Custom(code, _) => code,
-        Disconnect => unreachable!(),
-    }
-}
-
 fn rsp_to_fn_code(rsp: &Response) -> u8 {
     use crate::frame::Response::*;
     match *rsp {
@@ -549,31 +531,6 @@ mod tests {
         assert_eq!(unpack_coils(&[0b10], 2), &[false, true]);
         assert_eq!(unpack_coils(&[0b101], 3), &[true, false, true]);
         assert_eq!(unpack_coils(&[0xff, 0b11], 10), &[true; 10]);
-    }
-
-    #[test]
-    fn function_code_from_request() {
-        use crate::frame::Request::*;
-        assert_eq!(req_to_fn_code(&ReadCoils(0, 0)), 1);
-        assert_eq!(req_to_fn_code(&ReadDiscreteInputs(0, 0)), 2);
-        assert_eq!(req_to_fn_code(&WriteSingleCoil(0, true)), 5);
-        assert_eq!(
-            req_to_fn_code(&WriteMultipleCoils(0, Cow::Borrowed(&[]))),
-            0x0F
-        );
-        assert_eq!(req_to_fn_code(&ReadInputRegisters(0, 0)), 0x04);
-        assert_eq!(req_to_fn_code(&ReadHoldingRegisters(0, 0)), 0x03);
-        assert_eq!(req_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
-        assert_eq!(
-            req_to_fn_code(&WriteMultipleRegisters(0, Cow::Borrowed(&[]))),
-            0x10
-        );
-        assert_eq!(req_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
-        assert_eq!(
-            req_to_fn_code(&ReadWriteMultipleRegisters(0, 0, 0, Cow::Borrowed(&[]))),
-            0x17
-        );
-        assert_eq!(req_to_fn_code(&Custom(88, Cow::Borrowed(&[]))), 88);
     }
 
     #[test]
