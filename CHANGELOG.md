@@ -6,6 +6,11 @@
 ## v0.10.0 (Unreleased)
 
 - Exclude `rtu-server`/`tcp-server` from default features.
+- Feature: Retrieve the `FunctionCode` of a `Request`/`Response`.
+
+### Breaking Changes
+
+- `FunctionCode`: Change `type alias` to an `enum`.
 
 ## v0.9.0 (2023-07-26)
 
