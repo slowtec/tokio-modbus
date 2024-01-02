@@ -88,7 +88,7 @@ impl FunctionCode {
 
 impl Display for FunctionCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value())
+        self.value().fmt(f)
     }
 }
 
