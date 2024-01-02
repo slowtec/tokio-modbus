@@ -443,11 +443,11 @@ impl From<Result<Response, ExceptionResponse>> for ResponsePdu {
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-server", feature = "tcp-server"))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OptionalResponsePdu(pub(crate) Option<ResponsePdu>);
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-server", feature = "tcp-server"))]
 impl<T> From<Option<T>> for OptionalResponsePdu
 where
     T: Into<ResponsePdu>,
@@ -457,7 +457,7 @@ where
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-server", feature = "tcp-server"))]
 impl<T> From<T> for OptionalResponsePdu
 where
     T: Into<ResponsePdu>,

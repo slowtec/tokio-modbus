@@ -8,12 +8,12 @@
 
 use std::{
     collections::HashMap,
+    future,
     net::SocketAddr,
     sync::{Arc, Mutex},
     time::Duration,
 };
 
-use futures::future;
 use tokio::net::TcpListener;
 
 use tokio_modbus::{

@@ -11,7 +11,7 @@ pub mod tcp;
 
 use std::{future::Future, io::Result, time::Duration};
 
-use futures::future::Either;
+use futures_util::future::Either;
 
 use crate::{frame::*, slave::*};
 

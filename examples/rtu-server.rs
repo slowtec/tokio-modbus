@@ -3,9 +3,7 @@
 
 //! RTU server example
 
-use std::{thread, time::Duration};
-
-use futures::future;
+use std::{future, thread, time::Duration};
 
 use tokio_modbus::{prelude::*, server::rtu::Server};
 
