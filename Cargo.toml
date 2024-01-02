@@ -57,7 +57,7 @@ pem = "3.0.3"
 webpki = "0.22.4"
 
 [features]
-default = ["rtu", "tcp", "rtu-server", "tcp-server"]
+default = ["rtu", "tcp"]
 rtu = ["futures-util/sink"]
 tcp = ["tokio/net", "futures-util/sink"]
 rtu-sync = ["rtu", "sync", "dep:tokio-serial"]
