@@ -75,13 +75,7 @@ tcp-server = [
     "tokio/macros",
     "tokio/rt-multi-thread",
 ]
-rtu-over-tcp-server = [
-    "rtu",
-    "server",
-    "socket2/all",
-    "tokio/macros",
-    "tokio/rt-multi-thread",
-]
+rtu-over-tcp-server = ["rtu", "tcp-server"]
 # The following features are internal and must not be used in dependencies.
 sync = ["dep:futures-core", "futures-util/sink", "tokio/time", "tokio/rt"]
 server = []

@@ -3,11 +3,10 @@
 
 //! Modbus RTU over TCP server skeleton
 
-use std::{io, net::SocketAddr};
+use std::{future::Future, io, net::SocketAddr};
 
 use async_trait::async_trait;
-use futures::{self, Future};
-use futures_util::{future::FutureExt as _, sink::SinkExt as _, stream::StreamExt as _};
+use futures_util::{FutureExt as _, SinkExt as _, StreamExt as _};
 use socket2::{Domain, Socket, Type};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
