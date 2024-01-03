@@ -10,7 +10,7 @@
 
 ### Breaking Changes
 
-- `FunctionCode`: Change `type alias` to an `enum`.
+- `FunctionCode`: Replace `type` alias with `enum`.
 
 ## v0.9.0 (2023-07-26)
 
