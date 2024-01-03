@@ -47,6 +47,7 @@ tokio-modbus = "*"
 - `"tcp-sync"`: Synchronous TCP client
 - `"rtu-server"`: (Asynchronous) RTU server
 - `"tcp-server"`: (Asynchronous) TCP server
+- `"rtu-over-tcp-server"`: (Asynchronous) RTU over TCP server
 
 #### Examples
 
