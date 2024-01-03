@@ -70,6 +70,13 @@ tcp-server = [
     "tokio/macros",
     "tokio/rt-multi-thread",
 ]
+rtu-over-tcp-server = [
+    "rtu",
+    "server",
+    "socket2/all",
+    "tokio/macros",
+    "tokio/rt-multi-thread",
+]
 # The following features are internal and must not be used in dependencies.
 sync = ["dep:futures", "tokio/time", "tokio/rt"]
 server = ["dep:futures"]
@@ -116,6 +123,11 @@ required-features = ["tcp"]
 name = "tcp-server"
 path = "examples/tcp-server.rs"
 required-features = ["tcp-server"]
+
+[[example]]
+name = "rtu-over-tcp-server"
+path = "examples/rtu-over-tcp-server.rs"
+required-features = ["rtu-over-tcp-server"]
 
 [[example]]
 name = "tls-client"

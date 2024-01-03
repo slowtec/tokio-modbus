@@ -12,6 +12,9 @@ pub mod rtu;
 #[cfg(feature = "tcp-server")]
 pub mod tcp;
 
+#[cfg(feature = "rtu-over-tcp-server")]
+pub mod rtu_over_tcp;
+
 mod service;
 pub use self::service::Service;
 
