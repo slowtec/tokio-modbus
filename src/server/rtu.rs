@@ -3,10 +3,9 @@
 
 //! Modbus RTU server skeleton
 
-use std::{io, path::Path};
+use std::{future::Future, io, path::Path};
 
-use futures::{Future, FutureExt as _};
-use futures_util::{SinkExt as _, StreamExt as _};
+use futures_util::{FutureExt as _, SinkExt as _, StreamExt as _};
 use tokio_serial::SerialStream;
 use tokio_util::codec::Framed;
 

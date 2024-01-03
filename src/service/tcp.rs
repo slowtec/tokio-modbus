@@ -7,7 +7,7 @@ use std::{
     sync::atomic::{AtomicU16, Ordering},
 };
 
-use futures_util::{sink::SinkExt as _, stream::StreamExt as _};
+use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
 

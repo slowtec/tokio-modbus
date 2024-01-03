@@ -9,6 +9,7 @@
 use std::{
     collections::HashMap,
     fs::File,
+    future,
     io::{self, BufReader},
     net::SocketAddr,
     path::Path,
@@ -16,7 +17,6 @@ use std::{
     time::Duration,
 };
 
-use futures::future;
 use pkcs8::der::Decode;
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio::net::{TcpListener, TcpStream};

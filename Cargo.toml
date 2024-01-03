@@ -25,25 +25,25 @@ all-features = true
 # <https://users.rust-lang.org/t/psa-please-specify-precise-dependency-versions-in-cargo-toml/71277>
 
 [dependencies]
-async-trait = "0.1.75"
+async-trait = "0.1.77"
 byteorder = "1.5.0"
 bytes = "1.5.0"
-futures = { version = "0.3.29", optional = true }
-futures-util = { version = "0.3.29", optional = true, default-features = false }
+futures-core = { version = "0.3.30", optional = true, default-features = false }
+futures-util = { version = "0.3.30", optional = true, default-features = false }
 log = "0.4.20"
-smallvec = { version = "1.11.2", default-features = false }
+smallvec = { version = "1.11.2", optional = true, default-features = false }
 socket2 = { version = "0.5.5", optional = true, default-features = false }
 tokio = { version = "1.35.1", default-features = false }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4.4", optional = true, default-features = false }
-tokio-util = { version = "0.7.10", default-features = false, features = [
+tokio-util = { version = "0.7.10", optional = true, default-features = false, features = [
     "codec",
 ] }
 
 [dev-dependencies]
-anyhow = "1.0.76"
+anyhow = "1.0.79"
 env_logger = "0.10.1"
-futures = "0.3.29"
+futures = "0.3.30"
 tokio = { version = "1.35.1", default-features = false, features = [
     "macros",
     "rt-multi-thread",
@@ -58,8 +58,13 @@ webpki = "0.22.4"
 
 [features]
 default = ["rtu", "tcp"]
-rtu = ["futures-util/sink"]
-tcp = ["tokio/net", "futures-util/sink"]
+rtu = [
+    "dep:futures-core",
+    "futures-util/sink",
+    "dep:smallvec",
+    "dep:tokio-util",
+]
+tcp = ["dep:futures-core", "futures-util/sink", "tokio/net", "dep:tokio-util"]
 rtu-sync = ["rtu", "sync", "dep:tokio-serial"]
 tcp-sync = ["tcp", "sync"]
 rtu-server = ["rtu", "server", "tokio/macros", "dep:tokio-serial"]
@@ -70,16 +75,10 @@ tcp-server = [
     "tokio/macros",
     "tokio/rt-multi-thread",
 ]
-rtu-over-tcp-server = [
-    "rtu",
-    "server",
-    "socket2/all",
-    "tokio/macros",
-    "tokio/rt-multi-thread",
-]
+rtu-over-tcp-server = ["rtu", "tcp-server"]
 # The following features are internal and must not be used in dependencies.
-sync = ["dep:futures", "tokio/time", "tokio/rt"]
-server = ["dep:futures"]
+sync = ["dep:futures-core", "futures-util/sink", "tokio/time", "tokio/rt"]
+server = []
 
 [badges]
 maintenance = { status = "actively-developed" }
