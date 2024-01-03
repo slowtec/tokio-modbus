@@ -3,13 +3,14 @@
 
 # Changelog
 
-## v0.10.0 (Unreleased)
+## v0.10.0 (2024-01-03)
 
-- Exclude `rtu-server`/`tcp-server` from default features.
 - Feature: Retrieve the `FunctionCode` of a `Request`/`Response`.
+- Feature: Added `rtu-over-tcp-server` for _RTU over TCP_ server skeleton.
 
 ### Breaking Changes
 
+- Exclude `rtu-server`/`tcp-server` from default features.
 - `FunctionCode`: Replace `type` alias with `enum`.
 
 ## v0.9.0 (2023-07-26)
