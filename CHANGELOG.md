@@ -3,6 +3,15 @@
 
 # Changelog
 
+## v0.10.0 (Unreleased)
+
+- Exclude `rtu-server`/`tcp-server` from default features.
+- Feature: Retrieve the `FunctionCode` of a `Request`/`Response`.
+
+### Breaking Changes
+
+- `FunctionCode`: Replace `type` alias with `enum`.
+
 ## v0.9.0 (2023-07-26)
 
 - Optimization: Avoid allocations when writing multiple coils/registers.
