@@ -23,7 +23,7 @@ pub trait Service {
 
 impl<D> Service for D
 where
-    D: Deref,
+    D: Deref + ?Sized,
     D::Target: Service,
 {
     type Request = <D::Target as Service>::Request;
