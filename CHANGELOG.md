@@ -7,6 +7,8 @@
 
 - Server: Remove `Sync` and `Unpin` trait bounds from `Service::call()` future
   result.
+- Server: Add `DynamicService`/`DynamicServiceAdapter` opt-in for dynamic
+  dispatch.
 
 ## v0.10.0 (2024-01-03)
 

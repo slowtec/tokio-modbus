@@ -16,7 +16,7 @@ pub mod tcp;
 pub mod rtu_over_tcp;
 
 mod service;
-pub use self::service::Service;
+pub use self::service::{DynamicService, DynamicServiceAdapter, Service};
 
 /// Cause for termination
 #[derive(Debug, Clone)]
