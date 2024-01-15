@@ -11,9 +11,7 @@ struct Service;
 
 impl tokio_modbus::server::Service for Service {
     type Request = SlaveRequest<'static>;
-    type Response = Response;
-    type Error = std::io::Error;
-    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+    type Future = future::Ready<Result<Response, Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         match req.request {

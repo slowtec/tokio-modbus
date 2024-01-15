@@ -28,9 +28,7 @@ struct ExampleService {
 
 impl tokio_modbus::server::Service for ExampleService {
     type Request = Request<'static>;
-    type Response = Response;
-    type Error = std::io::Error;
-    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+    type Future = future::Ready<Result<Response, Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         match req {
@@ -67,11 +65,7 @@ impl tokio_modbus::server::Service for ExampleService {
             }
             _ => {
                 println!("SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}");
-                // TODO: We want to return a Modbus Exception response `IllegalFunction`. https://github.com/slowtec/tokio-modbus/issues/165
-                future::ready(Err(std::io::Error::new(
-                    std::io::ErrorKind::AddrNotAvailable,
-                    "Unimplemented function code in request".to_string(),
-                )))
+                future::ready(Err(Exception::IllegalFunction))
             }
         }
     }
@@ -100,7 +94,7 @@ fn register_read(
     registers: &HashMap<u16, u16>,
     addr: u16,
     cnt: u16,
-) -> Result<Vec<u16>, std::io::Error> {
+) -> Result<Vec<u16>, Exception> {
     let mut response_values = vec![0; cnt.into()];
     for i in 0..cnt {
         let reg_addr = addr + i;
@@ -109,10 +103,7 @@ fn register_read(
         } else {
             // TODO: Return a Modbus Exception response `IllegalDataAddress` https://github.com/slowtec/tokio-modbus/issues/165
             println!("SERVER: Exception::IllegalDataAddress");
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AddrNotAvailable,
-                format!("no register at address {reg_addr}"),
-            ));
+            return Err(Exception::IllegalDataAddress);
         }
     }
 
@@ -125,7 +116,7 @@ fn register_write(
     registers: &mut HashMap<u16, u16>,
     addr: u16,
     values: &[u16],
-) -> Result<(), std::io::Error> {
+) -> Result<(), Exception> {
     for (i, value) in values.iter().enumerate() {
         let reg_addr = addr + i as u16;
         if let Some(r) = registers.get_mut(&reg_addr) {
@@ -133,10 +124,7 @@ fn register_write(
         } else {
             // TODO: Return a Modbus Exception response `IllegalDataAddress` https://github.com/slowtec/tokio-modbus/issues/165
             println!("SERVER: Exception::IllegalDataAddress");
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AddrNotAvailable,
-                format!("no register at address {reg_addr}"),
-            ));
+            return Err(Exception::IllegalDataAddress);
         }
     }
 
