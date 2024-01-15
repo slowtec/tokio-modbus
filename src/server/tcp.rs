@@ -18,7 +18,7 @@ use crate::{
     codec::tcp::ServerCodec,
     frame::{
         tcp::{RequestAdu, ResponseAdu},
-        OptionalResponsePdu,
+        ExceptionResponse, OptionalResponsePdu,
     },
     server::service::Service,
 };
@@ -41,8 +41,6 @@ pub fn accept_tcp_connection<S, NewService>(
 where
     S: Service + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
-    S::Response: Into<OptionalResponsePdu> + Send,
-    S::Error: Into<io::Error>,
     NewService: Fn(SocketAddr) -> io::Result<Option<S>>,
 {
     let service = new_service(socket_addr)?;
@@ -77,8 +75,6 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
-        S::Response: Into<OptionalResponsePdu> + Send,
-        S::Error: Into<io::Error>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
         F: Future<Output = io::Result<Option<(S, T)>>>,
@@ -118,8 +114,6 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
-        S::Response: Into<OptionalResponsePdu> + Send,
-        S::Error: Into<io::Error>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         X: Future<Output = ()> + Sync + Send + Unpin + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
@@ -139,12 +133,10 @@ impl Server {
 }
 
 /// The request-response loop spawned by [`serve_until`] for each client
-async fn process<S, T, Req, Res>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Result<()>
+async fn process<S, T, Req>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Result<()>
 where
-    S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
+    S: Service<Request = Req> + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
-    S::Response: Into<OptionalResponsePdu> + Send,
-    S::Error: Into<io::Error>,
     T: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
@@ -153,11 +145,15 @@ where
             break;
         };
 
+        let fc = request.pdu.0.function_code();
         let hdr = request.hdr;
         let OptionalResponsePdu(Some(response_pdu)) = service
             .call(request.into())
             .await
-            .map_err(Into::into)?
+            .map_err(|e| ExceptionResponse {
+                function: fc,
+                exception: e,
+            })
             .into()
         else {
             log::trace!("Sending no response for request {hdr:?}");
@@ -221,9 +217,7 @@ mod tests {
 
         impl Service for DummyService {
             type Request = Request<'static>;
-            type Response = Response;
-            type Error = io::Error;
-            type Future = future::Ready<Result<Self::Response, Self::Error>>;
+            type Future = future::Ready<Result<Response, Exception>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
                 future::ready(Ok(self.response.clone()))
@@ -256,9 +250,7 @@ mod tests {
 
         impl Service for DummyService {
             type Request = Request<'static>;
-            type Response = Response;
-            type Error = io::Error;
-            type Future = future::Ready<Result<Self::Response, Self::Error>>;
+            type Future = future::Ready<Result<Response, Exception>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
                 future::ready(Ok(self.response.clone()))
