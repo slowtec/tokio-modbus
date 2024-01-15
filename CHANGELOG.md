@@ -3,10 +3,15 @@
 
 # Changelog
 
+## v0.10.1 (Unreleased)
+
+- Server: Remove `Sync` and `Unpin` trait bounds from `Service::call()` future
+  result.
+
 ## v0.10.0 (2024-01-03)
 
 - Feature: Retrieve the `FunctionCode` of a `Request`/`Response`.
-- Feature: Added `rtu-over-tcp-server` for _RTU over TCP_ server skeleton.
+- Feature: Add `rtu-over-tcp-server` for _RTU over TCP_ server skeleton.
 
 ### Breaking Changes
 
