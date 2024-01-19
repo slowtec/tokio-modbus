@@ -1,4 +1,7 @@
-//! Excecute this test only if `rtu-server` feature is selected.
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+//! Execute this test only if `rtu-server` feature is selected.
 
 #![cfg(feature = "rtu-server")]
 
