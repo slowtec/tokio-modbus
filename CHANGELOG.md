@@ -1,7 +1,22 @@
-<!-- SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de> -->
+<!-- SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de> -->
 <!-- SPDX-License-Identifier: MIT OR Apache-2.0 -->
 
 # Changelog
+
+## v0.10.1 (Unreleased)
+
+- Server: Remove `Sync` and `Unpin` trait bounds from `Service::call()` future
+  result.
+
+## v0.10.0 (2024-01-03)
+
+- Feature: Retrieve the `FunctionCode` of a `Request`/`Response`.
+- Feature: Add `rtu-over-tcp-server` for _RTU over TCP_ server skeleton.
+
+### Breaking Changes
+
+- Exclude `rtu-server`/`tcp-server` from default features.
+- `FunctionCode`: Replace `type` alias with `enum`.
 
 ## v0.9.0 (2023-07-26)
 

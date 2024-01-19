@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::{
@@ -45,7 +45,7 @@ impl<'a> TryFrom<Request<'a>> for Bytes {
         use crate::frame::Request::*;
         let cnt = request_byte_count(&req);
         let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(req_to_fn_code(&req));
+        data.put_u8(req.function_code().value());
         match req {
             ReadCoils(address, quantity)
             | ReadDiscreteInputs(address, quantity)
@@ -121,7 +121,7 @@ impl From<Response> for Bytes {
         use crate::frame::Response::*;
         let cnt = response_byte_count(&rsp);
         let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(rsp_to_fn_code(&rsp));
+        data.put_u8(rsp.function_code().value());
         match rsp {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
                 let packed_coils = pack_coils(&coils);
@@ -168,8 +168,8 @@ impl From<Response> for Bytes {
 impl From<ExceptionResponse> for Bytes {
     fn from(ex: ExceptionResponse) -> Bytes {
         let mut data = BytesMut::with_capacity(2);
-        debug_assert!(ex.function < 0x80);
-        data.put_u8(ex.function + 0x80);
+        debug_assert!(ex.function.value() < 0x80);
+        data.put_u8(ex.function.value() + 0x80);
         data.put_u8(ex.exception.into());
         data.freeze()
     }
@@ -357,7 +357,7 @@ impl TryFrom<Bytes> for ExceptionResponse {
         let function = fn_err_code - 0x80;
         let exception = Exception::try_from(rdr.read_u8()?)?;
         Ok(ExceptionResponse {
-            function,
+            function: FunctionCode::new(function),
             exception,
         })
     }
@@ -436,41 +436,6 @@ fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
         res.push((bytes[i / 8] >> (i % 8)) & 0b1 > 0);
     }
     res
-}
-
-fn req_to_fn_code(req: &Request<'_>) -> u8 {
-    use crate::frame::Request::*;
-    match *req {
-        ReadCoils(_, _) => 0x01,
-        ReadDiscreteInputs(_, _) => 0x02,
-        WriteSingleCoil(_, _) => 0x05,
-        WriteMultipleCoils(_, _) => 0x0F,
-        ReadInputRegisters(_, _) => 0x04,
-        ReadHoldingRegisters(_, _) => 0x03,
-        WriteSingleRegister(_, _) => 0x06,
-        WriteMultipleRegisters(_, _) => 0x10,
-        MaskWriteRegister(_, _, _) => 0x16,
-        ReadWriteMultipleRegisters(_, _, _, _) => 0x17,
-        Custom(code, _) => code,
-        Disconnect => unreachable!(),
-    }
-}
-
-fn rsp_to_fn_code(rsp: &Response) -> u8 {
-    use crate::frame::Response::*;
-    match *rsp {
-        ReadCoils(_) => 0x01,
-        ReadDiscreteInputs(_) => 0x02,
-        WriteSingleCoil(_, _) => 0x05,
-        WriteMultipleCoils(_, _) => 0x0F,
-        ReadInputRegisters(_) => 0x04,
-        ReadHoldingRegisters(_) => 0x03,
-        WriteSingleRegister(_, _) => 0x06,
-        WriteMultipleRegisters(_, _) => 0x10,
-        MaskWriteRegister(_, _, _) => 0x16,
-        ReadWriteMultipleRegisters(_) => 0x17,
-        Custom(code, _) => code,
-    }
 }
 
 fn request_byte_count(req: &Request<'_>) -> usize {
@@ -552,50 +517,9 @@ mod tests {
     }
 
     #[test]
-    fn function_code_from_request() {
-        use crate::frame::Request::*;
-        assert_eq!(req_to_fn_code(&ReadCoils(0, 0)), 1);
-        assert_eq!(req_to_fn_code(&ReadDiscreteInputs(0, 0)), 2);
-        assert_eq!(req_to_fn_code(&WriteSingleCoil(0, true)), 5);
-        assert_eq!(
-            req_to_fn_code(&WriteMultipleCoils(0, Cow::Borrowed(&[]))),
-            0x0F
-        );
-        assert_eq!(req_to_fn_code(&ReadInputRegisters(0, 0)), 0x04);
-        assert_eq!(req_to_fn_code(&ReadHoldingRegisters(0, 0)), 0x03);
-        assert_eq!(req_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
-        assert_eq!(
-            req_to_fn_code(&WriteMultipleRegisters(0, Cow::Borrowed(&[]))),
-            0x10
-        );
-        assert_eq!(req_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
-        assert_eq!(
-            req_to_fn_code(&ReadWriteMultipleRegisters(0, 0, 0, Cow::Borrowed(&[]))),
-            0x17
-        );
-        assert_eq!(req_to_fn_code(&Custom(88, Cow::Borrowed(&[]))), 88);
-    }
-
-    #[test]
-    fn function_code_from_response() {
-        use crate::frame::Response::*;
-        assert_eq!(rsp_to_fn_code(&ReadCoils(vec![])), 1);
-        assert_eq!(rsp_to_fn_code(&ReadDiscreteInputs(vec![])), 2);
-        assert_eq!(rsp_to_fn_code(&WriteSingleCoil(0x0, false)), 5);
-        assert_eq!(rsp_to_fn_code(&WriteMultipleCoils(0x0, 0x0)), 0x0F);
-        assert_eq!(rsp_to_fn_code(&ReadInputRegisters(vec![])), 0x04);
-        assert_eq!(rsp_to_fn_code(&ReadHoldingRegisters(vec![])), 0x03);
-        assert_eq!(rsp_to_fn_code(&WriteSingleRegister(0, 0)), 0x06);
-        assert_eq!(rsp_to_fn_code(&WriteMultipleRegisters(0, 0)), 0x10);
-        assert_eq!(rsp_to_fn_code(&MaskWriteRegister(0, 0, 0)), 0x16);
-        assert_eq!(rsp_to_fn_code(&ReadWriteMultipleRegisters(vec![])), 0x17);
-        assert_eq!(rsp_to_fn_code(&Custom(99, Bytes::from_static(&[]))), 99);
-    }
-
-    #[test]
     fn exception_response_into_bytes() {
         let bytes: Bytes = ExceptionResponse {
-            function: 0x03,
+            function: FunctionCode::ReadHoldingRegisters,
             exception: Exception::IllegalDataAddress,
         }
         .into();
@@ -612,7 +536,7 @@ mod tests {
         assert_eq!(
             rsp,
             ExceptionResponse {
-                function: 0x03,
+                function: FunctionCode::ReadHoldingRegisters,
                 exception: Exception::IllegalDataAddress,
             }
         );
@@ -623,7 +547,7 @@ mod tests {
         let req_pdu: Bytes = Request::ReadCoils(0x01, 5).try_into().unwrap();
         let rsp_pdu: Bytes = Response::ReadCoils(vec![]).into();
         let ex_pdu: Bytes = ExceptionResponse {
-            function: 0x03,
+            function: FunctionCode::ReadHoldingRegisters,
             exception: Exception::ServerDeviceFailure,
         }
         .into();

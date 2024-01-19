@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Modbus server skeletons
@@ -11,6 +11,9 @@ pub mod rtu;
 
 #[cfg(feature = "tcp-server")]
 pub mod tcp;
+
+#[cfg(feature = "rtu-over-tcp-server")]
+pub mod rtu_over_tcp;
 
 mod service;
 pub use self::service::Service;

@@ -1,8 +1,7 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::future::Future;
-use std::ops::Deref;
+use std::{future::Future, ops::Deref};
 
 /// A Modbus server service.
 pub trait Service {
@@ -16,7 +15,7 @@ pub trait Service {
     type Error;
 
     /// The future response value.
-    type Future: Future<Output = Result<Self::Response, Self::Error>> + Send + Sync + Unpin;
+    type Future: Future<Output = Result<Self::Response, Self::Error>> + Send;
 
     /// Process the request and return the response asynchronously.
     fn call(&self, req: Self::Request) -> Self::Future;
@@ -24,7 +23,7 @@ pub trait Service {
 
 impl<D> Service for D
 where
-    D: Deref,
+    D: Deref + ?Sized,
     D::Target: Service,
 {
     type Request = <D::Target as Service>::Request;

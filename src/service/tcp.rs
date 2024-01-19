@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::{
@@ -7,7 +7,7 @@ use std::{
     sync::atomic::{AtomicU16, Ordering},
 };
 
-use futures_util::{sink::SinkExt as _, stream::StreamExt as _};
+use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
 

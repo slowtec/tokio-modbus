@@ -1,7 +1,7 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! # TCP server example
+//! # RTU over TCP server example
 //!
 //! This example shows how to start a server and implement basic register
 //! read/write operations.
@@ -18,7 +18,7 @@ use tokio::net::TcpListener;
 
 use tokio_modbus::{
     prelude::*,
-    server::tcp::{accept_tcp_connection, Server},
+    server::rtu_over_tcp::{accept_tcp_connection, Server},
 };
 
 struct ExampleService {
@@ -27,13 +27,14 @@ struct ExampleService {
 }
 
 impl tokio_modbus::server::Service for ExampleService {
-    type Request = Request<'static>;
+    type Request = SlaveRequest<'static>;
     type Response = Response;
     type Error = std::io::Error;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        match req {
+        println!("{}", req.slave);
+        match req.request {
             Request::ReadInputRegisters(addr, cnt) => {
                 match register_read(&self.input_registers.lock().unwrap(), addr, cnt) {
                     Ok(values) => future::ready(Ok(Response::ReadInputRegisters(values))),
@@ -177,7 +178,8 @@ async fn client_context(socket_addr: SocketAddr) {
             tokio::time::sleep(Duration::from_secs(1)).await;
 
             println!("CLIENT: Connecting client...");
-            let mut ctx = tcp::connect(socket_addr).await.unwrap();
+            let transport = tokio::net::TcpStream::connect(socket_addr).await.unwrap();
+            let mut ctx = tokio_modbus::prelude::rtu::attach_slave(transport, Slave(1));
 
             println!("CLIENT: Reading 2 input registers...");
             let response = ctx.read_input_registers(0x00, 2).await.unwrap();

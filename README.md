@@ -1,4 +1,4 @@
-<!-- SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de> -->
+<!-- SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de> -->
 <!-- SPDX-License-Identifier: MIT OR Apache-2.0 -->
 
 # tokio-modbus
@@ -10,7 +10,7 @@ A pure [Rust](https://www.rust-lang.org)
 [![Crates.io](https://img.shields.io/crates/v/tokio-modbus.svg)](https://crates.io/crates/tokio-modbus)
 [![Docs.rs](https://docs.rs/tokio-modbus/badge.svg)](https://docs.rs/tokio-modbus/)
 [![Security audit](https://github.com/slowtec/tokio-modbus/actions/workflows/security-audit.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/security-audit.yaml)
-[![Continuous integration](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous-integration.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/continuous-integration.yaml)
+[![Continuous integration](https://github.com/slowtec/tokio-modbus/actions/workflows/build-and-test.yaml/badge.svg)](https://github.com/slowtec/tokio-modbus/actions/workflows/build-and-test.yaml)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE-MIT)
 [![Apache 2.0 licensed](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE-APACHE)
 
@@ -47,6 +47,7 @@ tokio-modbus = "*"
 - `"tcp-sync"`: Synchronous TCP client
 - `"rtu-server"`: (Asynchronous) RTU server
 - `"tcp-server"`: (Asynchronous) TCP server
+- `"rtu-over-tcp-server"`: (Asynchronous) RTU over TCP server
 
 #### Examples
 
@@ -103,6 +104,6 @@ cargo test --workspace --all-features
 
 ## License
 
-Copyright (c) 2017-2023 [slowtec GmbH](https://www.slowtec.de)
+Copyright (c) 2017-2024 [slowtec GmbH](https://www.slowtec.de)
 
 [MIT](LICENSES/MIT.txt)/[Apache-2.0](LICENSES/Apache-2.0.txt)

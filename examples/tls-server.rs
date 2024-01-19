@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 // load_certs() and particially load_keys() functions were copied from an example of the tokio tls library, available at:
@@ -9,6 +9,7 @@
 use std::{
     collections::HashMap,
     fs::File,
+    future,
     io::{self, BufReader},
     net::SocketAddr,
     path::Path,
@@ -16,7 +17,6 @@ use std::{
     time::Duration,
 };
 
-use futures::future;
 use pkcs8::der::Decode;
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio::net::{TcpListener, TcpStream};
@@ -256,7 +256,7 @@ async fn client_context(socket_addr: SocketAddr) {
                     ta.name_constraints,
                 )
             });
-            root_cert_store.add_server_trust_anchors(trust_anchors);
+            root_cert_store.add_trust_anchors(trust_anchors);
 
             let domain = "localhost";
             let cert_path = Path::new("./pki/client.pem");

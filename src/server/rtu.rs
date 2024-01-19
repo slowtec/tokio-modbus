@@ -1,12 +1,11 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Modbus RTU server skeleton
 
-use std::{io, path::Path};
+use std::{future::Future, io, path::Path};
 
-use futures::{Future, FutureExt as _};
-use futures_util::{SinkExt as _, StreamExt as _};
+use futures_util::{FutureExt as _, SinkExt as _, StreamExt as _};
 use tokio_serial::SerialStream;
 use tokio_util::codec::Framed;
 
@@ -99,9 +98,10 @@ where
             .call(request.into())
             .await
             .map_err(Into::into)?
-            .into() else {
-                log::debug!("Sending no response for request {hdr:?}");
-                continue;
+            .into()
+        else {
+            log::debug!("Sending no response for request {hdr:?}");
+            continue;
         };
 
         framed

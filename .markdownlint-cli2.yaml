@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+# SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 # SPDX-License-Identifier: CC0-1.0
 
 # Disable some built-in rules
@@ -26,6 +26,10 @@ config:
   # specifying a language for syntax highlighting. Therefore both indented and
   # fenced code block should be allowed depending on the use case.
   code-block-style: false
+
+  # MD024/no-duplicate-heading: Multiple headings with the same content
+  # Used in CHANGELOG.md
+  no-duplicate-heading: false
 
   # MD026/no-trailing-punctuation: Trailing punctuation in heading
   # Used in README.md

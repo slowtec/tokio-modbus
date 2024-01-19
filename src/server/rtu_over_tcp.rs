@@ -1,7 +1,7 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Modbus TCP server skeleton
+//! Modbus RTU over TCP server skeleton
 
 use std::{future::Future, io, net::SocketAddr};
 
@@ -15,9 +15,9 @@ use tokio::{
 use tokio_util::codec::Framed;
 
 use crate::{
-    codec::tcp::ServerCodec,
+    codec::rtu::ServerCodec,
     frame::{
-        tcp::{RequestAdu, ResponseAdu},
+        rtu::{RequestAdu, ResponseAdu},
         OptionalResponsePdu,
     },
     server::service::Service,
@@ -61,7 +61,7 @@ impl Server {
         Self { listener }
     }
 
-    /// Listens for incoming connections and starts a Modbus TCP server task for
+    /// Listens for incoming connections and starts a Modbus RTU over TCP server task for
     /// each connection.
     ///
     /// `OnConnected` is responsible for creating both the service and the
@@ -94,6 +94,7 @@ impl Server {
             };
             let on_process_error = on_process_error.clone();
 
+            // use RTU codec
             let framed = Framed::new(transport, ServerCodec::default());
 
             tokio::spawn(async move {
@@ -105,7 +106,7 @@ impl Server {
         }
     }
 
-    /// Start an abortable Modbus TCP server task.
+    /// Start an abortable Modbus RTU over TCP server task.
     ///
     /// Warning: Request processing is not scoped and could be aborted at any internal await point!
     /// See also: <https://rust-lang.github.io/wg-async/vision/roadmap/scopes.html#cancellation>
@@ -210,7 +211,9 @@ mod tests {
 
     use crate::{prelude::*, server::Service};
 
-    use std::{future, sync::Arc};
+    use std::sync::Arc;
+
+    use futures::future;
 
     #[tokio::test]
     async fn delegate_service_through_deref_for_server() {

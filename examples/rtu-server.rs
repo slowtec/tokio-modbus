@@ -1,11 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! RTU server example
 
-use std::{thread, time::Duration};
-
-use futures::future;
+use std::{future, thread, time::Duration};
 
 use tokio_modbus::{prelude::*, server::rtu::Server};
 

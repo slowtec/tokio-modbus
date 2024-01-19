@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+# SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 # SPDX-License-Identifier: CC0-1.0
 
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow
@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
@@ -34,7 +34,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Generate Cargo.lock
         run: cargo generate-lockfile

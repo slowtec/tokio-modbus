@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 // load_certs() and particially load_keys() functions were copied from an example of the tokio tls library, available at:
@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ta.name_constraints,
         )
     });
-    root_cert_store.add_server_trust_anchors(trust_anchors);
+    root_cert_store.add_trust_anchors(trust_anchors);
 
     let domain = "localhost";
     let cert_path = Path::new("./pki/client.pem");

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2023 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #[cfg(feature = "rtu")]
@@ -7,12 +7,90 @@ pub(crate) mod rtu;
 #[cfg(feature = "tcp")]
 pub(crate) mod tcp;
 
-use std::{borrow::Cow, error, fmt};
+use std::{
+    borrow::Cow,
+    error,
+    fmt::{self, Display},
+};
 
 use crate::bytes::Bytes;
 
-/// A Modbus function code is represented by an unsigned 8 bit integer.
-pub type FunctionCode = u8;
+/// A Modbus function code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FunctionCode {
+    /// Modbus Function Code: `01` (`0x01`).
+    ReadCoils,
+    /// Modbus Function Code: `02` (`0x02`).
+    ReadDiscreteInputs,
+
+    /// Modbus Function Code: `05` (`0x05`).
+    WriteSingleCoil,
+    /// Modbus Function Code: `06` (`0x06`).
+    WriteSingleRegister,
+
+    /// Modbus Function Code: `03` (`0x03`).
+    ReadHoldingRegisters,
+    /// Modbus Function Code: `04` (`0x04`).
+    ReadInputRegisters,
+
+    /// Modbus Function Code: `15` (`0x0F`).
+    WriteMultipleCoils,
+    /// Modbus Function Code: `16` (`0x10`).
+    WriteMultipleRegisters,
+
+    /// Modbus Function Code: `22` (`0x16`).
+    MaskWriteRegister,
+
+    /// Modbus Function Code: `23` (`0x17`).
+    ReadWriteMultipleRegisters,
+
+    /// Custom Modbus Function Code.
+    Custom(u8),
+}
+
+impl FunctionCode {
+    /// Create a new [`FunctionCode`] with `value`.
+    #[must_use]
+    pub const fn new(value: u8) -> Self {
+        match value {
+            0x01 => FunctionCode::ReadCoils,
+            0x02 => FunctionCode::ReadDiscreteInputs,
+            0x05 => FunctionCode::WriteSingleCoil,
+            0x06 => FunctionCode::WriteSingleRegister,
+            0x03 => FunctionCode::ReadHoldingRegisters,
+            0x04 => FunctionCode::ReadInputRegisters,
+            0x0F => FunctionCode::WriteMultipleCoils,
+            0x10 => FunctionCode::WriteMultipleRegisters,
+            0x16 => FunctionCode::MaskWriteRegister,
+            0x17 => FunctionCode::ReadWriteMultipleRegisters,
+            code => FunctionCode::Custom(code),
+        }
+    }
+
+    /// Get the [`u8`] value of the current [`FunctionCode`].
+    #[must_use]
+    pub const fn value(self) -> u8 {
+        match self {
+            FunctionCode::ReadCoils => 0x01,
+            FunctionCode::ReadDiscreteInputs => 0x02,
+            FunctionCode::WriteSingleCoil => 0x05,
+            FunctionCode::WriteSingleRegister => 0x06,
+            FunctionCode::ReadHoldingRegisters => 0x03,
+            FunctionCode::ReadInputRegisters => 0x04,
+            FunctionCode::WriteMultipleCoils => 0x0F,
+            FunctionCode::WriteMultipleRegisters => 0x10,
+            FunctionCode::MaskWriteRegister => 0x16,
+            FunctionCode::ReadWriteMultipleRegisters => 0x17,
+            FunctionCode::Custom(code) => code,
+        }
+    }
+}
+
+impl Display for FunctionCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value().fmt(f)
+    }
+}
 
 /// A Modbus protocol address is represented by 16 bit from `0` to `65535`.
 ///
@@ -95,7 +173,7 @@ pub enum Request<'a> {
     /// A raw Modbus request.
     /// The first parameter is the Modbus function code.
     /// The second parameter is the raw bytes of the request.
-    Custom(FunctionCode, Cow<'a, [u8]>),
+    Custom(u8, Cow<'a, [u8]>),
 
     /// A poison pill for stopping the client service and to release
     /// the underlying transport, e.g. for disconnecting from an
@@ -136,6 +214,34 @@ impl<'a> Request<'a> {
             }
             Custom(func, bytes) => Custom(func, Cow::Owned(bytes.into_owned())),
             Disconnect => Disconnect,
+        }
+    }
+
+    /// Get the [`FunctionCode`] of the [`Request`].
+    #[must_use]
+    pub const fn function_code(&self) -> FunctionCode {
+        use Request::*;
+
+        match self {
+            ReadCoils(_, _) => FunctionCode::ReadCoils,
+            ReadDiscreteInputs(_, _) => FunctionCode::ReadDiscreteInputs,
+
+            WriteSingleCoil(_, _) => FunctionCode::WriteSingleCoil,
+            WriteMultipleCoils(_, _) => FunctionCode::WriteMultipleCoils,
+
+            ReadInputRegisters(_, _) => FunctionCode::ReadInputRegisters,
+            ReadHoldingRegisters(_, _) => FunctionCode::ReadHoldingRegisters,
+
+            WriteSingleRegister(_, _) => FunctionCode::WriteSingleRegister,
+            WriteMultipleRegisters(_, _) => FunctionCode::WriteMultipleRegisters,
+
+            MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
+
+            ReadWriteMultipleRegisters(_, _, _, _) => FunctionCode::ReadWriteMultipleRegisters,
+
+            Custom(code, _) => FunctionCode::Custom(*code),
+
+            Disconnect => unreachable!(),
         }
     }
 }
@@ -222,7 +328,35 @@ pub enum Response {
     /// Response to a raw Modbus request
     /// The first parameter contains the returned Modbus function code
     /// The second parameter contains the bytes read following the function code
-    Custom(FunctionCode, Bytes),
+    Custom(u8, Bytes),
+}
+
+impl Response {
+    /// Get the [`FunctionCode`] of the [`Response`].
+    #[must_use]
+    pub const fn function_code(&self) -> FunctionCode {
+        use Response::*;
+
+        match self {
+            ReadCoils(_) => FunctionCode::ReadCoils,
+            ReadDiscreteInputs(_) => FunctionCode::ReadDiscreteInputs,
+
+            WriteSingleCoil(_, _) => FunctionCode::WriteSingleCoil,
+            WriteMultipleCoils(_, _) => FunctionCode::WriteMultipleCoils,
+
+            ReadInputRegisters(_) => FunctionCode::ReadInputRegisters,
+            ReadHoldingRegisters(_) => FunctionCode::ReadHoldingRegisters,
+
+            WriteSingleRegister(_, _) => FunctionCode::WriteSingleRegister,
+            WriteMultipleRegisters(_, _) => FunctionCode::WriteMultipleRegisters,
+
+            MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
+
+            ReadWriteMultipleRegisters(_) => FunctionCode::ReadWriteMultipleRegisters,
+
+            Custom(code, _) => FunctionCode::Custom(*code),
+        }
+    }
 }
 
 /// A server (slave) exception.
@@ -309,11 +443,19 @@ impl From<Result<Response, ExceptionResponse>> for ResponsePdu {
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(
+    feature = "rtu-over-tcp-server",
+    feature = "rtu-server",
+    feature = "tcp-server"
+))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OptionalResponsePdu(pub(crate) Option<ResponsePdu>);
 
-#[cfg(feature = "server")]
+#[cfg(any(
+    feature = "rtu-over-tcp-server",
+    feature = "rtu-server",
+    feature = "tcp-server"
+))]
 impl<T> From<Option<T>> for OptionalResponsePdu
 where
     T: Into<ResponsePdu>,
@@ -323,7 +465,7 @@ where
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-server", feature = "tcp-server"))]
 impl<T> From<T> for OptionalResponsePdu
 where
     T: Into<ResponsePdu>,
@@ -360,5 +502,161 @@ impl fmt::Display for ExceptionResponse {
 impl error::Error for ExceptionResponse {
     fn description(&self) -> &str {
         self.exception.description()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_function_code() {
+        assert_eq!(FunctionCode::ReadCoils, FunctionCode::new(0x01));
+        assert_eq!(FunctionCode::ReadDiscreteInputs, FunctionCode::new(0x02));
+
+        assert_eq!(FunctionCode::WriteSingleCoil, FunctionCode::new(0x05));
+        assert_eq!(FunctionCode::WriteSingleRegister, FunctionCode::new(0x06));
+
+        assert_eq!(FunctionCode::ReadHoldingRegisters, FunctionCode::new(0x03));
+        assert_eq!(FunctionCode::ReadInputRegisters, FunctionCode::new(0x04));
+
+        assert_eq!(FunctionCode::WriteMultipleCoils, FunctionCode::new(0x0F));
+        assert_eq!(
+            FunctionCode::WriteMultipleRegisters,
+            FunctionCode::new(0x10)
+        );
+
+        assert_eq!(FunctionCode::MaskWriteRegister, FunctionCode::new(0x016));
+
+        assert_eq!(
+            FunctionCode::ReadWriteMultipleRegisters,
+            FunctionCode::new(0x017)
+        );
+
+        assert_eq!(FunctionCode::Custom(70), FunctionCode::new(70));
+    }
+
+    #[test]
+    fn function_code_values() {
+        assert_eq!(FunctionCode::ReadCoils.value(), 0x01);
+        assert_eq!(FunctionCode::ReadDiscreteInputs.value(), 0x02);
+
+        assert_eq!(FunctionCode::WriteSingleCoil.value(), 0x05);
+        assert_eq!(FunctionCode::WriteSingleRegister.value(), 0x06);
+
+        assert_eq!(FunctionCode::ReadHoldingRegisters.value(), 0x03);
+        assert_eq!(FunctionCode::ReadInputRegisters.value(), 0x04);
+
+        assert_eq!(FunctionCode::WriteMultipleCoils.value(), 0x0F);
+        assert_eq!(FunctionCode::WriteMultipleRegisters.value(), 0x10);
+
+        assert_eq!(FunctionCode::MaskWriteRegister.value(), 0x016);
+
+        assert_eq!(FunctionCode::ReadWriteMultipleRegisters.value(), 0x017);
+
+        assert_eq!(FunctionCode::Custom(70).value(), 70);
+    }
+
+    #[test]
+    fn function_code_from_request() {
+        use Request::*;
+
+        assert_eq!(ReadCoils(0, 0).function_code(), FunctionCode::ReadCoils);
+        assert_eq!(
+            ReadDiscreteInputs(0, 0).function_code(),
+            FunctionCode::ReadDiscreteInputs
+        );
+
+        assert_eq!(
+            WriteSingleCoil(0, true).function_code(),
+            FunctionCode::WriteSingleCoil
+        );
+        assert_eq!(
+            WriteMultipleCoils(0, Cow::Borrowed(&[])).function_code(),
+            FunctionCode::WriteMultipleCoils
+        );
+
+        assert_eq!(
+            ReadInputRegisters(0, 0).function_code(),
+            FunctionCode::ReadInputRegisters
+        );
+        assert_eq!(
+            ReadHoldingRegisters(0, 0).function_code(),
+            FunctionCode::ReadHoldingRegisters
+        );
+
+        assert_eq!(
+            WriteSingleRegister(0, 0).function_code(),
+            FunctionCode::WriteSingleRegister
+        );
+        assert_eq!(
+            WriteMultipleRegisters(0, Cow::Borrowed(&[])).function_code(),
+            FunctionCode::WriteMultipleRegisters
+        );
+
+        assert_eq!(
+            MaskWriteRegister(0, 0, 0).function_code(),
+            FunctionCode::MaskWriteRegister
+        );
+
+        assert_eq!(
+            ReadWriteMultipleRegisters(0, 0, 0, Cow::Borrowed(&[])).function_code(),
+            FunctionCode::ReadWriteMultipleRegisters
+        );
+
+        assert_eq!(Custom(88, Cow::Borrowed(&[])).function_code().value(), 88);
+    }
+
+    #[test]
+    fn function_code_from_response() {
+        use Response::*;
+
+        assert_eq!(ReadCoils(vec![]).function_code(), FunctionCode::ReadCoils);
+        assert_eq!(
+            ReadDiscreteInputs(vec![]).function_code(),
+            FunctionCode::ReadDiscreteInputs
+        );
+
+        assert_eq!(
+            WriteSingleCoil(0x0, false).function_code(),
+            FunctionCode::WriteSingleCoil
+        );
+        assert_eq!(
+            WriteMultipleCoils(0x0, 0x0).function_code(),
+            FunctionCode::WriteMultipleCoils
+        );
+
+        assert_eq!(
+            ReadInputRegisters(vec![]).function_code(),
+            FunctionCode::ReadInputRegisters
+        );
+        assert_eq!(
+            ReadHoldingRegisters(vec![]).function_code(),
+            FunctionCode::ReadHoldingRegisters
+        );
+
+        assert_eq!(
+            WriteSingleRegister(0, 0).function_code(),
+            FunctionCode::WriteSingleRegister
+        );
+        assert_eq!(
+            WriteMultipleRegisters(0, 0).function_code(),
+            FunctionCode::WriteMultipleRegisters
+        );
+
+        assert_eq!(
+            MaskWriteRegister(0, 0, 0).function_code(),
+            FunctionCode::MaskWriteRegister
+        );
+
+        assert_eq!(
+            ReadWriteMultipleRegisters(vec![]).function_code(),
+            FunctionCode::ReadWriteMultipleRegisters
+        );
+
+        assert_eq!(
+            Custom(99, Bytes::from_static(&[])).function_code().value(),
+            99
+        );
     }
 }
