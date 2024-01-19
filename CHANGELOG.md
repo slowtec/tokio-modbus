@@ -3,10 +3,18 @@
 
 # Changelog
 
-## v0.10.1 (Unreleased)
+## v0.11.0 (Unreleased)
 
 - Server: Remove `Sync` and `Unpin` trait bounds from `Service::call()` future
   result.
+- Feature: Add `Exception` to the public API.
+- Example: Update examples with new `Service` trait for the Server.
+- Tests: Add `Exception` integration tests for `tcp-server`, `rtu-server` and `rtu-over-tcp-server`.
+
+### Breaking Changes
+
+- Server: Update `Service::Future` generic associated type.
+- Server: Remove `Service::Reponse` and `Service::Error` generic associated type.
 
 ## v0.10.0 (2024-01-03)
 
