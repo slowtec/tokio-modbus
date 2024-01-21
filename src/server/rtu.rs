@@ -13,7 +13,7 @@ use crate::{
     codec::rtu::ServerCodec,
     frame::{
         rtu::{RequestAdu, ResponseAdu},
-        OptionalResponsePdu,
+        ExceptionResponse, OptionalResponsePdu,
     },
     server::service::Service,
 };
@@ -44,8 +44,6 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
-        S::Response: Into<OptionalResponsePdu> + Send,
-        S::Error: Into<io::Error>,
     {
         let framed = Framed::new(self.serial, ServerCodec::default());
         process(framed, service).await
@@ -59,8 +57,6 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
-        S::Response: Into<OptionalResponsePdu> + Send,
-        S::Error: Into<io::Error>,
         X: Future<Output = ()> + Sync + Send + Unpin + 'static,
     {
         let framed = Framed::new(self.serial, ServerCodec::default());
@@ -77,15 +73,13 @@ impl Server {
 }
 
 /// frame wrapper around the underlying service's responses to forwarded requests
-async fn process<S, Req, Res>(
+async fn process<S, Req>(
     mut framed: Framed<SerialStream, ServerCodec>,
     service: S,
 ) -> io::Result<()>
 where
-    S: Service<Request = Req, Response = Res> + Send + Sync + 'static,
+    S: Service<Request = Req> + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
-    S::Response: Into<OptionalResponsePdu> + Send,
-    S::Error: Into<io::Error>,
 {
     loop {
         let Some(request) = framed.next().await.transpose()? else {
@@ -93,11 +87,15 @@ where
             break;
         };
 
+        let fc = request.pdu.0.function_code();
         let hdr = request.hdr;
         let OptionalResponsePdu(Some(response_pdu)) = service
             .call(request.into())
             .await
-            .map_err(Into::into)?
+            .map_err(|e| ExceptionResponse {
+                function: fc,
+                exception: e,
+            })
             .into()
         else {
             log::debug!("Sending no response for request {hdr:?}");

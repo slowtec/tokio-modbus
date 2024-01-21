@@ -13,21 +13,19 @@ struct Service {
 
 impl tokio_modbus::server::Service for Service {
     type Request = SlaveRequest<'static>;
-    type Response = Option<Response>;
-    type Error = std::io::Error;
-    type Future = future::Ready<Result<Self::Response, Self::Error>>;
+    type Future = future::Ready<Result<Response, Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         if req.slave != self.slave.into() {
-            return future::ready(Ok(None));
+            return future::ready(Err(Exception::IllegalFunction));
         }
         match req.request {
             Request::ReadInputRegisters(_addr, cnt) => {
                 let mut registers = vec![0; cnt.into()];
                 registers[2] = 0x77;
-                future::ready(Ok(Some(Response::ReadInputRegisters(registers))))
+                future::ready(Ok(Response::ReadInputRegisters(registers)))
             }
-            _ => unimplemented!(),
+            _ => future::ready(Err(Exception::IllegalFunction)),
         }
     }
 }

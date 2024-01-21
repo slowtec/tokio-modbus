@@ -449,7 +449,7 @@ impl From<Result<Response, ExceptionResponse>> for ResponsePdu {
     feature = "tcp-server"
 ))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OptionalResponsePdu(pub(crate) Option<ResponsePdu>);
+pub(crate) struct OptionalResponsePdu(pub(crate) Option<ResponsePdu>);
 
 #[cfg(any(
     feature = "rtu-over-tcp-server",
