@@ -31,7 +31,7 @@ repos:
         stages:
           - commit-msg
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.11.0
+    rev: v0.12.1
     hooks:
       - id: markdownlint-cli2
   - repo: https://github.com/shellcheck-py/shellcheck-py
@@ -57,7 +57,7 @@ repos:
           - markdown
   # https://reuse.software
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v2.1.0
+    rev: v3.0.1
     hooks:
       - id: reuse
   - repo: https://github.com/doublify/pre-commit-rust
