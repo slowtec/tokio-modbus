@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.11.0 (Unreleased)
+## v0.11.0 (2024-01-28)
 
 - Server: Remove `Sync` and `Unpin` trait bounds from `Service::call()` future
   result.
