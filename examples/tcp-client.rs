@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx = tcp::connect(socket_addr).await?;
 
     println!("Fetching the coupler ID");
-    let data = ctx.read_input_registers(0x1000, 7).await?;
+    let data = ctx.read_input_registers(0x1000, 7).await??;
 
     let bytes: Vec<u8> = data.iter().fold(vec![], |mut x, elem| {
         x.push((elem & 0xff) as u8);

@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Fetching the coupler ID");
     let rsp = ctx
         .call(Request::Custom(0x66, Cow::Borrowed(&[0x11, 0x42])))
-        .await?;
+        .await??;
 
     match rsp {
         Response::Custom(f, rsp) => {

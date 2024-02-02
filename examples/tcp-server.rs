@@ -168,7 +168,7 @@ async fn client_context(socket_addr: SocketAddr) {
             let mut ctx = tcp::connect(socket_addr).await.unwrap();
 
             println!("CLIENT: Reading 2 input registers...");
-            let response = ctx.read_input_registers(0x00, 2).await.unwrap();
+            let response = ctx.read_input_registers(0x00, 2).await.unwrap().unwrap();
             println!("CLIENT: The result is '{response:?}'");
             assert_eq!(response, [1234, 5678]);
 
@@ -179,7 +179,7 @@ async fn client_context(socket_addr: SocketAddr) {
 
             // Read back a block including the two registers we wrote.
             println!("CLIENT: Reading 4 holding registers...");
-            let response = ctx.read_holding_registers(0x00, 4).await.unwrap();
+            let response = ctx.read_holding_registers(0x00, 4).await.unwrap().unwrap();
             println!("CLIENT: The result is '{response:?}'");
             assert_eq!(response, [10, 7777, 8888, 40]);
 
