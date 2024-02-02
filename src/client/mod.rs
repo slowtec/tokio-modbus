@@ -6,7 +6,7 @@
 use std::{
     borrow::Cow,
     fmt::Debug,
-    io::{Error, ErrorKind},
+    io::{self, Error, ErrorKind},
 };
 
 use async_trait::async_trait;
@@ -26,24 +26,39 @@ pub mod sync;
 #[async_trait]
 pub trait Client: SlaveContext + Send + Debug {
     /// Invoke a Modbus function
-    async fn call(&mut self, request: Request<'_>) -> Result<Response, Error>;
+    async fn call(&mut self, request: Request<'_>) -> io::Result<crate::Result<Response>>;
 }
 
 /// Asynchronous Modbus reader
 #[async_trait]
 pub trait Reader: Client {
     /// Read multiple coils (0x01)
-    async fn read_coils(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>, Error>;
+    async fn read_coils(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Coil>>>;
 
     /// Read multiple discrete inputs (0x02)
-    async fn read_discrete_inputs(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>, Error>;
+    async fn read_discrete_inputs(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Coil>>>;
 
     /// Read multiple holding registers (0x03)
-    async fn read_holding_registers(&mut self, _: Address, _: Quantity)
-        -> Result<Vec<Word>, Error>;
+    async fn read_holding_registers(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Word>>>;
 
     /// Read multiple input registers (0x04)
-    async fn read_input_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>, Error>;
+    async fn read_input_registers(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Word>>>;
 
     /// Read and write multiple holding registers (0x17)
     ///
@@ -55,27 +70,47 @@ pub trait Reader: Client {
         read_count: Quantity,
         write_addr: Address,
         write_data: &[Word],
-    ) -> Result<Vec<Word>, Error>;
+    ) -> io::Result<crate::Result<Vec<Word>>>;
 }
 
 /// Asynchronous Modbus writer
 #[async_trait]
 pub trait Writer: Client {
     /// Write a single coil (0x05)
-    async fn write_single_coil(&mut self, _: Address, _: Coil) -> Result<(), Error>;
+    async fn write_single_coil(
+        &mut self,
+        addr: Address,
+        coil: Coil,
+    ) -> io::Result<crate::Result<()>>;
 
     /// Write a single holding register (0x06)
-    async fn write_single_register(&mut self, _: Address, _: Word) -> Result<(), Error>;
+    async fn write_single_register(
+        &mut self,
+        addr: Address,
+        word: Word,
+    ) -> io::Result<crate::Result<()>>;
 
     /// Write multiple coils (0x0F)
-    async fn write_multiple_coils(&mut self, addr: Address, data: &'_ [Coil]) -> Result<(), Error>;
+    async fn write_multiple_coils(
+        &mut self,
+        addr: Address,
+        coils: &'_ [Coil],
+    ) -> io::Result<crate::Result<()>>;
 
     /// Write multiple holding registers (0x10)
-    async fn write_multiple_registers(&mut self, addr: Address, data: &[Word])
-        -> Result<(), Error>;
+    async fn write_multiple_registers(
+        &mut self,
+        addr: Address,
+        words: &[Word],
+    ) -> io::Result<crate::Result<()>>;
 
     /// Set or clear individual bits of a holding register (0x16)
-    async fn masked_write_register(&mut self, _: Address, _: Word, _: Word) -> Result<(), Error>;
+    async fn masked_write_register(
+        &mut self,
+        addr: Address,
+        and_mask: Word,
+        or_mask: Word,
+    ) -> io::Result<crate::Result<()>>;
 }
 
 /// Asynchronous Modbus client context
@@ -113,7 +148,7 @@ impl From<Context> for Box<dyn Client> {
 
 #[async_trait]
 impl Client for Context {
-    async fn call(&mut self, request: Request<'_>) -> Result<Response, Error> {
+    async fn call(&mut self, request: Request<'_>) -> io::Result<crate::Result<Response>> {
         self.client.call(request).await
     }
 }
@@ -130,75 +165,102 @@ impl Reader for Context {
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Result<Vec<Coil>, Error> {
-        let rsp = self.client.call(Request::ReadCoils(addr, cnt)).await?;
-
-        if let Response::ReadCoils(mut coils) = rsp {
-            debug_assert!(coils.len() >= cnt.into());
-            coils.truncate(cnt.into());
-            Ok(coils)
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+    ) -> io::Result<crate::Result<Vec<Coil>>> {
+        self.client
+            .call(Request::ReadCoils(addr, cnt))
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::ReadCoils(mut coils) => {
+                        debug_assert!(coils.len() >= cnt.into());
+                        coils.truncate(cnt.into());
+                        coils
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::ReadCoils
+                        )
+                    }
+                })
+            })
     }
 
     async fn read_discrete_inputs<'a>(
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Result<Vec<Coil>, Error> {
-        let rsp = self
-            .client
+    ) -> io::Result<crate::Result<Vec<Coil>>> {
+        self.client
             .call(Request::ReadDiscreteInputs(addr, cnt))
-            .await?;
-
-        if let Response::ReadDiscreteInputs(mut coils) = rsp {
-            debug_assert!(coils.len() >= cnt.into());
-            coils.truncate(cnt.into());
-            Ok(coils)
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::ReadDiscreteInputs(mut coils) => {
+                        debug_assert!(coils.len() >= cnt.into());
+                        coils.truncate(cnt.into());
+                        coils
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::ReadDiscreteInputs
+                        )
+                    }
+                })
+            })
     }
 
     async fn read_input_registers<'a>(
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Result<Vec<Word>, Error> {
-        let rsp = self
-            .client
+    ) -> io::Result<crate::Result<Vec<Word>>> {
+        self.client
             .call(Request::ReadInputRegisters(addr, cnt))
-            .await?;
-
-        if let Response::ReadInputRegisters(rsp) = rsp {
-            if rsp.len() != cnt.into() {
-                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-            }
-            Ok(rsp)
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::ReadInputRegisters(words) => {
+                        debug_assert_eq!(words.len(), cnt.into());
+                        words
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::ReadInputRegisters
+                        )
+                    }
+                })
+            })
     }
 
     async fn read_holding_registers<'a>(
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> Result<Vec<Word>, Error> {
-        let rsp = self
-            .client
+    ) -> io::Result<crate::Result<Vec<Word>>> {
+        self.client
             .call(Request::ReadHoldingRegisters(addr, cnt))
-            .await?;
-
-        if let Response::ReadHoldingRegisters(rsp) = rsp {
-            if rsp.len() != cnt.into() {
-                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-            }
-            Ok(rsp)
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::ReadHoldingRegisters(words) => {
+                        debug_assert_eq!(words.len(), cnt.into());
+                        words
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::ReadHoldingRegisters
+                        )
+                    }
+                })
+            })
     }
 
     async fn read_write_multiple_registers<'a>(
@@ -207,127 +269,164 @@ impl Reader for Context {
         read_count: Quantity,
         write_addr: Address,
         write_data: &[Word],
-    ) -> Result<Vec<Word>, Error> {
-        let rsp = self
-            .client
+    ) -> io::Result<crate::Result<Vec<Word>>> {
+        self.client
             .call(Request::ReadWriteMultipleRegisters(
                 read_addr,
                 read_count,
                 write_addr,
                 Cow::Borrowed(write_data),
             ))
-            .await?;
-
-        if let Response::ReadWriteMultipleRegisters(rsp) = rsp {
-            if rsp.len() != read_count.into() {
-                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-            }
-            Ok(rsp)
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::ReadWriteMultipleRegisters(words) => {
+                        debug_assert_eq!(words.len(), read_count.into());
+                        words
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::ReadWriteMultipleRegisters
+                        )
+                    }
+                })
+            })
     }
 }
 
 #[async_trait]
 impl Writer for Context {
-    async fn write_single_coil<'a>(&'a mut self, addr: Address, coil: Coil) -> Result<(), Error> {
-        let rsp = self
-            .client
+    async fn write_single_coil<'a>(
+        &'a mut self,
+        addr: Address,
+        coil: Coil,
+    ) -> io::Result<crate::Result<()>> {
+        self.client
             .call(Request::WriteSingleCoil(addr, coil))
-            .await?;
-
-        if let Response::WriteSingleCoil(rsp_addr, rsp_coil) = rsp {
-            if rsp_addr != addr || rsp_coil != coil {
-                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-            }
-            Ok(())
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::WriteSingleCoil(rsp_addr, rsp_coil) => {
+                        debug_assert_eq!(addr, rsp_addr);
+                        debug_assert_eq!(coil, rsp_coil);
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::WriteSingleCoil
+                        )
+                    }
+                })
+            })
     }
 
     async fn write_multiple_coils<'a>(
         &'a mut self,
         addr: Address,
         coils: &[Coil],
-    ) -> Result<(), Error> {
+    ) -> io::Result<crate::Result<()>> {
         let cnt = coils.len();
-        let rsp = self
-            .client
-            .call(Request::WriteMultipleCoils(addr, Cow::Borrowed(coils)))
-            .await?;
 
-        if let Response::WriteMultipleCoils(rsp_addr, rsp_cnt) = rsp {
-            if rsp_addr != addr || usize::from(rsp_cnt) != cnt {
-                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-            }
-            Ok(())
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+        self.client
+            .call(Request::WriteMultipleCoils(addr, Cow::Borrowed(coils)))
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::WriteMultipleCoils(rsp_addr, rsp_cnt) => {
+                        debug_assert_eq!(addr, rsp_addr);
+                        debug_assert_eq!(cnt, rsp_cnt.into());
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::WriteMultipleCoils
+                        )
+                    }
+                })
+            })
     }
 
     async fn write_single_register<'a>(
         &'a mut self,
         addr: Address,
-        data: Word,
-    ) -> Result<(), Error> {
-        let rsp = self
-            .client
-            .call(Request::WriteSingleRegister(addr, data))
-            .await?;
-
-        if let Response::WriteSingleRegister(rsp_addr, rsp_word) = rsp {
-            if rsp_addr != addr || rsp_word != data {
-                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-            }
-            Ok(())
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+        word: Word,
+    ) -> io::Result<crate::Result<()>> {
+        self.client
+            .call(Request::WriteSingleRegister(addr, word))
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::WriteSingleRegister(rsp_addr, rsp_word) => {
+                        debug_assert_eq!(addr, rsp_addr);
+                        debug_assert_eq!(word, rsp_word);
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::WriteSingleRegister
+                        )
+                    }
+                })
+            })
     }
 
     async fn write_multiple_registers<'a>(
         &'a mut self,
         addr: Address,
         data: &[Word],
-    ) -> Result<(), Error> {
+    ) -> io::Result<crate::Result<()>> {
         let cnt = data.len();
-        let rsp = self
-            .client
-            .call(Request::WriteMultipleRegisters(addr, Cow::Borrowed(data)))
-            .await?;
 
-        if let Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) = rsp {
-            if rsp_addr != addr || usize::from(rsp_cnt) != cnt {
-                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-            }
-            Ok(())
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+        self.client
+            .call(Request::WriteMultipleRegisters(addr, Cow::Borrowed(data)))
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) => {
+                        debug_assert_eq!(addr, rsp_addr);
+                        debug_assert_eq!(cnt, rsp_cnt.into());
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::WriteMultipleRegisters
+                        )
+                    }
+                })
+            })
     }
 
     async fn masked_write_register<'a>(
         &'a mut self,
-        address: Address,
+        addr: Address,
         and_mask: Word,
         or_mask: Word,
-    ) -> Result<(), Error> {
-        let rsp = self
-            .client
-            .call(Request::MaskWriteRegister(address, and_mask, or_mask))
-            .await?;
-
-        if let Response::MaskWriteRegister(addr, and, or) = rsp {
-            if addr != address || and != and_mask || or != or_mask {
-                return Err(Error::new(ErrorKind::InvalidData, "invalid response"));
-            }
-            Ok(())
-        } else {
-            Err(Error::new(ErrorKind::InvalidData, "unexpected response"))
-        }
+    ) -> io::Result<crate::Result<()>> {
+        self.client
+            .call(Request::MaskWriteRegister(addr, and_mask, or_mask))
+            .await
+            .map(|modbus_rsp| {
+                modbus_rsp.map(|rsp| match rsp {
+                    Response::MaskWriteRegister(rsp_addr, rsp_and_mask, rsp_or_mask) => {
+                        debug_assert_eq!(addr, rsp_addr);
+                        debug_assert_eq!(and_mask, rsp_and_mask);
+                        debug_assert_eq!(or_mask, rsp_or_mask);
+                    }
+                    others => {
+                        unreachable!(
+                            "unexpected response code: {} (request code: {})",
+                            others.function_code(),
+                            FunctionCode::MaskWriteRegister
+                        )
+                    }
+                })
+            })
     }
 }
 
@@ -340,7 +439,7 @@ mod tests {
     pub(crate) struct ClientMock {
         slave: Option<Slave>,
         last_request: Mutex<Option<Request<'static>>>,
-        next_response: Option<Result<Response, Error>>,
+        next_response: Option<io::Result<crate::Result<Response>>>,
     }
 
     #[allow(dead_code)]
@@ -353,14 +452,17 @@ mod tests {
             &self.last_request
         }
 
-        pub(crate) fn set_next_response(&mut self, next_response: Result<Response, Error>) {
+        pub(crate) fn set_next_response(
+            &mut self,
+            next_response: io::Result<crate::Result<Response>>,
+        ) {
             self.next_response = Some(next_response);
         }
     }
 
     #[async_trait]
     impl Client for ClientMock {
-        async fn call(&mut self, request: Request<'_>) -> Result<Response, Error> {
+        async fn call(&mut self, request: Request<'_>) -> io::Result<crate::Result<Response>> {
             *self.last_request.lock().unwrap() = Some(request.into_owned());
             match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
@@ -382,10 +484,12 @@ mod tests {
         let response_coils = [true, false, false, true, false, true, false, true];
         for num_coils in 1..8 {
             let mut client = Box::<ClientMock>::default();
-            client.set_next_response(Ok(Response::ReadCoils(response_coils.to_vec())));
+            client.set_next_response(Ok(Ok(Response::ReadCoils(response_coils.to_vec()))));
             let mut context = Context { client };
             context.set_slave(Slave(1));
-            let coils = futures::executor::block_on(context.read_coils(1, num_coils)).unwrap();
+            let coils = futures::executor::block_on(context.read_coils(1, num_coils))
+                .unwrap()
+                .unwrap();
             assert_eq!(&response_coils[0..num_coils as usize], &coils[..]);
         }
     }
@@ -397,11 +501,14 @@ mod tests {
         let response_inputs = [true, false, false, true, false, true, false, true];
         for num_inputs in 1..8 {
             let mut client = Box::<ClientMock>::default();
-            client.set_next_response(Ok(Response::ReadDiscreteInputs(response_inputs.to_vec())));
+            client.set_next_response(Ok(Ok(Response::ReadDiscreteInputs(
+                response_inputs.to_vec(),
+            ))));
             let mut context = Context { client };
             context.set_slave(Slave(1));
-            let inputs =
-                futures::executor::block_on(context.read_discrete_inputs(1, num_inputs)).unwrap();
+            let inputs = futures::executor::block_on(context.read_discrete_inputs(1, num_inputs))
+                .unwrap()
+                .unwrap();
             assert_eq!(&response_inputs[0..num_inputs as usize], &inputs[..]);
         }
     }
