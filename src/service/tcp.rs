@@ -3,7 +3,7 @@
 
 use std::{
     fmt,
-    io::{Error, ErrorKind},
+    io::{self, Error, ErrorKind},
     sync::atomic::{AtomicU16, Ordering},
 };
 
@@ -68,7 +68,7 @@ where
         }
     }
 
-    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    pub(crate) async fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>> {
         log::debug!("Call {:?}", req);
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
@@ -84,13 +84,13 @@ where
             .ok_or_else(Error::last_os_error)??;
 
         match res_adu.pdu {
-            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
-            ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(Ok(res))),
+            ResponsePdu(Err(err)) => Ok(Err(err.exception)),
         }
     }
 }
 
-fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error> {
+fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> io::Result<()> {
     if req_hdr != rsp_hdr {
         return Err(Error::new(
             ErrorKind::InvalidData,
@@ -113,7 +113,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>> {
         Client::call(self, req).await
     }
 }
