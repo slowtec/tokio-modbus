@@ -278,6 +278,7 @@ async fn client_context(socket_addr: SocketAddr) {
             println!("CLIENT: Writing 2 holding registers...");
             ctx.write_multiple_registers(0x01, &[7777, 8888])
                 .await
+                .unwrap()
                 .unwrap();
 
             // Read back a block including the two registers we wrote.
