@@ -9,7 +9,11 @@ pub mod rtu;
 #[cfg(feature = "tcp-sync")]
 pub mod tcp;
 
-use std::{future::Future, io::Result, time::Duration};
+use std::{
+    future::Future,
+    io::{self, Result},
+    time::Duration,
+};
 
 use futures_util::future::Either;
 
@@ -41,34 +45,55 @@ fn block_on_with_timeout<T>(
 
 /// A transport independent synchronous client trait.
 pub trait Client: SlaveContext {
-    fn call(&mut self, req: Request<'_>) -> Result<Response>;
+    fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>>;
 }
 
 /// A transport independent synchronous reader trait.
 ///
 /// The synchronous counterpart of the asynchronous [`Reader`](`crate::client::Reader`) trait.
 pub trait Reader: Client {
-    fn read_coils(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>>;
-    fn read_discrete_inputs(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>>;
-    fn read_input_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>>;
-    fn read_holding_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>>;
+    fn read_coils(&mut self, addr: Address, cnt: Quantity) -> io::Result<crate::Result<Vec<Coil>>>;
+    fn read_discrete_inputs(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Coil>>>;
+    fn read_input_registers(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Word>>>;
+    fn read_holding_registers(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Word>>>;
     fn read_write_multiple_registers(
         &mut self,
         read_addr: Address,
         read_count: Quantity,
         write_addr: Address,
         write_data: &[Word],
-    ) -> Result<Vec<Word>>;
+    ) -> io::Result<crate::Result<Vec<Word>>>;
 }
 
 /// A transport independent synchronous writer trait.
 ///
 /// The synchronous counterpart of the asynchronous [`Writer`](`crate::client::Writer`) trait.
 pub trait Writer: Client {
-    fn write_single_coil(&mut self, _: Address, _: Coil) -> Result<()>;
-    fn write_multiple_coils(&mut self, addr: Address, data: &[Coil]) -> Result<()>;
-    fn write_single_register(&mut self, _: Address, _: Word) -> Result<()>;
-    fn write_multiple_registers(&mut self, addr: Address, data: &[Word]) -> Result<()>;
+    fn write_single_coil(&mut self, addr: Address, coil: Coil) -> io::Result<crate::Result<()>>;
+    fn write_multiple_coils(
+        &mut self,
+        addr: Address,
+        coils: &[Coil],
+    ) -> io::Result<crate::Result<()>>;
+    fn write_single_register(&mut self, addr: Address, word: Word)
+        -> io::Result<crate::Result<()>>;
+    fn write_multiple_registers(
+        &mut self,
+        addr: Address,
+        words: &[Word],
+    ) -> io::Result<crate::Result<()>>;
 }
 
 /// A synchronous Modbus client context.
@@ -99,7 +124,7 @@ impl Context {
 }
 
 impl Client for Context {
-    fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>> {
         block_on_with_timeout(&self.runtime, self.timeout, self.async_ctx.call(req))
     }
 }
@@ -111,7 +136,7 @@ impl SlaveContext for Context {
 }
 
 impl Reader for Context {
-    fn read_coils(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>> {
+    fn read_coils(&mut self, addr: Address, cnt: Quantity) -> io::Result<crate::Result<Vec<Coil>>> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,
@@ -119,7 +144,11 @@ impl Reader for Context {
         )
     }
 
-    fn read_discrete_inputs(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>> {
+    fn read_discrete_inputs(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Coil>>> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,
@@ -127,7 +156,11 @@ impl Reader for Context {
         )
     }
 
-    fn read_input_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>> {
+    fn read_input_registers(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Word>>> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,
@@ -135,7 +168,11 @@ impl Reader for Context {
         )
     }
 
-    fn read_holding_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>> {
+    fn read_holding_registers(
+        &mut self,
+        addr: Address,
+        cnt: Quantity,
+    ) -> io::Result<crate::Result<Vec<Word>>> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,
@@ -149,7 +186,7 @@ impl Reader for Context {
         read_count: Quantity,
         write_addr: Address,
         write_data: &[Word],
-    ) -> Result<Vec<Word>> {
+    ) -> io::Result<crate::Result<Vec<Word>>> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,
@@ -160,7 +197,11 @@ impl Reader for Context {
 }
 
 impl Writer for Context {
-    fn write_single_register(&mut self, addr: Address, data: Word) -> Result<()> {
+    fn write_single_register(
+        &mut self,
+        addr: Address,
+        data: Word,
+    ) -> io::Result<crate::Result<()>> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,
@@ -168,7 +209,11 @@ impl Writer for Context {
         )
     }
 
-    fn write_multiple_registers(&mut self, addr: Address, data: &[Word]) -> Result<()> {
+    fn write_multiple_registers(
+        &mut self,
+        addr: Address,
+        data: &[Word],
+    ) -> io::Result<crate::Result<()>> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,
@@ -176,7 +221,7 @@ impl Writer for Context {
         )
     }
 
-    fn write_single_coil(&mut self, addr: Address, data: Coil) -> Result<()> {
+    fn write_single_coil(&mut self, addr: Address, data: Coil) -> io::Result<crate::Result<()>> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,
@@ -184,7 +229,11 @@ impl Writer for Context {
         )
     }
 
-    fn write_multiple_coils(&mut self, addr: Address, data: &[Coil]) -> Result<()> {
+    fn write_multiple_coils(
+        &mut self,
+        addr: Address,
+        data: &[Coil],
+    ) -> io::Result<crate::Result<()>> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,
