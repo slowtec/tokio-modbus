@@ -44,6 +44,9 @@ mod codec;
 mod frame;
 pub use self::frame::{Address, Exception, FunctionCode, Quantity, Request, Response};
 
+/// Specialized [`std::result::Result`] type for `Modbus` operations.
+pub type Result<T> = std::result::Result<T, Exception>;
+
 mod service;
 
 #[cfg(feature = "server")]
