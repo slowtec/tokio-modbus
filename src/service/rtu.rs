@@ -3,7 +3,7 @@
 
 use std::{
     fmt,
-    io::{Error, ErrorKind},
+    io::{self, Error, ErrorKind},
 };
 
 use futures_util::{SinkExt as _, StreamExt as _};
@@ -47,7 +47,7 @@ where
         }
     }
 
-    async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>> {
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
@@ -62,8 +62,8 @@ where
             .unwrap_or_else(|| Err(Error::from(ErrorKind::BrokenPipe)))?;
 
         match res_adu.pdu {
-            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
-            ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(Ok(res))),
+            ResponsePdu(Err(err)) => Ok(Err(err.exception)),
         }
     }
 }
@@ -91,7 +91,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>> {
         self.call(req).await
     }
 }
