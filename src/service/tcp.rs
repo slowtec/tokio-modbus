@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::{
-    fmt,
-    io::{self, Error, ErrorKind},
+    fmt, io,
     sync::atomic::{AtomicU16, Ordering},
 };
 
@@ -81,7 +80,7 @@ where
             .framed
             .next()
             .await
-            .ok_or_else(Error::last_os_error)??;
+            .ok_or_else(io::Error::last_os_error)??;
 
         match res_adu.pdu {
             ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(Ok(res))),
@@ -92,8 +91,8 @@ where
 
 fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> io::Result<()> {
     if req_hdr != rsp_hdr {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
             format!(
                 "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
             ),

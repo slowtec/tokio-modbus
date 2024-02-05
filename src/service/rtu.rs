@@ -1,10 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::{
-    fmt,
-    io::{self, Error, ErrorKind},
-};
+use std::{fmt, io};
 
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -59,7 +56,7 @@ where
             .framed
             .next()
             .await
-            .unwrap_or_else(|| Err(Error::from(ErrorKind::BrokenPipe)))?;
+            .unwrap_or_else(|| Err(io::Error::from(io::ErrorKind::BrokenPipe)))?;
 
         match res_adu.pdu {
             ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(Ok(res))),
@@ -68,10 +65,10 @@ where
     }
 }
 
-fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error> {
+fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), io::Error> {
     if req_hdr != rsp_hdr {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
             format!(
                 "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
             ),
