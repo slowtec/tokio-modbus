@@ -9,11 +9,7 @@ pub mod rtu;
 #[cfg(feature = "tcp-sync")]
 pub mod tcp;
 
-use std::{
-    future::Future,
-    io::{self, Result},
-    time::Duration,
-};
+use std::{future::Future, io, time::Duration};
 
 use futures_util::future::Either;
 
@@ -27,8 +23,8 @@ use super::{
 fn block_on_with_timeout<T>(
     runtime: &tokio::runtime::Runtime,
     timeout: Option<Duration>,
-    task: impl Future<Output = Result<T>>,
-) -> Result<T> {
+    task: impl Future<Output = io::Result<T>>,
+) -> io::Result<T> {
     let task = if let Some(duration) = timeout {
         Either::Left(async move {
             tokio::time::timeout(duration, task)

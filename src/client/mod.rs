@@ -3,11 +3,7 @@
 
 //! Modbus clients
 
-use std::{
-    borrow::Cow,
-    fmt::Debug,
-    io::{self, Error, ErrorKind},
-};
+use std::{borrow::Cow, fmt::Debug, io};
 
 use async_trait::async_trait;
 
@@ -121,13 +117,13 @@ pub struct Context {
 
 impl Context {
     /// Disconnect the client
-    pub async fn disconnect(&mut self) -> Result<(), Error> {
+    pub async fn disconnect(&mut self) -> Result<(), io::Error> {
         // Disconnecting is expected to fail!
         let res = self.client.call(Request::Disconnect).await;
         match res {
             Ok(_) => unreachable!(),
             Err(err) => match err.kind() {
-                ErrorKind::NotConnected | ErrorKind::BrokenPipe => Ok(()),
+                io::ErrorKind::NotConnected | io::ErrorKind::BrokenPipe => Ok(()),
                 _ => Err(err),
             },
         }
@@ -466,7 +462,7 @@ mod tests {
             *self.last_request.lock().unwrap() = Some(request.into_owned());
             match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
-                Err(err) => Err(Error::new(err.kind(), format!("{err}"))),
+                Err(err) => Err(io::Error::new(err.kind(), format!("{err}"))),
             }
         }
     }
