@@ -14,6 +14,7 @@ use crate::{
     codec,
     frame::{tcp::*, *},
     slave::*,
+    Result,
 };
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
@@ -67,7 +68,7 @@ where
         }
     }
 
-    pub(crate) async fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>> {
+    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         log::debug!("Call {:?}", req);
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
@@ -112,7 +113,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         Client::call(self, req).await
     }
 }

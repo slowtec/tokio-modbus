@@ -11,6 +11,7 @@ use crate::{
     codec,
     frame::{rtu::*, *},
     slave::*,
+    Result,
 };
 
 /// Modbus RTU client
@@ -44,7 +45,7 @@ where
         }
     }
 
-    async fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
@@ -65,7 +66,7 @@ where
     }
 }
 
-fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), io::Error> {
+fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> io::Result<()> {
     if req_hdr != rsp_hdr {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -88,7 +89,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> io::Result<crate::Result<Response>> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         self.call(req).await
     }
 }

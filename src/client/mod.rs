@@ -7,7 +7,7 @@ use std::{borrow::Cow, fmt::Debug, io};
 
 use async_trait::async_trait;
 
-use crate::{frame::*, slave::*};
+use crate::{frame::*, slave::*, Result};
 
 #[cfg(feature = "rtu")]
 pub mod rtu;
@@ -22,39 +22,23 @@ pub mod sync;
 #[async_trait]
 pub trait Client: SlaveContext + Send + Debug {
     /// Invoke a Modbus function
-    async fn call(&mut self, request: Request<'_>) -> io::Result<crate::Result<Response>>;
+    async fn call(&mut self, request: Request<'_>) -> Result<Response>;
 }
 
 /// Asynchronous Modbus reader
 #[async_trait]
 pub trait Reader: Client {
     /// Read multiple coils (0x01)
-    async fn read_coils(
-        &mut self,
-        addr: Address,
-        cnt: Quantity,
-    ) -> io::Result<crate::Result<Vec<Coil>>>;
+    async fn read_coils(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>>;
 
     /// Read multiple discrete inputs (0x02)
-    async fn read_discrete_inputs(
-        &mut self,
-        addr: Address,
-        cnt: Quantity,
-    ) -> io::Result<crate::Result<Vec<Coil>>>;
+    async fn read_discrete_inputs(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>>;
 
     /// Read multiple holding registers (0x03)
-    async fn read_holding_registers(
-        &mut self,
-        addr: Address,
-        cnt: Quantity,
-    ) -> io::Result<crate::Result<Vec<Word>>>;
+    async fn read_holding_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>>;
 
     /// Read multiple input registers (0x04)
-    async fn read_input_registers(
-        &mut self,
-        addr: Address,
-        cnt: Quantity,
-    ) -> io::Result<crate::Result<Vec<Word>>>;
+    async fn read_input_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>>;
 
     /// Read and write multiple holding registers (0x17)
     ///
@@ -66,39 +50,23 @@ pub trait Reader: Client {
         read_count: Quantity,
         write_addr: Address,
         write_data: &[Word],
-    ) -> io::Result<crate::Result<Vec<Word>>>;
+    ) -> Result<Vec<Word>>;
 }
 
 /// Asynchronous Modbus writer
 #[async_trait]
 pub trait Writer: Client {
     /// Write a single coil (0x05)
-    async fn write_single_coil(
-        &mut self,
-        addr: Address,
-        coil: Coil,
-    ) -> io::Result<crate::Result<()>>;
+    async fn write_single_coil(&mut self, addr: Address, coil: Coil) -> Result<()>;
 
     /// Write a single holding register (0x06)
-    async fn write_single_register(
-        &mut self,
-        addr: Address,
-        word: Word,
-    ) -> io::Result<crate::Result<()>>;
+    async fn write_single_register(&mut self, addr: Address, word: Word) -> Result<()>;
 
     /// Write multiple coils (0x0F)
-    async fn write_multiple_coils(
-        &mut self,
-        addr: Address,
-        coils: &'_ [Coil],
-    ) -> io::Result<crate::Result<()>>;
+    async fn write_multiple_coils(&mut self, addr: Address, coils: &'_ [Coil]) -> Result<()>;
 
     /// Write multiple holding registers (0x10)
-    async fn write_multiple_registers(
-        &mut self,
-        addr: Address,
-        words: &[Word],
-    ) -> io::Result<crate::Result<()>>;
+    async fn write_multiple_registers(&mut self, addr: Address, words: &[Word]) -> Result<()>;
 
     /// Set or clear individual bits of a holding register (0x16)
     async fn masked_write_register(
@@ -106,7 +74,7 @@ pub trait Writer: Client {
         addr: Address,
         and_mask: Word,
         or_mask: Word,
-    ) -> io::Result<crate::Result<()>>;
+    ) -> Result<()>;
 }
 
 /// Asynchronous Modbus client context
@@ -117,13 +85,13 @@ pub struct Context {
 
 impl Context {
     /// Disconnect the client
-    pub async fn disconnect(&mut self) -> Result<(), io::Error> {
+    pub async fn disconnect(&mut self) -> Result<()> {
         // Disconnecting is expected to fail!
         let res = self.client.call(Request::Disconnect).await;
         match res {
             Ok(_) => unreachable!(),
             Err(err) => match err.kind() {
-                io::ErrorKind::NotConnected | io::ErrorKind::BrokenPipe => Ok(()),
+                io::ErrorKind::NotConnected | io::ErrorKind::BrokenPipe => Ok(Ok(())),
                 _ => Err(err),
             },
         }
@@ -144,7 +112,7 @@ impl From<Context> for Box<dyn Client> {
 
 #[async_trait]
 impl Client for Context {
-    async fn call(&mut self, request: Request<'_>) -> io::Result<crate::Result<Response>> {
+    async fn call(&mut self, request: Request<'_>) -> Result<Response> {
         self.client.call(request).await
     }
 }
@@ -157,11 +125,7 @@ impl SlaveContext for Context {
 
 #[async_trait]
 impl Reader for Context {
-    async fn read_coils<'a>(
-        &'a mut self,
-        addr: Address,
-        cnt: Quantity,
-    ) -> io::Result<crate::Result<Vec<Coil>>> {
+    async fn read_coils<'a>(&'a mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>> {
         self.client
             .call(Request::ReadCoils(addr, cnt))
             .await
@@ -187,7 +151,7 @@ impl Reader for Context {
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> io::Result<crate::Result<Vec<Coil>>> {
+    ) -> Result<Vec<Coil>> {
         self.client
             .call(Request::ReadDiscreteInputs(addr, cnt))
             .await
@@ -213,7 +177,7 @@ impl Reader for Context {
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> io::Result<crate::Result<Vec<Word>>> {
+    ) -> Result<Vec<Word>> {
         self.client
             .call(Request::ReadInputRegisters(addr, cnt))
             .await
@@ -238,7 +202,7 @@ impl Reader for Context {
         &'a mut self,
         addr: Address,
         cnt: Quantity,
-    ) -> io::Result<crate::Result<Vec<Word>>> {
+    ) -> Result<Vec<Word>> {
         self.client
             .call(Request::ReadHoldingRegisters(addr, cnt))
             .await
@@ -265,7 +229,7 @@ impl Reader for Context {
         read_count: Quantity,
         write_addr: Address,
         write_data: &[Word],
-    ) -> io::Result<crate::Result<Vec<Word>>> {
+    ) -> Result<Vec<Word>> {
         self.client
             .call(Request::ReadWriteMultipleRegisters(
                 read_addr,
@@ -294,11 +258,7 @@ impl Reader for Context {
 
 #[async_trait]
 impl Writer for Context {
-    async fn write_single_coil<'a>(
-        &'a mut self,
-        addr: Address,
-        coil: Coil,
-    ) -> io::Result<crate::Result<()>> {
+    async fn write_single_coil<'a>(&'a mut self, addr: Address, coil: Coil) -> Result<()> {
         self.client
             .call(Request::WriteSingleCoil(addr, coil))
             .await
@@ -319,11 +279,7 @@ impl Writer for Context {
             })
     }
 
-    async fn write_multiple_coils<'a>(
-        &'a mut self,
-        addr: Address,
-        coils: &[Coil],
-    ) -> io::Result<crate::Result<()>> {
+    async fn write_multiple_coils<'a>(&'a mut self, addr: Address, coils: &[Coil]) -> Result<()> {
         let cnt = coils.len();
 
         self.client
@@ -346,11 +302,7 @@ impl Writer for Context {
             })
     }
 
-    async fn write_single_register<'a>(
-        &'a mut self,
-        addr: Address,
-        word: Word,
-    ) -> io::Result<crate::Result<()>> {
+    async fn write_single_register<'a>(&'a mut self, addr: Address, word: Word) -> Result<()> {
         self.client
             .call(Request::WriteSingleRegister(addr, word))
             .await
@@ -375,7 +327,7 @@ impl Writer for Context {
         &'a mut self,
         addr: Address,
         data: &[Word],
-    ) -> io::Result<crate::Result<()>> {
+    ) -> Result<()> {
         let cnt = data.len();
 
         self.client
@@ -403,7 +355,7 @@ impl Writer for Context {
         addr: Address,
         and_mask: Word,
         or_mask: Word,
-    ) -> io::Result<crate::Result<()>> {
+    ) -> Result<()> {
         self.client
             .call(Request::MaskWriteRegister(addr, and_mask, or_mask))
             .await
@@ -435,7 +387,7 @@ mod tests {
     pub(crate) struct ClientMock {
         slave: Option<Slave>,
         last_request: Mutex<Option<Request<'static>>>,
-        next_response: Option<io::Result<crate::Result<Response>>>,
+        next_response: Option<Result<Response>>,
     }
 
     #[allow(dead_code)]
@@ -448,17 +400,14 @@ mod tests {
             &self.last_request
         }
 
-        pub(crate) fn set_next_response(
-            &mut self,
-            next_response: io::Result<crate::Result<Response>>,
-        ) {
+        pub(crate) fn set_next_response(&mut self, next_response: Result<Response>) {
             self.next_response = Some(next_response);
         }
     }
 
     #[async_trait]
     impl Client for ClientMock {
-        async fn call(&mut self, request: Request<'_>) -> io::Result<crate::Result<Response>> {
+        async fn call(&mut self, request: Request<'_>) -> Result<Response> {
             *self.last_request.lock().unwrap() = Some(request.into_owned());
             match self.next_response.as_ref().unwrap() {
                 Ok(response) => Ok(response.clone()),
