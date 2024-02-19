@@ -8,7 +8,7 @@
 - Client: Add new Modbus `Client` API.
 - Client: Add `Result` type alias.
 
-```
+```rust
 pub type Result<T> = Result<Result<T, Exception>, std::io::Error>
 ```
 
