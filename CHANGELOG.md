@@ -16,7 +16,8 @@ pub type Result<T> = Result<Result<T, Exception>, std::io::Error>
 
 ### Breaking Changes
 
-- Client: All the functions signatures in `Client`, `Reader` and `Writer` traits have changed the return type.
+- Client: All the functions signatures in `Client`, `Reader` and `Writer` traits
+  have changed the return type.
 
   ```diff
   async fn read_coils(&mut self, _: Address, _: Quantity)
