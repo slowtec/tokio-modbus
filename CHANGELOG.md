@@ -3,6 +3,27 @@
 
 # Changelog
 
+## v0.12.0 (unreleased)
+
+- Client: Add new Modbus `Client` API.
+- Client: Add `Result` type alias.
+
+```
+pub type Result<T> = Result<Result<T, Exception>, std::io::Error>
+```
+
+- Example: Update all examples with new `Client` API.
+
+### Breaking Changes
+
+- Client: All the functions signatures in `Client`, `Reader` and `Writer` traits have changed the return type.
+
+  ```diff
+  async fn read_coils(&mut self, _: Address, _: Quantity)
+  - -> Result<Vec<Coil>, std::io::Error>;
+  + -> Result<Result<Vec<Coil>, Exception>, std::io::Error>;
+  ```
+
 ## v0.11.0 (2024-01-28)
 
 - Server: Remove `Sync` and `Unpin` trait bounds from `Service::call()` future
