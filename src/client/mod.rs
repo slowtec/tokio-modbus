@@ -140,7 +140,8 @@ impl Reader for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::ReadCoils
                         )
@@ -168,7 +169,8 @@ impl Reader for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::ReadDiscreteInputs
                         )
@@ -195,7 +197,8 @@ impl Reader for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::ReadInputRegisters
                         )
@@ -222,7 +225,8 @@ impl Reader for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::ReadHoldingRegisters
                         )
@@ -256,7 +260,8 @@ impl Reader for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::ReadWriteMultipleRegisters
                         )
@@ -282,7 +287,8 @@ impl Writer for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::WriteSingleCoil
                         )
@@ -307,7 +313,8 @@ impl Writer for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::WriteMultipleCoils
                         )
@@ -330,7 +337,8 @@ impl Writer for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::WriteSingleRegister
                         )
@@ -359,7 +367,8 @@ impl Writer for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::WriteMultipleRegisters
                         )
@@ -388,7 +397,8 @@ impl Writer for Context {
                         // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
                         // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
-                            "unexpected response code: {} (request code: {})",
+                            "unexpected response code: {} (request code: {})\n\
+                            note: Please fill an issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.",
                             others.function_code(),
                             FunctionCode::MaskWriteRegister
                         )
