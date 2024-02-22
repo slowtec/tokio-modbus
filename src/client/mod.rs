@@ -137,6 +137,8 @@ impl Reader for Context {
                         coils
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
@@ -163,6 +165,8 @@ impl Reader for Context {
                         coils
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
@@ -188,6 +192,8 @@ impl Reader for Context {
                         words
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
@@ -213,6 +219,8 @@ impl Reader for Context {
                         words
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
@@ -245,6 +253,8 @@ impl Reader for Context {
                         words
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
@@ -269,6 +279,8 @@ impl Writer for Context {
                         debug_assert_eq!(coil, rsp_coil);
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
@@ -292,6 +304,8 @@ impl Writer for Context {
                         debug_assert_eq!(cnt, rsp_cnt.into());
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
@@ -313,6 +327,8 @@ impl Writer for Context {
                         debug_assert_eq!(word, rsp_word);
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
@@ -340,6 +356,8 @@ impl Writer for Context {
                         debug_assert_eq!(cnt, rsp_cnt.into());
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
@@ -367,6 +385,8 @@ impl Writer for Context {
                         debug_assert_eq!(or_mask, rsp_or_mask);
                     }
                     others => {
+                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
+                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
                         unreachable!(
                             "unexpected response code: {} (request code: {})",
                             others.function_code(),
