@@ -40,6 +40,7 @@ pub mod slave;
 pub use self::slave::{Slave, SlaveId};
 
 mod codec;
+mod error;
 
 mod frame;
 pub use self::frame::{Address, Exception, FunctionCode, Quantity, Request, Response};
