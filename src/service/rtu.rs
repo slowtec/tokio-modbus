@@ -14,6 +14,8 @@ use crate::{
     Result,
 };
 
+use super::verify_response_header;
+
 /// Modbus RTU client
 #[derive(Debug)]
 pub(crate) struct Client<T> {
@@ -60,22 +62,10 @@ where
             .unwrap_or_else(|| Err(io::Error::from(io::ErrorKind::BrokenPipe)))?;
 
         match res_adu.pdu {
-            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(Ok(res))),
+            ResponsePdu(Ok(res)) => verify_response_header(&req_hdr, &res_adu.hdr).and(Ok(Ok(res))),
             ResponsePdu(Err(err)) => Ok(Err(err.exception)),
         }
     }
-}
-
-fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> io::Result<()> {
-    if req_hdr != rsp_hdr {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!(
-                "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
-            ),
-        ));
-    }
-    Ok(())
 }
 
 impl<T> SlaveContext for Client<T> {
@@ -102,6 +92,36 @@ mod tests {
         task::{Context, Poll},
     };
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
+
+    use crate::service::{rtu::Header, verify_response_header};
+
+    #[test]
+    fn validate_same_headers() {
+        // Given
+        let req_hdr = Header { slave_id: 0 };
+        let rsp_hdr = Header { slave_id: 0 };
+
+        // When
+        let result = verify_response_header(&req_hdr, &rsp_hdr);
+
+        // Then
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn invalid_validate_not_same_slave_id() {
+        // Given
+        let req_hdr = Header { slave_id: 0 };
+        let rsp_hdr = Header { slave_id: 5 };
+
+        // When
+        let result = verify_response_header(&req_hdr, &rsp_hdr);
+
+        // Then
+        assert!(matches!(
+            result,
+            Err(err) if err.kind() == std::io::ErrorKind::InvalidData));
+    }
 
     #[derive(Debug)]
     struct MockTransport;

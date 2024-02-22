@@ -6,3 +6,22 @@ pub(crate) mod rtu;
 
 #[cfg(feature = "tcp")]
 pub(crate) mod tcp;
+
+use std::io;
+
+/// Check that `req_hdr` is the same `Header` as `rsp_hdr`.
+///
+/// # Errors
+///
+/// If the 2 headers are different, an [`io::Error`] will be returned with [`io::ErrorKind::InvalidData`].
+fn verify_response_header<H: Eq + std::fmt::Debug>(req_hdr: &H, rsp_hdr: &H) -> io::Result<()> {
+    if req_hdr != rsp_hdr {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
+            ),
+        ));
+    }
+    Ok(())
+}

@@ -13,6 +13,7 @@ use tokio_util::codec::Framed;
 use crate::{
     codec,
     frame::{tcp::*, *},
+    service::verify_response_header,
     slave::*,
     Result,
 };
@@ -84,22 +85,10 @@ where
             .ok_or_else(io::Error::last_os_error)??;
 
         match res_adu.pdu {
-            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(Ok(res))),
+            ResponsePdu(Ok(res)) => verify_response_header(&req_hdr, &res_adu.hdr).and(Ok(Ok(res))),
             ResponsePdu(Err(err)) => Ok(Err(err.exception)),
         }
     }
-}
-
-fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> io::Result<()> {
-    if req_hdr != rsp_hdr {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!(
-                "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
-            ),
-        ));
-    }
-    Ok(())
 }
 
 impl<T> SlaveContext for Client<T> {
@@ -115,5 +104,71 @@ where
 {
     async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         Client::call(self, req).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_same_headers() {
+        // Given
+        let req_hdr = Header {
+            unit_id: 0,
+            transaction_id: 42,
+        };
+        let rsp_hdr = Header {
+            unit_id: 0,
+            transaction_id: 42,
+        };
+
+        // When
+        let result = verify_response_header(&req_hdr, &rsp_hdr);
+
+        // Then
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn invalid_validate_not_same_unit_id() {
+        // Given
+        let req_hdr = Header {
+            unit_id: 0,
+            transaction_id: 42,
+        };
+        let rsp_hdr = Header {
+            unit_id: 5,
+            transaction_id: 42,
+        };
+
+        // When
+        let result = verify_response_header(&req_hdr, &rsp_hdr);
+
+        // Then
+        assert!(matches!(
+            result,
+            Err(err) if err.kind() == std::io::ErrorKind::InvalidData));
+    }
+
+    #[test]
+    fn invalid_validate_not_same_transaction_id() {
+        // Given
+        let req_hdr = Header {
+            unit_id: 0,
+            transaction_id: 42,
+        };
+        let rsp_hdr = Header {
+            unit_id: 0,
+            transaction_id: 86,
+        };
+
+        // When
+        let result = verify_response_header(&req_hdr, &rsp_hdr);
+
+        // Then
+        assert!(matches!(
+            result,
+            Err(err) if err.kind() == std::io::ErrorKind::InvalidData));
     }
 }
