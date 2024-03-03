@@ -25,13 +25,14 @@ pub(crate) struct Client<T> {
     framed: Framed<T, codec::tcp::ClientCodec>,
     unit_id: UnitId,
     transaction_id: AtomicU16,
+    max_recover_tries: usize,
 }
 
 impl<T> Client<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
-    pub(crate) fn new(transport: T, slave: Slave) -> Self {
+    pub(crate) fn new(transport: T, slave: Slave, max_recover_tries: usize) -> Self {
         let framed = Framed::new(transport, codec::tcp::ClientCodec::default());
         let unit_id: UnitId = slave.into();
         let transaction_id = AtomicU16::new(INITIAL_TRANSACTION_ID);
@@ -39,6 +40,7 @@ where
             framed,
             unit_id,
             transaction_id,
+            max_recover_tries,
         }
     }
 
@@ -77,15 +79,28 @@ where
         self.framed.read_buffer_mut().clear();
 
         self.framed.send(req_adu).await?;
-        let res_adu = self
-            .framed
-            .next()
-            .await
-            .ok_or_else(Error::last_os_error)??;
+        
+        let mut retries = 0;
+        loop {
+            let res_adu = self
+                .framed
+                .next()
+                .await
+                .ok_or_else(Error::last_os_error)??;
 
-        match res_adu.pdu {
-            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
-            ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+            match res_adu.pdu {
+                ResponsePdu(Ok(res)) => if let Err(e) = verify_response_header(req_hdr, res_adu.hdr) {
+                    if retries >= self.max_recover_tries {
+                        return Err(e);
+                    }
+                    retries += 1;
+                    log::info!("Try to recover from header mismatch: expected/request = {:?}, actual/response = {:?}, retries = {:?}", req_hdr, res_adu.hdr, retries);
+                    continue;
+                } else {
+                    return Ok(res);
+                },
+                ResponsePdu(Err(err)) => return Err(Error::new(ErrorKind::Other, err)),
+            };
         }
     }
 }

@@ -26,6 +26,17 @@ pub async fn connect_slave(socket_addr: SocketAddr, slave: Slave) -> Result<Cont
     Ok(context)
 }
 
+/// Connect to a physical, broadcast, or custom Modbus device
+/// with recover tries,
+///
+/// Discard unmatched frame until matched one arrived or
+/// max_recover_retries reached.
+pub async fn connect_slave_recover(socket_addr: SocketAddr, slave: Slave, max_recover_retries: usize) -> Result<Context, Error> {
+    let transport = TcpStream::connect(socket_addr).await?;
+    let context = attach_slave_recover(transport, slave, max_recover_retries);
+    Ok(context)
+}
+
 /// Attach a new client context to a direct transport connection.
 ///
 /// The connection could either be an ordinary [`TcpStream`] or a TLS connection.
@@ -43,7 +54,20 @@ pub fn attach_slave<T>(transport: T, slave: Slave) -> Context
 where
     T: AsyncRead + AsyncWrite + Send + Unpin + fmt::Debug + 'static,
 {
-    let client = crate::service::tcp::Client::new(transport, slave);
+    let client = crate::service::tcp::Client::new(transport, slave, 0);
+    Context {
+        client: Box::new(client),
+    }
+}
+
+/// Attach a new client context to a transport connection.
+///
+/// The connection could either be an ordinary [`TcpStream`] or a TLS connection.
+pub fn attach_slave_recover<T>(transport: T, slave: Slave, max_recover_retries: usize) -> Context
+where
+    T: AsyncRead + AsyncWrite + Send + Unpin + fmt::Debug + 'static,
+{
+    let client = crate::service::tcp::Client::new(transport, slave, max_recover_retries);
     Context {
         client: Box::new(client),
     }
