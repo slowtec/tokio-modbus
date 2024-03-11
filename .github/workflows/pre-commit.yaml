@@ -46,11 +46,11 @@ jobs:
           shared-key: ${{ github.workflow }}-${{ github.job }}
 
       - name: Detect code style issues (push)
-        uses: pre-commit/action@v3.0.0
+        uses: pre-commit/action@v3.0.1
         if: github.event_name == 'push'
 
       - name: Detect code style issues (pull_request)
-        uses: pre-commit/action@v3.0.0
+        uses: pre-commit/action@v3.0.1
         if: github.event_name == 'pull_request'
         env:
           SKIP: no-commit-to-branch
