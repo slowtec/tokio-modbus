@@ -5,25 +5,25 @@
 
 ## v0.12.0 (unreleased)
 
-- Client: Add new Modbus `Client` API.
-- Client: Add `Result` type alias.
-
-```rust
-pub type Result<T> = Result<Result<T, Exception>, std::io::Error>
-```
-
-- Example: Update all examples with new `Client` API.
+- Client: Support handling of _Modbus_ exceptions by using nested `Result`s.
 
 ### Breaking Changes
 
-- Client: All the functions signatures in `Client`, `Reader` and `Writer` traits
-  have changed the return type.
+- Client: All methods in the `Client`, `Reader` and `Writer` traits now return
+  nested `Result` values that both need to be handled explicitly.
 
   ```diff
   async fn read_coils(&mut self, _: Address, _: Quantity)
   - -> Result<Vec<Coil>, std::io::Error>;
   + -> Result<Result<Vec<Coil>, Exception>, std::io::Error>;
   ```
+
+The type alias `tokio_modbus::Result<T>` facilitates referencing the new return
+types.
+
+```rust
+pub type Result<T> = Result<Result<T, Exception>, std::io::Error>
+```
 
 ## v0.11.0 (2024-01-28)
 
