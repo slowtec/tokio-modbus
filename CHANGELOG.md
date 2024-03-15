@@ -3,6 +3,28 @@
 
 # Changelog
 
+## v0.12.0 (unreleased)
+
+- Client: Support handling of _Modbus_ exceptions by using nested `Result`s.
+
+### Breaking Changes
+
+- Client: All methods in the `Client`, `Reader` and `Writer` traits now return
+  nested `Result` values that both need to be handled explicitly.
+
+  ```diff
+  async fn read_coils(&mut self, _: Address, _: Quantity)
+  - -> Result<Vec<Coil>, std::io::Error>;
+  + -> Result<Result<Vec<Coil>, Exception>, std::io::Error>;
+  ```
+
+The type alias `tokio_modbus::Result<T>` facilitates referencing the new return
+types.
+
+```rust
+pub type Result<T> = Result<Result<T, Exception>, std::io::Error>
+```
+
 ## v0.11.0 (2024-01-28)
 
 - Server: Remove `Sync` and `Unpin` trait bounds from `Service::call()` future

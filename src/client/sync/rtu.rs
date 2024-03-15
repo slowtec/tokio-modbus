@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::{io::Result, time::Duration};
+use std::{io, time::Duration};
 
 use super::{block_on_with_timeout, Context};
 
@@ -11,7 +11,7 @@ use crate::slave::Slave;
 
 /// Connect to no particular Modbus slave device for sending
 /// broadcast messages.
-pub fn connect(builder: &SerialPortBuilder) -> Result<Context> {
+pub fn connect(builder: &SerialPortBuilder) -> io::Result<Context> {
     connect_slave(builder, Slave::broadcast())
 }
 
@@ -20,12 +20,12 @@ pub fn connect(builder: &SerialPortBuilder) -> Result<Context> {
 pub fn connect_with_timeout(
     builder: &SerialPortBuilder,
     timeout: Option<Duration>,
-) -> Result<Context> {
+) -> io::Result<Context> {
     connect_slave_with_timeout(builder, Slave::broadcast(), timeout)
 }
 
 /// Connect to any kind of Modbus slave device.
-pub fn connect_slave(builder: &SerialPortBuilder, slave: Slave) -> Result<Context> {
+pub fn connect_slave(builder: &SerialPortBuilder, slave: Slave) -> io::Result<Context> {
     connect_slave_with_timeout(builder, slave, None)
 }
 
@@ -34,7 +34,7 @@ pub fn connect_slave_with_timeout(
     builder: &SerialPortBuilder,
     slave: Slave,
     timeout: Option<Duration>,
-) -> Result<Context> {
+) -> io::Result<Context> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_io()
         .enable_time()

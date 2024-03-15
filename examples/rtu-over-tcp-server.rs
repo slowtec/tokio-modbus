@@ -33,37 +33,26 @@ impl tokio_modbus::server::Service for ExampleService {
     fn call(&self, req: Self::Request) -> Self::Future {
         println!("{}", req.slave);
         match req.request {
-            Request::ReadInputRegisters(addr, cnt) => {
-                match register_read(&self.input_registers.lock().unwrap(), addr, cnt) {
-                    Ok(values) => future::ready(Ok(Response::ReadInputRegisters(values))),
-                    Err(err) => future::ready(Err(err)),
-                }
-            }
-            Request::ReadHoldingRegisters(addr, cnt) => {
-                match register_read(&self.holding_registers.lock().unwrap(), addr, cnt) {
-                    Ok(values) => future::ready(Ok(Response::ReadHoldingRegisters(values))),
-                    Err(err) => future::ready(Err(err)),
-                }
-            }
-            Request::WriteMultipleRegisters(addr, values) => {
-                match register_write(&mut self.holding_registers.lock().unwrap(), addr, &values) {
-                    Ok(_) => future::ready(Ok(Response::WriteMultipleRegisters(
-                        addr,
-                        values.len() as u16,
-                    ))),
-                    Err(err) => future::ready(Err(err)),
-                }
-            }
-            Request::WriteSingleRegister(addr, value) => {
-                match register_write(
+            Request::ReadInputRegisters(addr, cnt) => future::ready(
+                register_read(&self.input_registers.lock().unwrap(), addr, cnt)
+                    .map(Response::ReadInputRegisters),
+            ),
+            Request::ReadHoldingRegisters(addr, cnt) => future::ready(
+                register_read(&self.holding_registers.lock().unwrap(), addr, cnt)
+                    .map(Response::ReadHoldingRegisters),
+            ),
+            Request::WriteMultipleRegisters(addr, values) => future::ready(
+                register_write(&mut self.holding_registers.lock().unwrap(), addr, &values)
+                    .map(|_| Response::WriteMultipleRegisters(addr, values.len() as u16)),
+            ),
+            Request::WriteSingleRegister(addr, value) => future::ready(
+                register_write(
                     &mut self.holding_registers.lock().unwrap(),
                     addr,
                     std::slice::from_ref(&value),
-                ) {
-                    Ok(_) => future::ready(Ok(Response::WriteSingleRegister(addr, value))),
-                    Err(err) => future::ready(Err(err)),
-                }
-            }
+                )
+                .map(|_| Response::WriteSingleRegister(addr, value)),
+            ),
             _ => {
                 println!("SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}");
                 future::ready(Err(Exception::IllegalFunction))
@@ -170,28 +159,27 @@ async fn client_context(socket_addr: SocketAddr) {
             println!("CLIENT: Reading 2 input registers...");
             let response = ctx.read_input_registers(0x00, 2).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert_eq!(response, [1234, 5678]);
+            assert_eq!(response, Ok(vec![1234, 5678]));
 
             println!("CLIENT: Writing 2 holding registers...");
             ctx.write_multiple_registers(0x01, &[7777, 8888])
                 .await
+                .unwrap()
                 .unwrap();
 
             // Read back a block including the two registers we wrote.
             println!("CLIENT: Reading 4 holding registers...");
             let response = ctx.read_holding_registers(0x00, 4).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert_eq!(response, [10, 7777, 8888, 40]);
+            assert_eq!(response, Ok(vec![10, 7777, 8888, 40]));
 
             // Now we try to read with an invalid register address.
             // This should return a Modbus exception response with the code
             // IllegalDataAddress.
             println!("CLIENT: Reading nonexisting holding register address... (should return IllegalDataAddress)");
-            let response = ctx.read_holding_registers(0x100, 1).await;
+            let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert!(response.is_err());
-            // TODO: How can Modbus client identify Modbus exception responses? E.g. here we expect IllegalDataAddress
-            // Question here: https://github.com/slowtec/tokio-modbus/issues/169
+            assert_eq!(response, Err(Exception::IllegalDataAddress));
 
             println!("CLIENT: Done.")
         },

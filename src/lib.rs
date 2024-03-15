@@ -40,9 +40,18 @@ pub mod slave;
 pub use self::slave::{Slave, SlaveId};
 
 mod codec;
+mod error;
 
 mod frame;
 pub use self::frame::{Address, Exception, FunctionCode, Quantity, Request, Response};
+
+/// Specialized [`std::result::Result`] type for `Modbus` client API.
+///
+/// This [`Result`] type contains 2 layers of errors.
+///
+/// 1. [`std::io::Error`]: An error occurred while performing I/O operations.
+/// 2. [`Exception`]: An error occurred on the `Modbus` server.
+pub type Result<T> = std::io::Result<std::result::Result<T, Exception>>;
 
 mod service;
 

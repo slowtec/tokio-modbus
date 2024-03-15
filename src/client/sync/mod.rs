@@ -9,11 +9,11 @@ pub mod rtu;
 #[cfg(feature = "tcp-sync")]
 pub mod tcp;
 
-use std::{future::Future, io::Result, time::Duration};
+use std::{future::Future, io, time::Duration};
 
 use futures_util::future::Either;
 
-use crate::{frame::*, slave::*};
+use crate::{frame::*, slave::*, Result};
 
 use super::{
     Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, SlaveContext,
@@ -23,8 +23,8 @@ use super::{
 fn block_on_with_timeout<T>(
     runtime: &tokio::runtime::Runtime,
     timeout: Option<Duration>,
-    task: impl Future<Output = Result<T>>,
-) -> Result<T> {
+    task: impl Future<Output = io::Result<T>>,
+) -> io::Result<T> {
     let task = if let Some(duration) = timeout {
         Either::Left(async move {
             tokio::time::timeout(duration, task)
@@ -48,10 +48,10 @@ pub trait Client: SlaveContext {
 ///
 /// The synchronous counterpart of the asynchronous [`Reader`](`crate::client::Reader`) trait.
 pub trait Reader: Client {
-    fn read_coils(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>>;
-    fn read_discrete_inputs(&mut self, _: Address, _: Quantity) -> Result<Vec<Coil>>;
-    fn read_input_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>>;
-    fn read_holding_registers(&mut self, _: Address, _: Quantity) -> Result<Vec<Word>>;
+    fn read_coils(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>>;
+    fn read_discrete_inputs(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Coil>>;
+    fn read_input_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>>;
+    fn read_holding_registers(&mut self, addr: Address, cnt: Quantity) -> Result<Vec<Word>>;
     fn read_write_multiple_registers(
         &mut self,
         read_addr: Address,
@@ -65,10 +65,10 @@ pub trait Reader: Client {
 ///
 /// The synchronous counterpart of the asynchronous [`Writer`](`crate::client::Writer`) trait.
 pub trait Writer: Client {
-    fn write_single_coil(&mut self, _: Address, _: Coil) -> Result<()>;
-    fn write_multiple_coils(&mut self, addr: Address, data: &[Coil]) -> Result<()>;
-    fn write_single_register(&mut self, _: Address, _: Word) -> Result<()>;
-    fn write_multiple_registers(&mut self, addr: Address, data: &[Word]) -> Result<()>;
+    fn write_single_coil(&mut self, addr: Address, coil: Coil) -> Result<()>;
+    fn write_multiple_coils(&mut self, addr: Address, coils: &[Coil]) -> Result<()>;
+    fn write_single_register(&mut self, addr: Address, word: Word) -> Result<()>;
+    fn write_multiple_registers(&mut self, addr: Address, words: &[Word]) -> Result<()>;
 }
 
 /// A synchronous Modbus client context.

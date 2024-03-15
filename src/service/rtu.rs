@@ -1,10 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::{
-    fmt,
-    io::{Error, ErrorKind},
-};
+use std::{fmt, io};
 
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -14,7 +11,10 @@ use crate::{
     codec,
     frame::{rtu::*, *},
     slave::*,
+    Result,
 };
+
+use super::verify_response_header;
 
 /// Modbus RTU client
 #[derive(Debug)]
@@ -47,7 +47,7 @@ where
         }
     }
 
-    async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
@@ -59,25 +59,13 @@ where
             .framed
             .next()
             .await
-            .unwrap_or_else(|| Err(Error::from(ErrorKind::BrokenPipe)))?;
+            .unwrap_or_else(|| Err(io::Error::from(io::ErrorKind::BrokenPipe)))?;
 
         match res_adu.pdu {
-            ResponsePdu(Ok(res)) => verify_response_header(req_hdr, res_adu.hdr).and(Ok(res)),
-            ResponsePdu(Err(err)) => Err(Error::new(ErrorKind::Other, err)),
+            ResponsePdu(Ok(res)) => verify_response_header(&req_hdr, &res_adu.hdr).and(Ok(Ok(res))),
+            ResponsePdu(Err(err)) => Ok(Err(err.exception)),
         }
     }
-}
-
-fn verify_response_header(req_hdr: Header, rsp_hdr: Header) -> Result<(), Error> {
-    if req_hdr != rsp_hdr {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!(
-                "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
-            ),
-        ));
-    }
-    Ok(())
 }
 
 impl<T> SlaveContext for Client<T> {
@@ -91,7 +79,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response, Error> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         self.call(req).await
     }
 }
@@ -104,6 +92,36 @@ mod tests {
         task::{Context, Poll},
     };
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
+
+    use crate::service::{rtu::Header, verify_response_header};
+
+    #[test]
+    fn validate_same_headers() {
+        // Given
+        let req_hdr = Header { slave_id: 0 };
+        let rsp_hdr = Header { slave_id: 0 };
+
+        // When
+        let result = verify_response_header(&req_hdr, &rsp_hdr);
+
+        // Then
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn invalid_validate_not_same_slave_id() {
+        // Given
+        let req_hdr = Header { slave_id: 0 };
+        let rsp_hdr = Header { slave_id: 5 };
+
+        // When
+        let result = verify_response_header(&req_hdr, &rsp_hdr);
+
+        // Then
+        assert!(matches!(
+            result,
+            Err(err) if err.kind() == std::io::ErrorKind::InvalidData));
+    }
 
     #[derive(Debug)]
     struct MockTransport;
