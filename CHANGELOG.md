@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.12.0 (unreleased)
+## v0.12.0 (2024-03-21)
 
 - Client: Support handling of _Modbus_ exceptions by using nested `Result`s.
 
