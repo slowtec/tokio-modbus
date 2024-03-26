@@ -7,7 +7,7 @@ use std::{borrow::Cow, fmt::Debug, io};
 
 use async_trait::async_trait;
 
-use crate::{frame::*, slave::*, ResponseResult, Result};
+use crate::{frame::*, slave::*, Result};
 
 #[cfg(feature = "rtu")]
 pub mod rtu;
@@ -22,7 +22,7 @@ pub mod sync;
 #[async_trait]
 pub trait Client: SlaveContext + Send + Debug {
     /// Invoke a _Modbus_ function
-    async fn call(&mut self, request: Request<'_>) -> ResponseResult;
+    async fn call(&mut self, request: Request<'_>) -> Result<Response>;
 }
 
 /// Asynchronous Modbus reader
@@ -112,7 +112,7 @@ impl From<Context> for Box<dyn Client> {
 
 #[async_trait]
 impl Client for Context {
-    async fn call(&mut self, request: Request<'_>) -> ResponseResult {
+    async fn call(&mut self, request: Request<'_>) -> Result<Response> {
         self.client.call(request).await
     }
 }
@@ -318,7 +318,7 @@ impl Writer for Context {
 
 #[cfg(test)]
 mod tests {
-    use crate::ResponseResult;
+    use crate::Result;
 
     use super::*;
     use std::sync::Mutex;
@@ -327,7 +327,7 @@ mod tests {
     pub(crate) struct ClientMock {
         slave: Option<Slave>,
         last_request: Mutex<Option<Request<'static>>>,
-        next_response: Option<ResponseResult>,
+        next_response: Option<Result<Response>>,
     }
 
     #[allow(dead_code)]
@@ -340,14 +340,14 @@ mod tests {
             &self.last_request
         }
 
-        pub(crate) fn set_next_response(&mut self, next_response: ResponseResult) {
+        pub(crate) fn set_next_response(&mut self, next_response: Result<Response>) {
             self.next_response = Some(next_response);
         }
     }
 
     #[async_trait]
     impl Client for ClientMock {
-        async fn call(&mut self, request: Request<'_>) -> ResponseResult {
+        async fn call(&mut self, request: Request<'_>) -> Result<Response> {
             *self.last_request.lock().unwrap() = Some(request.into_owned());
             match self.next_response.take().unwrap() {
                 Ok(response) => Ok(response),

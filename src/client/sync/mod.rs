@@ -13,7 +13,7 @@ use std::{future::Future, io, time::Duration};
 
 use futures_util::future::Either;
 
-use crate::{frame::*, slave::*, ResponseResult, Result};
+use crate::{frame::*, slave::*, Result};
 
 use super::{
     Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, SlaveContext,
@@ -41,7 +41,7 @@ fn block_on_with_timeout<T>(
 
 /// A transport independent synchronous client trait.
 pub trait Client: SlaveContext {
-    fn call(&mut self, req: Request<'_>) -> ResponseResult;
+    fn call(&mut self, req: Request<'_>) -> Result<Response>;
 }
 
 /// A transport independent synchronous reader trait.
@@ -99,7 +99,7 @@ impl Context {
 }
 
 impl Client for Context {
-    fn call(&mut self, req: Request<'_>) -> ResponseResult {
+    fn call(&mut self, req: Request<'_>) -> Result<Response> {
         block_on_with_timeout(&self.runtime, self.timeout, self.async_ctx.call(req))
     }
 }

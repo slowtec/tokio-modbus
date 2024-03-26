@@ -59,9 +59,6 @@ pub use self::frame::{
 /// 2. [`ResponseError`]: An error occurred on the _Modbus_ server or when matching the received response with the request.
 pub type Result<T> = std::io::Result<std::result::Result<T, ResponseError>>;
 
-/// Result of a generic [`Request`].
-pub type ResponseResult = Result<Response>;
-
 mod service;
 
 #[cfg(feature = "server")]
