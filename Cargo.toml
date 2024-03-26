@@ -50,11 +50,13 @@ tokio = { version = "1.35.1", default-features = false, features = [
     "time",
 ] }
 tokio-serial = { version = "5.4.4", default-features = false }
-rustls-pemfile = "1.0.3"
-tokio-rustls = "0.24.1"
+rustls-pemfile = "2.1.1"
+tokio-rustls = "0.26.0"
 pkcs8 = { version = "0.10.2", features = ["encryption", "pem", "std"] }
 pem = "3.0.3"
 webpki = "0.22.4"
+pki-types = { package = "rustls-pki-types", version = "1" }
+rustls = "0.23.4"
 
 [features]
 default = ["rtu", "tcp"]
