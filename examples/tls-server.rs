@@ -18,10 +18,10 @@ use std::{
 };
 
 use pkcs8::der::Decode;
+use pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_modbus::{prelude::*, server::tcp::Server};
-use pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use tokio_rustls::{TlsAcceptor, TlsConnector};
 
 fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
@@ -58,11 +58,22 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<PrivateKeyDer<'s
                         io::Error::new(io::ErrorKind::InvalidData, err.to_string())
                     })?;
                     let key = decrypted.as_bytes().to_vec();
-                    match rustls_pemfile::read_one_from_slice(&key).expect("cannot parse private key .pem file") {
-                        Some((rustls_pemfile::Item::Pkcs1Key(key), _keys)) => io::Result::Ok(key.into()),
-                        Some((rustls_pemfile::Item::Pkcs8Key(key), _keys)) => io::Result::Ok(key.into()),
-                        Some((rustls_pemfile::Item::Sec1Key(key), _keys)) => io::Result::Ok(key.into()),
-                        _ => io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key")),
+                    match rustls_pemfile::read_one_from_slice(&key)
+                        .expect("cannot parse private key .pem file")
+                    {
+                        Some((rustls_pemfile::Item::Pkcs1Key(key), _keys)) => {
+                            io::Result::Ok(key.into())
+                        }
+                        Some((rustls_pemfile::Item::Pkcs8Key(key), _keys)) => {
+                            io::Result::Ok(key.into())
+                        }
+                        Some((rustls_pemfile::Item::Sec1Key(key), _keys)) => {
+                            io::Result::Ok(key.into())
+                        }
+                        _ => io::Result::Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "invalid key",
+                        )),
                     }
                 }
                 None => io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key")),
@@ -233,7 +244,9 @@ async fn client_context(socket_addr: SocketAddr) {
             let mut root_cert_store = rustls::RootCertStore::empty();
             let ca_path = Path::new("./pki/ca.pem");
             let mut pem = BufReader::new(File::open(ca_path).unwrap());
-            let certs = rustls_pemfile::certs(&mut pem).collect::<Result<Vec<_>, _>>().unwrap();
+            let certs = rustls_pemfile::certs(&mut pem)
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
             root_cert_store.add_parsable_certificates(certs);
 
             let domain = "localhost";
