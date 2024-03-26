@@ -179,10 +179,7 @@ async fn client_context(socket_addr: SocketAddr) {
             println!("CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)");
             let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert!(matches!(
-                response,
-                Err(ResponseError::Exception(Exception::IllegalDataAddress))
-            ));
+            assert!(matches!(response, Err(Exception::IllegalDataAddress)));
 
             println!("CLIENT: Done.")
         },

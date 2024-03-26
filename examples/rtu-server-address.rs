@@ -62,10 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("CLIENT: Reading with illegal function... (should return IllegalFunction)");
     let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
     println!("CLIENT: The result is '{response:?}'");
-    assert!(matches!(
-        response,
-        Err(ResponseError::Exception(Exception::IllegalFunction))
-    ));
+    assert!(matches!(response, Err(Exception::IllegalFunction)));
 
     println!("CLIENT: Done.");
 

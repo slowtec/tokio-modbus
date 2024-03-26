@@ -15,7 +15,7 @@ use crate::{
     frame::{tcp::*, *},
     service::verify_response_header,
     slave::*,
-    ResponseError, Result,
+    ProtocolError, Result,
 };
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
@@ -89,7 +89,7 @@ where
 
         // Match headers of request and response.
         if let Err(message) = verify_response_header(&req_hdr, &res_adu.hdr) {
-            return Ok(Err(ResponseError::MismatchingHeaders { message, result }));
+            return Err(ProtocolError::MismatchingHeaders { message, result }.into());
         }
 
         // Match function codes of request and response.
@@ -98,17 +98,18 @@ where
             Err(ExceptionResponse { function, .. }) => *function,
         };
         if req_function_code != rsp_function_code {
-            return Ok(Err(ResponseError::MismatchingFunctionCodes {
+            return Err(ProtocolError::MismatchingFunctionCodes {
                 request: req_function_code,
                 result,
-            }));
+            }
+            .into());
         }
 
         Ok(result.map_err(
             |ExceptionResponse {
                  function: _,
                  exception,
-             }| ResponseError::Exception(exception),
+             }| exception,
         ))
     }
 }

@@ -7,7 +7,7 @@ use std::{borrow::Cow, fmt::Debug, io};
 
 use async_trait::async_trait;
 
-use crate::{frame::*, slave::*, Result};
+use crate::{frame::*, slave::*, Error, Result};
 
 #[cfg(feature = "rtu")]
 pub mod rtu;
@@ -90,10 +90,11 @@ impl Context {
         let res = self.client.call(Request::Disconnect).await;
         match res {
             Ok(_) => unreachable!(),
-            Err(err) => match err.kind() {
+            Err(Error::Transport(err)) => match err.kind() {
                 io::ErrorKind::NotConnected | io::ErrorKind::BrokenPipe => Ok(Ok(())),
-                _ => Err(err),
+                _ => Err(Error::Transport(err)),
             },
+            Err(err) => Err(err),
         }
     }
 }
@@ -351,7 +352,10 @@ mod tests {
             *self.last_request.lock().unwrap() = Some(request.into_owned());
             match self.next_response.take().unwrap() {
                 Ok(response) => Ok(response),
-                Err(err) => Err(io::Error::new(err.kind(), format!("{err}"))),
+                Err(Error::Transport(err)) => {
+                    Err(io::Error::new(err.kind(), format!("{err}")).into())
+                }
+                Err(err) => Err(err),
             }
         }
     }

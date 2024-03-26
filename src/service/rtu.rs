@@ -11,7 +11,7 @@ use crate::{
     codec,
     frame::{rtu::*, *},
     slave::*,
-    ResponseError, Result,
+    ProtocolError, Result,
 };
 
 use super::verify_response_header;
@@ -66,7 +66,7 @@ where
 
         // Match headers of request and response.
         if let Err(message) = verify_response_header(&req_hdr, &res_adu.hdr) {
-            return Ok(Err(ResponseError::MismatchingHeaders { message, result }));
+            return Err(ProtocolError::MismatchingHeaders { message, result }.into());
         }
 
         // Match function codes of request and response.
@@ -75,17 +75,18 @@ where
             Err(ExceptionResponse { function, .. }) => *function,
         };
         if req_function_code != rsp_function_code {
-            return Ok(Err(ResponseError::MismatchingFunctionCodes {
+            return Err(ProtocolError::MismatchingFunctionCodes {
                 request: req_function_code,
                 result,
-            }));
+            }
+            .into());
         }
 
         Ok(result.map_err(
             |ExceptionResponse {
                  function: _,
                  exception,
-             }| ResponseError::Exception(exception),
+             }| exception,
         ))
     }
 }
@@ -115,7 +116,10 @@ mod tests {
     };
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
-    use crate::service::{rtu::Header, verify_response_header};
+    use crate::{
+        service::{rtu::Header, verify_response_header},
+        Error,
+    };
 
     #[test]
     fn validate_same_headers() {
@@ -182,6 +186,8 @@ mod tests {
             .await;
         assert!(res.is_err());
         let err = res.err().unwrap();
-        assert_eq!(err.kind(), std::io::ErrorKind::BrokenPipe);
+        assert!(
+            matches!(err, Error::Transport(err) if err.kind() == std::io::ErrorKind::BrokenPipe)
+        );
     }
 }

@@ -42,7 +42,7 @@ pub use self::slave::{Slave, SlaveId};
 mod codec;
 
 mod error;
-pub use self::error::ResponseError;
+pub use self::error::{Error, ProtocolError};
 
 mod frame;
 pub use self::frame::{
@@ -55,9 +55,9 @@ pub use self::frame::{
 ///
 /// This [`Result`] type contains 2 layers of errors.
 ///
-/// 1. [`std::io::Error`]: An error occurred while performing I/O operations.
-/// 2. [`ResponseError`]: An error occurred on the _Modbus_ server or when matching the received response with the request.
-pub type Result<T> = std::io::Result<std::result::Result<T, ResponseError>>;
+/// 1. [`Error`]: An unexpected protocol or network error that occurred during client/server communication.
+/// 2. [`Exception`]: An error occurred on the _Modbus_ server.
+pub type Result<T> = std::result::Result<std::result::Result<T, Exception>, Error>;
 
 mod service;
 

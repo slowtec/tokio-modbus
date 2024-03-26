@@ -5,15 +5,23 @@
 
 use thiserror::Error;
 
-use crate::{Exception, ExceptionResponse, FunctionCode, Response};
+use crate::{ExceptionResponse, FunctionCode, Response};
 
-/// Error type for _Modbus_ responses.
+/// Protocol or transport errors.
+///
+/// Devices that don't implement the _Modbus_ protocol correctly
+/// or network issues can cause these errors.
 #[derive(Debug, Error)]
-pub enum ResponseError {
-    /// The server responded with a _Modbus_ exception.
-    #[error("exception: {0}")]
-    Exception(#[from] Exception),
+pub enum Error {
+    #[error(transparent)]
+    Protocol(#[from] ProtocolError),
+    #[error(transparent)]
+    Transport(#[from] std::io::Error),
+}
 
+/// _Modbus_ protocol error.
+#[derive(Debug, Error)]
+pub enum ProtocolError {
     /// The received response header doesn't match the request.
     ///
     /// The error message contains details about the mismatch.
