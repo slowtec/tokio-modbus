@@ -40,18 +40,32 @@ pub mod slave;
 pub use self::slave::{Slave, SlaveId};
 
 mod codec;
+
 mod error;
+pub use self::error::ResponseError;
 
 mod frame;
 pub use self::frame::{Address, Exception, FunctionCode, Quantity, Request, Response};
 
-/// Specialized [`std::result::Result`] type for `Modbus` client API.
+/// Specialized [`std::result::Result`] type for type-checked responses of the _Modbus_ client API.
+///
+/// The payload is generic over the response type.
 ///
 /// This [`Result`] type contains 2 layers of errors.
 ///
 /// 1. [`std::io::Error`]: An error occurred while performing I/O operations.
-/// 2. [`Exception`]: An error occurred on the `Modbus` server.
-pub type Result<T> = std::io::Result<std::result::Result<T, Exception>>;
+/// 2. [`ResponseError`]: An error occurred on the _Modbus_ server or when matching the received response with the request.
+pub type Result<T> = std::io::Result<std::result::Result<T, ResponseError>>;
+
+/// Result of a generic [`Request`].
+///
+/// Contains a generic [`Response`] if successful or an [`Exception`] if the
+/// server responded with an error.
+///
+/// The function codes and other properties of the request and response
+/// are not matched against each other. Any received response is passed-through
+/// unchecked.
+pub type ResponseResult = std::io::Result<std::result::Result<Response, Exception>>;
 
 mod service;
 

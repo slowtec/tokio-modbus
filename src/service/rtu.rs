@@ -11,7 +11,7 @@ use crate::{
     codec,
     frame::{rtu::*, *},
     slave::*,
-    Result,
+    ResponseResult,
 };
 
 use super::verify_response_header;
@@ -47,7 +47,7 @@ where
         }
     }
 
-    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    async fn call(&mut self, req: Request<'_>) -> ResponseResult {
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
@@ -79,7 +79,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    async fn call(&mut self, req: Request<'_>) -> ResponseResult {
         self.call(req).await
     }
 }

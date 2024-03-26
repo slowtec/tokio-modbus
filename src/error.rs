@@ -1,20 +1,22 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Modbus Error helpers.
+//! Error types.
 
-use crate::FunctionCode;
+use thiserror::Error;
 
-/// Message to show when a bug has been found during runtime execution.
-const REPORT_ISSUE_MSG: &str =
-    "Please report the issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.";
+use crate::{Exception, Response};
 
-/// Create a panic message for `unexpected response code` with `req_code` and `rsp_code`.
-pub(crate) fn unexpected_rsp_code_panic_msg(
-    req_code: FunctionCode,
-    rsp_code: FunctionCode,
-) -> String {
-    format!(
-        "unexpected response code: {rsp_code} (request code: {req_code})\nnote: {REPORT_ISSUE_MSG}"
-    )
+/// Error type for _Modbus_ responses.
+#[derive(Debug, Error)]
+pub enum ResponseError {
+    /// The server responded with a _Modbus_ exception.
+    #[error("exception: {0}")]
+    Exception(#[from] Exception),
+
+    /// The received response doesn't match the request.
+    ///
+    /// This happens if the _Modbus_ function codes of the request and response do not match.
+    #[error("unexpected response: {response:?}")]
+    UnexpectedResponse { response: Response },
 }

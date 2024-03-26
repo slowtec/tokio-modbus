@@ -15,7 +15,7 @@ use crate::{
     frame::{tcp::*, *},
     service::verify_response_header,
     slave::*,
-    Result,
+    ResponseResult,
 };
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
@@ -69,7 +69,7 @@ where
         }
     }
 
-    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    pub(crate) async fn call(&mut self, req: Request<'_>) -> ResponseResult {
         log::debug!("Call {:?}", req);
         let disconnect = req == Request::Disconnect;
         let req_adu = self.next_request_adu(req, disconnect);
@@ -102,7 +102,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    async fn call(&mut self, req: Request<'_>) -> ResponseResult {
         Client::call(self, req).await
     }
 }

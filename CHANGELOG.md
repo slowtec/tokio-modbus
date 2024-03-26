@@ -3,6 +3,15 @@
 
 # Changelog
 
+## v0.13.0 (Unreleased)
+
+- Fix: Do not panic on mismatching request/response function codes.
+
+### Breaking Changes
+
+- Client: Handle mismatching request/response function codes in new
+  `ResponseError`.
+
 ## v0.12.0 (2024-03-21)
 
 - Client: Support handling of _Modbus_ exceptions by using nested `Result`s.
