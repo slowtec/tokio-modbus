@@ -45,7 +45,9 @@ mod error;
 pub use self::error::ResponseError;
 
 mod frame;
-pub use self::frame::{Address, Exception, FunctionCode, Quantity, Request, Response};
+pub use self::frame::{
+    Address, Exception, ExceptionResponse, FunctionCode, Quantity, Request, Response,
+};
 
 /// Specialized [`std::result::Result`] type for type-checked responses of the _Modbus_ client API.
 ///
@@ -58,14 +60,7 @@ pub use self::frame::{Address, Exception, FunctionCode, Quantity, Request, Respo
 pub type Result<T> = std::io::Result<std::result::Result<T, ResponseError>>;
 
 /// Result of a generic [`Request`].
-///
-/// Contains a generic [`Response`] if successful or an [`Exception`] if the
-/// server responded with an error.
-///
-/// The function codes and other properties of the request and response
-/// are not matched against each other. Any received response is passed-through
-/// unchecked.
-pub type ResponseResult = std::io::Result<std::result::Result<Response, Exception>>;
+pub type ResponseResult = Result<Response>;
 
 mod service;
 

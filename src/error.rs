@@ -5,7 +5,7 @@
 
 use thiserror::Error;
 
-use crate::{Exception, Response};
+use crate::{Exception, ExceptionResponse, FunctionCode, Response};
 
 /// Error type for _Modbus_ responses.
 #[derive(Debug, Error)]
@@ -14,9 +14,23 @@ pub enum ResponseError {
     #[error("exception: {0}")]
     Exception(#[from] Exception),
 
-    /// The received response doesn't match the request.
+    /// The received response header doesn't match the request.
     ///
-    /// This happens if the _Modbus_ function codes of the request and response do not match.
-    #[error("unexpected response: {response:?}")]
-    UnexpectedResponse { response: Response },
+    /// The error message contains details about the mismatch.
+    ///
+    /// The result received from the server is included for further analysis and handling.
+    #[error("mismatching headers: {message} {result:?}")]
+    MismatchingHeaders {
+        message: String,
+        result: Result<Response, ExceptionResponse>,
+    },
+
+    /// The received response function code doesn't match the request.
+    ///
+    /// The result received from the server is included for further analysis and handling.
+    #[error("mismatching function codes: {request} {result:?}")]
+    MismatchingFunctionCodes {
+        request: FunctionCode,
+        result: Result<Response, ExceptionResponse>,
+    },
 }

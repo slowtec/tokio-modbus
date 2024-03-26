@@ -10,7 +10,8 @@
 ### Breaking Changes
 
 - Client: Handle mismatching request/response function codes in new
-  `ResponseError`.
+  `ResponseError`. All _Modbus_ protocol request/response errors are now handled
+  by this error type and no longer mapped to the generic `std::io::Error`.
 
 ## v0.12.0 (2024-03-21)
 

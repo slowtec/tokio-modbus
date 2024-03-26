@@ -15,7 +15,7 @@ use crate::{
     frame::{tcp::*, *},
     service::verify_response_header,
     slave::*,
-    ResponseResult,
+    ResponseError, ResponseResult,
 };
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
@@ -72,6 +72,7 @@ where
     pub(crate) async fn call(&mut self, req: Request<'_>) -> ResponseResult {
         log::debug!("Call {:?}", req);
         let disconnect = req == Request::Disconnect;
+        let req_function_code = req.function_code();
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
 
@@ -84,10 +85,31 @@ where
             .await
             .ok_or_else(io::Error::last_os_error)??;
 
-        match res_adu.pdu {
-            ResponsePdu(Ok(res)) => verify_response_header(&req_hdr, &res_adu.hdr).and(Ok(Ok(res))),
-            ResponsePdu(Err(err)) => Ok(Err(err.exception)),
+        let ResponsePdu(result) = res_adu.pdu;
+
+        // Match headers of request and response.
+        if let Err(message) = verify_response_header(&req_hdr, &res_adu.hdr) {
+            return Ok(Err(ResponseError::MismatchingHeaders { message, result }));
         }
+
+        // Match function codes of request and response.
+        let rsp_function_code = match &result {
+            Ok(response) => response.function_code(),
+            Err(ExceptionResponse { function, .. }) => *function,
+        };
+        if req_function_code != rsp_function_code {
+            return Ok(Err(ResponseError::MismatchingFunctionCodes {
+                request: req_function_code,
+                result,
+            }));
+        }
+
+        Ok(result.map_err(
+            |ExceptionResponse {
+                 function: _,
+                 exception,
+             }| ResponseError::Exception(exception),
+        ))
     }
 }
 
@@ -146,9 +168,7 @@ mod tests {
         let result = verify_response_header(&req_hdr, &rsp_hdr);
 
         // Then
-        assert!(matches!(
-            result,
-            Err(err) if err.kind() == std::io::ErrorKind::InvalidData));
+        assert!(result.is_err());
     }
 
     #[test]
@@ -167,8 +187,6 @@ mod tests {
         let result = verify_response_header(&req_hdr, &rsp_hdr);
 
         // Then
-        assert!(matches!(
-            result,
-            Err(err) if err.kind() == std::io::ErrorKind::InvalidData));
+        assert!(result.is_err());
     }
 }
