@@ -5,16 +5,16 @@
 
 use std::{io, net::SocketAddr, time::Duration};
 
-use crate::{client::tcp::connect_slave as async_connect_slave, slave::Slave};
+use crate::{client::tcp::connect_slave as async_connect_slave, Slave};
 
 use super::{block_on_with_timeout, Context};
 
-/// Establish a direct connection to a Modbus TCP coupler.
+/// Establish a direct connection to a _Modbus_ TCP coupler.
 pub fn connect(socket_addr: SocketAddr) -> io::Result<Context> {
     connect_slave(socket_addr, Slave::tcp_device())
 }
 
-/// Establish a direct connection to a Modbus TCP coupler with a timeout.
+/// Establish a direct connection to a _Modbus_ TCP coupler with a timeout.
 pub fn connect_with_timeout(
     socket_addr: SocketAddr,
     timeout: Option<Duration>,
@@ -22,14 +22,14 @@ pub fn connect_with_timeout(
     connect_slave_with_timeout(socket_addr, Slave::tcp_device(), timeout)
 }
 
-/// Connect to any kind of Modbus slave device, probably through a Modbus TCP/RTU
+/// Connect to any kind of _Modbus_ slave device, probably through a _Modbus_ TCP/RTU
 /// gateway that is forwarding messages to/from the corresponding unit identified
 /// by the slave parameter.
 pub fn connect_slave(socket_addr: SocketAddr, slave: Slave) -> io::Result<Context> {
     connect_slave_with_timeout(socket_addr, slave, None)
 }
 
-/// Connect to any kind of Modbus slave device, probably through a Modbus TCP/RTU
+/// Connect to any kind of _Modbus_ slave device, probably through a _Modbus_ TCP/RTU
 /// gateway that is forwarding messages to/from the corresponding unit identified
 /// by the slave parameter.
 pub fn connect_slave_with_timeout(

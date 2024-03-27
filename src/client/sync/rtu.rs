@@ -7,15 +7,15 @@ use super::{block_on_with_timeout, Context};
 
 use tokio_serial::{SerialPortBuilder, SerialStream};
 
-use crate::slave::Slave;
+use crate::Slave;
 
-/// Connect to no particular Modbus slave device for sending
+/// Connect to no particular _Modbus_ slave device for sending
 /// broadcast messages.
 pub fn connect(builder: &SerialPortBuilder) -> io::Result<Context> {
     connect_slave(builder, Slave::broadcast())
 }
 
-/// Connect to no particular Modbus slave device for sending
+/// Connect to no particular _Modbus_ slave device for sending
 /// broadcast messages with a timeout.
 pub fn connect_with_timeout(
     builder: &SerialPortBuilder,
@@ -24,12 +24,12 @@ pub fn connect_with_timeout(
     connect_slave_with_timeout(builder, Slave::broadcast(), timeout)
 }
 
-/// Connect to any kind of Modbus slave device.
+/// Connect to any kind of _Modbus_ slave device.
 pub fn connect_slave(builder: &SerialPortBuilder, slave: Slave) -> io::Result<Context> {
     connect_slave_with_timeout(builder, slave, None)
 }
 
-/// Connect to any kind of Modbus slave device with a timeout.
+/// Connect to any kind of _Modbus_ slave device with a timeout.
 pub fn connect_slave_with_timeout(
     builder: &SerialPortBuilder,
     slave: Slave,
@@ -40,9 +40,7 @@ pub fn connect_slave_with_timeout(
         .enable_time()
         .build()?;
     // SerialStream::open requires a runtime at least on cfg(unix).
-    let serial = block_on_with_timeout(&runtime, timeout, async {
-        SerialStream::open(builder).map_err(Into::into)
-    })?;
+    let serial = block_on_with_timeout(&runtime, timeout, async { SerialStream::open(builder) })?;
     let async_ctx = crate::client::rtu::attach_slave(serial, slave);
     let sync_ctx = Context {
         runtime,

@@ -11,18 +11,12 @@ pub(crate) mod tcp;
 ///
 /// # Errors
 ///
-/// If the 2 headers are different, an [`io::Error`] will be returned with [`io::ErrorKind::InvalidData`].
+/// If the 2 headers are different, an error message with the details will be returned.
 #[cfg(any(feature = "rtu", feature = "tcp"))]
-fn verify_response_header<H: Eq + std::fmt::Debug>(
-    req_hdr: &H,
-    rsp_hdr: &H,
-) -> std::io::Result<()> {
+fn verify_response_header<H: Eq + std::fmt::Debug>(req_hdr: &H, rsp_hdr: &H) -> Result<(), String> {
     if req_hdr != rsp_hdr {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!(
-                "Invalid response header: expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
-            ),
+        return Err(format!(
+            "expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
         ));
     }
     Ok(())

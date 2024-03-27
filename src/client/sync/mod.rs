@@ -13,24 +13,27 @@ use std::{future::Future, io, time::Duration};
 
 use futures_util::future::Either;
 
-use crate::{frame::*, slave::*, Result};
+use crate::{frame::*, Result, Slave};
 
 use super::{
     Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, SlaveContext,
     Writer as AsyncWriter,
 };
 
-fn block_on_with_timeout<T>(
+fn block_on_with_timeout<T, E>(
     runtime: &tokio::runtime::Runtime,
     timeout: Option<Duration>,
-    task: impl Future<Output = io::Result<T>>,
-) -> io::Result<T> {
+    task: impl Future<Output = std::result::Result<T, E>>,
+) -> std::result::Result<T, E>
+where
+    E: From<io::Error>,
+{
     let task = if let Some(duration) = timeout {
         Either::Left(async move {
             tokio::time::timeout(duration, task)
                 .await
                 .unwrap_or_else(|elapsed| {
-                    Err(std::io::Error::new(std::io::ErrorKind::TimedOut, elapsed))
+                    Err(io::Error::new(io::ErrorKind::TimedOut, elapsed).into())
                 })
         })
     } else {

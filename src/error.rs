@@ -1,20 +1,44 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Modbus Error helpers.
+//! Error types.
 
-use crate::FunctionCode;
+use thiserror::Error;
 
-/// Message to show when a bug has been found during runtime execution.
-const REPORT_ISSUE_MSG: &str =
-    "Please report the issue at `https://github.com/slowtec/tokio-modbus/issues` with a minimal example reproducing this bug.";
+use crate::{ExceptionResponse, FunctionCode, Response};
 
-/// Create a panic message for `unexpected response code` with `req_code` and `rsp_code`.
-pub(crate) fn unexpected_rsp_code_panic_msg(
-    req_code: FunctionCode,
-    rsp_code: FunctionCode,
-) -> String {
-    format!(
-        "unexpected response code: {rsp_code} (request code: {req_code})\nnote: {REPORT_ISSUE_MSG}"
-    )
+/// Protocol or transport errors.
+///
+/// Devices that don't implement the _Modbus_ protocol correctly
+/// or network issues can cause these errors.
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error(transparent)]
+    Protocol(#[from] ProtocolError),
+    #[error(transparent)]
+    Transport(#[from] std::io::Error),
+}
+
+/// _Modbus_ protocol error.
+#[derive(Debug, Error)]
+pub enum ProtocolError {
+    /// The received response header doesn't match the request.
+    ///
+    /// The error message contains details about the mismatch.
+    ///
+    /// The result received from the server is included for further analysis and handling.
+    #[error("mismatching headers: {message} {result:?}")]
+    MismatchingHeaders {
+        message: String,
+        result: Result<Response, ExceptionResponse>,
+    },
+
+    /// The received response function code doesn't match the request.
+    ///
+    /// The result received from the server is included for further analysis and handling.
+    #[error("mismatching function codes: {request} {result:?}")]
+    MismatchingFunctionCodes {
+        request: FunctionCode,
+        result: Result<Response, ExceptionResponse>,
+    },
 }

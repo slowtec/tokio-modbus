@@ -54,15 +54,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("CLIENT: Reading input registers...");
     let rsp = ctx.read_input_registers(0x00, 7).await?;
     println!("CLIENT: The result is '{rsp:#x?}'");
-    assert_eq!(rsp, Ok(vec![0x0, 0x0, 0x77, 0x0, 0x0, 0x0, 0x0]));
+    assert_eq!(rsp.unwrap(), vec![0x0, 0x0, 0x77, 0x0, 0x0, 0x0, 0x0]);
 
     // Now we try to read with an invalid register address.
     // This should return a Modbus exception response with the code
     // IllegalDataAddress.
-    println!("CLIENT: Reading nonexisting holding register address... (should return IllegalDataAddress)");
+    println!("CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)");
     let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
     println!("CLIENT: The result is '{response:?}'");
-    assert_eq!(response, Err(Exception::IllegalDataAddress));
+    assert!(matches!(response, Err(Exception::IllegalDataAddress)));
 
     println!("CLIENT: Done.");
     Ok(())

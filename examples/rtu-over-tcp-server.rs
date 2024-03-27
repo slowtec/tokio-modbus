@@ -159,7 +159,7 @@ async fn client_context(socket_addr: SocketAddr) {
             println!("CLIENT: Reading 2 input registers...");
             let response = ctx.read_input_registers(0x00, 2).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert_eq!(response, Ok(vec![1234, 5678]));
+            assert_eq!(response.unwrap(), vec![1234, 5678]);
 
             println!("CLIENT: Writing 2 holding registers...");
             ctx.write_multiple_registers(0x01, &[7777, 8888])
@@ -171,15 +171,15 @@ async fn client_context(socket_addr: SocketAddr) {
             println!("CLIENT: Reading 4 holding registers...");
             let response = ctx.read_holding_registers(0x00, 4).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert_eq!(response, Ok(vec![10, 7777, 8888, 40]));
+            assert_eq!(response.unwrap(), vec![10, 7777, 8888, 40]);
 
             // Now we try to read with an invalid register address.
             // This should return a Modbus exception response with the code
             // IllegalDataAddress.
-            println!("CLIENT: Reading nonexisting holding register address... (should return IllegalDataAddress)");
+            println!("CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)");
             let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert_eq!(response, Err(Exception::IllegalDataAddress));
+            assert!(matches!(response, Err(Exception::IllegalDataAddress)));
 
             println!("CLIENT: Done.")
         },

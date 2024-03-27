@@ -7,7 +7,7 @@ use std::{borrow::Cow, fmt::Debug, io};
 
 use async_trait::async_trait;
 
-use crate::{error::unexpected_rsp_code_panic_msg, frame::*, slave::*, Result};
+use crate::{frame::*, slave::*, Error, Result};
 
 #[cfg(feature = "rtu")]
 pub mod rtu;
@@ -21,7 +21,7 @@ pub mod sync;
 /// Transport independent asynchronous client trait
 #[async_trait]
 pub trait Client: SlaveContext + Send + Debug {
-    /// Invoke a Modbus function
+    /// Invoke a _Modbus_ function
     async fn call(&mut self, request: Request<'_>) -> Result<Response>;
 }
 
@@ -90,10 +90,11 @@ impl Context {
         let res = self.client.call(Request::Disconnect).await;
         match res {
             Ok(_) => unreachable!(),
-            Err(err) => match err.kind() {
+            Err(Error::Transport(err)) => match err.kind() {
                 io::ErrorKind::NotConnected | io::ErrorKind::BrokenPipe => Ok(Ok(())),
-                _ => Err(err),
+                _ => Err(Error::Transport(err)),
             },
+            Err(err) => Err(err),
         }
     }
 }
@@ -129,24 +130,14 @@ impl Reader for Context {
         self.client
             .call(Request::ReadCoils(addr, cnt))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::ReadCoils(mut coils) => {
                         debug_assert!(coils.len() >= cnt.into());
                         coils.truncate(cnt.into());
                         coils
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::ReadCoils,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -159,24 +150,14 @@ impl Reader for Context {
         self.client
             .call(Request::ReadDiscreteInputs(addr, cnt))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::ReadDiscreteInputs(mut coils) => {
                         debug_assert!(coils.len() >= cnt.into());
                         coils.truncate(cnt.into());
                         coils
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::ReadDiscreteInputs,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -189,23 +170,13 @@ impl Reader for Context {
         self.client
             .call(Request::ReadInputRegisters(addr, cnt))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::ReadInputRegisters(words) => {
                         debug_assert_eq!(words.len(), cnt.into());
                         words
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::ReadInputRegisters,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -218,23 +189,13 @@ impl Reader for Context {
         self.client
             .call(Request::ReadHoldingRegisters(addr, cnt))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::ReadHoldingRegisters(words) => {
                         debug_assert_eq!(words.len(), cnt.into());
                         words
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::ReadHoldingRegisters,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -254,23 +215,13 @@ impl Reader for Context {
                 Cow::Borrowed(write_data),
             ))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::ReadWriteMultipleRegisters(words) => {
                         debug_assert_eq!(words.len(), read_count.into());
                         words
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::ReadWriteMultipleRegisters,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -282,50 +233,29 @@ impl Writer for Context {
         self.client
             .call(Request::WriteSingleCoil(addr, coil))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::WriteSingleCoil(rsp_addr, rsp_coil) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(coil, rsp_coil);
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::WriteSingleCoil,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
 
     async fn write_multiple_coils<'a>(&'a mut self, addr: Address, coils: &[Coil]) -> Result<()> {
         let cnt = coils.len();
-
         self.client
             .call(Request::WriteMultipleCoils(addr, Cow::Borrowed(coils)))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::WriteMultipleCoils(rsp_addr, rsp_cnt) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(cnt, rsp_cnt.into());
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::WriteMultipleCoils,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -334,23 +264,13 @@ impl Writer for Context {
         self.client
             .call(Request::WriteSingleRegister(addr, word))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::WriteSingleRegister(rsp_addr, rsp_word) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(word, rsp_word);
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::WriteSingleRegister,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -361,27 +281,16 @@ impl Writer for Context {
         data: &[Word],
     ) -> Result<()> {
         let cnt = data.len();
-
         self.client
             .call(Request::WriteMultipleRegisters(addr, Cow::Borrowed(data)))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(cnt, rsp_cnt.into());
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::WriteMultipleRegisters,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -395,24 +304,14 @@ impl Writer for Context {
         self.client
             .call(Request::MaskWriteRegister(addr, and_mask, or_mask))
             .await
-            .map(|modbus_rsp| {
-                modbus_rsp.map(|rsp| match rsp {
+            .map(|result| {
+                result.map_err(Into::into).map(|response| match response {
                     Response::MaskWriteRegister(rsp_addr, rsp_and_mask, rsp_or_mask) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(and_mask, rsp_and_mask);
                         debug_assert_eq!(or_mask, rsp_or_mask);
                     }
-                    others => {
-                        // NOTE: A call to `Client::call` implementation *MUST* always return the `Response` variant matching the `Request` one.
-                        // TIPS: This can be ensured via a call to `verify_response_header`( in 'src/service/mod.rs') before returning from `Client::call`.
-                        unreachable!(
-                            "{}",
-                            unexpected_rsp_code_panic_msg(
-                                FunctionCode::MaskWriteRegister,
-                                others.function_code()
-                            ),
-                        )
-                    }
+                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -420,6 +319,8 @@ impl Writer for Context {
 
 #[cfg(test)]
 mod tests {
+    use crate::Result;
+
     use super::*;
     use std::sync::Mutex;
 
@@ -449,9 +350,12 @@ mod tests {
     impl Client for ClientMock {
         async fn call(&mut self, request: Request<'_>) -> Result<Response> {
             *self.last_request.lock().unwrap() = Some(request.into_owned());
-            match self.next_response.as_ref().unwrap() {
-                Ok(response) => Ok(response.clone()),
-                Err(err) => Err(io::Error::new(err.kind(), format!("{err}"))),
+            match self.next_response.take().unwrap() {
+                Ok(response) => Ok(response),
+                Err(Error::Transport(err)) => {
+                    Err(io::Error::new(err.kind(), format!("{err}")).into())
+                }
+                Err(err) => Err(err),
             }
         }
     }

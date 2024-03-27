@@ -3,6 +3,15 @@
 
 # Changelog
 
+## v0.13.0 (Unreleased)
+
+- Fix: Do not panic on mismatching request/response function codes.
+
+### Breaking Changes
+
+- Client: Replace `std::io::Error` with a custom error type that handles both
+  protocol and transport errors.
+
 ## v0.12.0 (2024-03-21)
 
 - Client: Support handling of _Modbus_ exceptions by using nested `Result`s.

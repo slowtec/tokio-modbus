@@ -11,7 +11,7 @@ use crate::{
     codec,
     frame::{rtu::*, *},
     slave::*,
-    Result,
+    ProtocolError, Result,
 };
 
 use super::verify_response_header;
@@ -49,6 +49,7 @@ where
 
     async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         let disconnect = req == Request::Disconnect;
+        let req_function_code = req.function_code();
         let req_adu = self.next_request_adu(req, disconnect);
         let req_hdr = req_adu.hdr;
 
@@ -61,10 +62,32 @@ where
             .await
             .unwrap_or_else(|| Err(io::Error::from(io::ErrorKind::BrokenPipe)))?;
 
-        match res_adu.pdu {
-            ResponsePdu(Ok(res)) => verify_response_header(&req_hdr, &res_adu.hdr).and(Ok(Ok(res))),
-            ResponsePdu(Err(err)) => Ok(Err(err.exception)),
+        let ResponsePdu(result) = res_adu.pdu;
+
+        // Match headers of request and response.
+        if let Err(message) = verify_response_header(&req_hdr, &res_adu.hdr) {
+            return Err(ProtocolError::MismatchingHeaders { message, result }.into());
         }
+
+        // Match function codes of request and response.
+        let rsp_function_code = match &result {
+            Ok(response) => response.function_code(),
+            Err(ExceptionResponse { function, .. }) => *function,
+        };
+        if req_function_code != rsp_function_code {
+            return Err(ProtocolError::MismatchingFunctionCodes {
+                request: req_function_code,
+                result,
+            }
+            .into());
+        }
+
+        Ok(result.map_err(
+            |ExceptionResponse {
+                 function: _,
+                 exception,
+             }| exception,
+        ))
     }
 }
 
@@ -93,7 +116,10 @@ mod tests {
     };
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
-    use crate::service::{rtu::Header, verify_response_header};
+    use crate::{
+        service::{rtu::Header, verify_response_header},
+        Error,
+    };
 
     #[test]
     fn validate_same_headers() {
@@ -118,9 +144,7 @@ mod tests {
         let result = verify_response_header(&req_hdr, &rsp_hdr);
 
         // Then
-        assert!(matches!(
-            result,
-            Err(err) if err.kind() == std::io::ErrorKind::InvalidData));
+        assert!(result.is_err());
     }
 
     #[derive(Debug)]
@@ -162,6 +186,8 @@ mod tests {
             .await;
         assert!(res.is_err());
         let err = res.err().unwrap();
-        assert_eq!(err.kind(), std::io::ErrorKind::BrokenPipe);
+        assert!(
+            matches!(err, Error::Transport(err) if err.kind() == std::io::ErrorKind::BrokenPipe)
+        );
     }
 }

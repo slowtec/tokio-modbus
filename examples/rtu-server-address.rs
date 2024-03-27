@@ -57,12 +57,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("CLIENT: Reading input registers...");
     let rsp = ctx.read_input_registers(0x00, 7).await?;
     println!("CLIENT: The result is '{rsp:#x?}'");
-    assert_eq!(rsp, Ok(vec![0x0, 0x0, 0x77, 0x0, 0x0, 0x0, 0x0]));
+    assert_eq!(rsp.unwrap(), vec![0x0, 0x0, 0x77, 0x0, 0x0, 0x0, 0x0]);
 
     println!("CLIENT: Reading with illegal function... (should return IllegalFunction)");
     let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
     println!("CLIENT: The result is '{response:?}'");
-    assert_eq!(response, Err(Exception::IllegalFunction));
+    assert!(matches!(response, Err(Exception::IllegalFunction)));
 
     println!("CLIENT: Done.");
 
