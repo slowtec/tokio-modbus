@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let socket_addr: SocketAddr = "127.0.0.1:8802".parse()?;
 
-    let mut root_cert_store = rustls::RootCertStore::empty();
+    let mut root_cert_store = tokio_rustls::rustls::RootCertStore::empty();
     let ca_path = Path::new("./pki/ca.pem");
     let mut pem = BufReader::new(File::open(ca_path)?);
     let certs = rustls_pemfile::certs(&mut pem).collect::<Result<Vec<_>, _>>()?;
@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let certs = load_certs(cert_path)?;
     let key = load_keys(key_path, None)?;
 
-    let config = rustls::ClientConfig::builder()
+    let config = tokio_rustls::rustls::ClientConfig::builder()
         .with_root_certificates(root_cert_store)
         .with_client_auth_cert(certs, key)
         .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
