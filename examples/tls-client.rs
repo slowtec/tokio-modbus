@@ -16,18 +16,15 @@ use std::{
 };
 
 use pkcs8::der::Decode;
+use pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls_pemfile::{certs, pkcs8_private_keys};
-use tokio_rustls::rustls::{self, Certificate, OwnedTrustAnchor, PrivateKey};
 use tokio_rustls::TlsConnector;
-use webpki::TrustAnchor;
 
-fn load_certs(path: &Path) -> io::Result<Vec<Certificate>> {
-    certs(&mut BufReader::new(File::open(path)?))
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid cert"))
-        .map(|mut certs| certs.drain(..).map(Certificate).collect())
+fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
+    certs(&mut BufReader::new(File::open(path)?)).collect()
 }
 
-fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>> {
+fn load_keys(path: &Path, password: Option<&str>) -> io::Result<PrivateKeyDer<'static>> {
     let expected_tag = match &password {
         Some(_) => "ENCRYPTED PRIVATE KEY",
         None => "PRIVATE KEY",
@@ -35,8 +32,9 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
 
     if expected_tag.eq("PRIVATE KEY") {
         pkcs8_private_keys(&mut BufReader::new(File::open(path)?))
-            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid key"))
-            .map(|mut keys| keys.drain(..).map(PrivateKey).collect())
+            .next()
+            .unwrap()
+            .map(Into::into)
     } else {
         let content = std::fs::read(path)?;
         let mut iter = pem::parse_many(content)
@@ -56,9 +54,23 @@ fn load_keys(path: &Path, password: Option<&str>) -> io::Result<Vec<PrivateKey>>
                         io::Error::new(io::ErrorKind::InvalidData, err.to_string())
                     })?;
                     let key = decrypted.as_bytes().to_vec();
-                    let key = rustls::PrivateKey(key);
-                    let private_keys = vec![key];
-                    io::Result::Ok(private_keys)
+                    match rustls_pemfile::read_one_from_slice(&key)
+                        .expect("cannot parse private key .pem file")
+                    {
+                        Some((rustls_pemfile::Item::Pkcs1Key(key), _keys)) => {
+                            io::Result::Ok(key.into())
+                        }
+                        Some((rustls_pemfile::Item::Pkcs8Key(key), _keys)) => {
+                            io::Result::Ok(key.into())
+                        }
+                        Some((rustls_pemfile::Item::Sec1Key(key), _keys)) => {
+                            io::Result::Ok(key.into())
+                        }
+                        _ => io::Result::Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "invalid key",
+                        )),
+                    }
                 }
                 None => io::Result::Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid key")),
             },
@@ -73,37 +85,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let socket_addr: SocketAddr = "127.0.0.1:8802".parse()?;
 
-    let mut root_cert_store = rustls::RootCertStore::empty();
+    let mut root_cert_store = tokio_rustls::rustls::RootCertStore::empty();
     let ca_path = Path::new("./pki/ca.pem");
     let mut pem = BufReader::new(File::open(ca_path)?);
-    let certs = rustls_pemfile::certs(&mut pem)?;
-    let trust_anchors = certs.iter().map(|cert| {
-        let ta = TrustAnchor::try_from_cert_der(&cert[..]).expect("cert should parse as anchor!");
-        OwnedTrustAnchor::from_subject_spki_name_constraints(
-            ta.subject,
-            ta.spki,
-            ta.name_constraints,
-        )
-    });
-    root_cert_store.add_trust_anchors(trust_anchors);
+    let certs = rustls_pemfile::certs(&mut pem).collect::<Result<Vec<_>, _>>()?;
+    root_cert_store.add_parsable_certificates(certs);
 
     let domain = "localhost";
     let cert_path = Path::new("./pki/client.pem");
     let key_path = Path::new("./pki/client.key");
     let certs = load_certs(cert_path)?;
-    let mut keys = load_keys(key_path, None)?;
+    let key = load_keys(key_path, None)?;
 
-    let config = rustls::ClientConfig::builder()
-        .with_safe_defaults()
+    let config = tokio_rustls::rustls::ClientConfig::builder()
         .with_root_certificates(root_cert_store)
-        .with_client_auth_cert(certs, keys.remove(0))
+        .with_client_auth_cert(certs, key)
         .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
     let connector = TlsConnector::from(Arc::new(config));
 
     let stream = TcpStream::connect(&socket_addr).await?;
     stream.set_nodelay(true)?;
 
-    let domain = rustls::ServerName::try_from(domain)
+    let domain = ServerName::try_from(domain)
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dnsname"))?;
 
     let transport = connector.connect(domain, stream).await?;
