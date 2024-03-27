@@ -89,7 +89,7 @@ where
 
         // Match headers of request and response.
         if let Err(message) = verify_response_header(&req_hdr, &res_adu.hdr) {
-            return Err(ProtocolError::MismatchingHeaders { message, result }.into());
+            return Err(ProtocolError::HeaderMismatch { message, result }.into());
         }
 
         // Match function codes of request and response.
@@ -98,7 +98,7 @@ where
             Err(ExceptionResponse { function, .. }) => *function,
         };
         if req_function_code != rsp_function_code {
-            return Err(ProtocolError::MismatchingFunctionCodes {
+            return Err(ProtocolError::FunctionCodeMismatch {
                 request: req_function_code,
                 result,
             }

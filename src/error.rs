@@ -28,7 +28,7 @@ pub enum ProtocolError {
     ///
     /// The result received from the server is included for further analysis and handling.
     #[error("mismatching headers: {message} {result:?}")]
-    MismatchingHeaders {
+    HeaderMismatch {
         message: String,
         result: Result<Response, ExceptionResponse>,
     },
@@ -37,7 +37,7 @@ pub enum ProtocolError {
     ///
     /// The result received from the server is included for further analysis and handling.
     #[error("mismatching function codes: {request} {result:?}")]
-    MismatchingFunctionCodes {
+    FunctionCodeMismatch {
         request: FunctionCode,
         result: Result<Response, ExceptionResponse>,
     },
