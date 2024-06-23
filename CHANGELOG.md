@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.13.0 (Unreleased)
+## v0.13.0 (2024-06-23)
 
 - Fix: Do not panic on mismatching request/response function codes.
 
