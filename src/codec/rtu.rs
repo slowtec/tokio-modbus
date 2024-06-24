@@ -329,7 +329,12 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> Result<()> {
-        if adu.disconnect {
+        let RequestAdu {
+            hdr,
+            pdu,
+            disconnect,
+        } = adu;
+        if disconnect {
             // The disconnect happens implicitly after letting this request
             // fail by returning an error. This will drop the attached
             // transport, e.g. for closing a stale, exclusive connection
@@ -339,7 +344,6 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
                 "Disconnecting - not an error",
             ));
         }
-        let RequestAdu { hdr, pdu, .. } = adu;
         let pdu_data: Bytes = pdu.try_into()?;
         buf.reserve(pdu_data.len() + 3);
         buf.put_u8(hdr.slave_id);

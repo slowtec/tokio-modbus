@@ -54,18 +54,22 @@ where
         let req_hdr = req_adu.hdr;
 
         self.framed.read_buffer_mut().clear();
-
         self.framed.send(req_adu).await?;
+        debug_assert!(!disconnect);
+
         let res_adu = self
             .framed
             .next()
             .await
             .unwrap_or_else(|| Err(io::Error::from(io::ErrorKind::BrokenPipe)))?;
-
-        let ResponsePdu(result) = res_adu.pdu;
+        let ResponseAdu {
+            hdr: res_hdr,
+            pdu: res_pdu,
+        } = res_adu;
+        let ResponsePdu(result) = res_pdu;
 
         // Match headers of request and response.
-        if let Err(message) = verify_response_header(&req_hdr, &res_adu.hdr) {
+        if let Err(message) = verify_response_header(&req_hdr, &res_hdr) {
             return Err(ProtocolError::HeaderMismatch { message, result }.into());
         }
 
