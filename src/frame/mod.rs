@@ -46,6 +46,8 @@ pub enum FunctionCode {
 
     /// Custom Modbus Function Code.
     Custom(u8),
+
+    Disconnect,
 }
 
 impl FunctionCode {
@@ -53,35 +55,40 @@ impl FunctionCode {
     #[must_use]
     pub const fn new(value: u8) -> Self {
         match value {
-            0x01 => FunctionCode::ReadCoils,
-            0x02 => FunctionCode::ReadDiscreteInputs,
-            0x05 => FunctionCode::WriteSingleCoil,
-            0x06 => FunctionCode::WriteSingleRegister,
-            0x03 => FunctionCode::ReadHoldingRegisters,
-            0x04 => FunctionCode::ReadInputRegisters,
-            0x0F => FunctionCode::WriteMultipleCoils,
-            0x10 => FunctionCode::WriteMultipleRegisters,
-            0x16 => FunctionCode::MaskWriteRegister,
-            0x17 => FunctionCode::ReadWriteMultipleRegisters,
-            code => FunctionCode::Custom(code),
+            0x01 => Self::ReadCoils,
+            0x02 => Self::ReadDiscreteInputs,
+            0x05 => Self::WriteSingleCoil,
+            0x06 => Self::WriteSingleRegister,
+            0x03 => Self::ReadHoldingRegisters,
+            0x04 => Self::ReadInputRegisters,
+            0x0F => Self::WriteMultipleCoils,
+            0x10 => Self::WriteMultipleRegisters,
+            0x16 => Self::MaskWriteRegister,
+            0x17 => Self::ReadWriteMultipleRegisters,
+            code => Self::Custom(code),
         }
     }
 
     /// Get the [`u8`] value of the current [`FunctionCode`].
+    ///
+    /// # Panics
+    ///
+    /// Panics on [`Disconnect`](Self::Disconnect) which has no corresponding Modbus function code.
     #[must_use]
     pub const fn value(self) -> u8 {
         match self {
-            FunctionCode::ReadCoils => 0x01,
-            FunctionCode::ReadDiscreteInputs => 0x02,
-            FunctionCode::WriteSingleCoil => 0x05,
-            FunctionCode::WriteSingleRegister => 0x06,
-            FunctionCode::ReadHoldingRegisters => 0x03,
-            FunctionCode::ReadInputRegisters => 0x04,
-            FunctionCode::WriteMultipleCoils => 0x0F,
-            FunctionCode::WriteMultipleRegisters => 0x10,
-            FunctionCode::MaskWriteRegister => 0x16,
-            FunctionCode::ReadWriteMultipleRegisters => 0x17,
-            FunctionCode::Custom(code) => code,
+            Self::ReadCoils => 0x01,
+            Self::ReadDiscreteInputs => 0x02,
+            Self::WriteSingleCoil => 0x05,
+            Self::WriteSingleRegister => 0x06,
+            Self::ReadHoldingRegisters => 0x03,
+            Self::ReadInputRegisters => 0x04,
+            Self::WriteMultipleCoils => 0x0F,
+            Self::WriteMultipleRegisters => 0x10,
+            Self::MaskWriteRegister => 0x16,
+            Self::ReadWriteMultipleRegisters => 0x17,
+            Self::Custom(code) => code,
+            Self::Disconnect => unreachable!(),
         }
     }
 }

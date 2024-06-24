@@ -71,14 +71,16 @@ where
 
     pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         log::debug!("Call {:?}", req);
-        let disconnect = req == Request::Disconnect;
-        let req_function_code = req.function_code();
-        let req_adu = self.next_request_adu(req, disconnect);
+        let req_function_code = if matches!(req, Request::Disconnect) {
+            None
+        } else {
+            Some(req.function_code())
+        };
+        let req_adu = self.next_request_adu(req, req_function_code.is_none());
         let req_hdr = req_adu.hdr;
 
         self.framed.read_buffer_mut().clear();
         self.framed.send(req_adu).await?;
-        debug_assert!(!disconnect);
 
         let res_adu = self
             .framed
@@ -95,6 +97,9 @@ where
         if let Err(message) = verify_response_header(&req_hdr, &res_hdr) {
             return Err(ProtocolError::HeaderMismatch { message, result }.into());
         }
+
+        debug_assert!(req_function_code.is_some());
+        let req_function_code = req_function_code.unwrap();
 
         // Match function codes of request and response.
         let rsp_function_code = match &result {
