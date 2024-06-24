@@ -3,7 +3,15 @@
 
 # Changelog
 
-## v0.13.0 (2024-06-23)
+## v0.13.1 (Unreleased)
+
+- Fix: Do not panic on disconnect.
+
+### Breaking Changes
+
+- Add `FunctionCode::Disconnect`.
+
+## v0.13.0 (2024-06-23, yanked)
 
 - Fix: Do not panic on mismatching request/response function codes.
 
@@ -12,7 +20,7 @@
 - Client: Replace `std::io::Error` with a custom error type that handles both
   protocol and transport errors.
 
-## v0.12.0 (2024-03-21)
+## v0.12.0 (2024-03-21, yanked)
 
 - Client: Support handling of _Modbus_ exceptions by using nested `Result`s.
 
