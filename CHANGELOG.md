@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.13.1 (Unreleased)
+## v0.13.1 (2024-06-25)
 
 - Fix: Do not panic on disconnect.
 
