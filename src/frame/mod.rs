@@ -277,51 +277,51 @@ impl<'a> SlaveRequest<'a> {
 /// server implementation and those coils should be should be ignored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Response {
-    /// Response to a ReadCoils request
+    /// Response to a `ReadCoils` request
     /// The parameter contains the coil values that have been read
     /// See also the note above regarding the vector length
     ReadCoils(Vec<Coil>),
 
-    /// Response to a ReadDiscreteInputs request
+    /// Response to a `ReadDiscreteInputs` request
     /// The parameter contains the discrete input values that have been read
     /// See also the note above regarding the vector length
     ReadDiscreteInputs(Vec<Coil>),
 
-    /// Response to a WriteSingleCoil request
+    /// Response to a `WriteSingleCoil` request
     /// The first parameter contains the address of the coil that has been written to
     /// The second parameter contains the value that has been written to the coil the given address
     WriteSingleCoil(Address, Coil),
 
-    /// Response to a WriteMultipleCoils request
+    /// Response to a `WriteMultipleCoils` request
     /// The first parameter contains the address at the start of the range that has been written to
     /// The second parameter contains the amount of values that have been written
     WriteMultipleCoils(Address, Quantity),
 
-    /// Response to a ReadInputRegisters request
+    /// Response to a `ReadInputRegisters` request
     /// The parameter contains the register values that have been read
     ReadInputRegisters(Vec<Word>),
 
-    /// Response to a ReadHoldingRegisters request
+    /// Response to a `ReadHoldingRegisters` request
     /// The parameter contains the register values that have been read
     ReadHoldingRegisters(Vec<Word>),
 
-    /// Response to a WriteSingleRegister request
+    /// Response to a `WriteSingleRegister` request
     /// The first parameter contains the address of the register that has been written to
     /// The second parameter contains the value that has been written to the register at the given address
     WriteSingleRegister(Address, Word),
 
-    /// Response to a WriteMultipleRegisters request
+    /// Response to a `WriteMultipleRegisters` request
     /// The first parameter contains the address at the start of the register range that has been written to
     /// The second parameter contains the amount of register that have been written
     WriteMultipleRegisters(Address, Quantity),
 
-    /// Response MaskWriteRegister
+    /// Response `MaskWriteRegister`
     /// The first parameter is the address of the holding register.
     /// The second parameter is the AND mask.
     /// The third parameter is the OR mask.
     MaskWriteRegister(Address, Word, Word),
 
-    /// Response to a ReadWriteMultipleRegisters request
+    /// Response to a `ReadWriteMultipleRegisters` request
     /// The parameter contains the register values that have been read as part of the read instruction
     ReadWriteMultipleRegisters(Vec<Word>),
 
