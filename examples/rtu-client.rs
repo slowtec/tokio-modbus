@@ -17,8 +17,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut ctx = rtu::attach_slave(port, slave);
     println!("Reading a sensor value");
-    let rsp = ctx.read_holding_registers(0x082B, 2).await?;
+    let rsp = ctx.read_holding_registers(0x082B, 2).await??;
     println!("Sensor value is: {rsp:?}");
+
+    println!("Disconnecting");
+    ctx.disconnect().await??;
 
     Ok(())
 }
