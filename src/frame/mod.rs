@@ -467,30 +467,6 @@ impl From<Result<Option<Response>, ExceptionResponse>> for OptionalResponsePdu {
     }
 }
 
-#[cfg(any(
-    feature = "rtu-over-tcp-server",
-    feature = "rtu-server",
-    feature = "tcp-server"
-))]
-impl<T> From<Option<T>> for OptionalResponsePdu
-where
-    T: Into<ResponsePdu>,
-{
-    fn from(from: Option<T>) -> Self {
-        Self(from.map(Into::into))
-    }
-}
-
-#[cfg(any(feature = "rtu-server", feature = "tcp-server"))]
-impl<T> From<T> for OptionalResponsePdu
-where
-    T: Into<ResponsePdu>,
-{
-    fn from(from: T) -> Self {
-        Self(Some(from.into()))
-    }
-}
-
 impl From<ResponsePdu> for Result<Response, ExceptionResponse> {
     fn from(from: ResponsePdu) -> Self {
         from.0

@@ -13,7 +13,9 @@ struct Service {
 
 impl tokio_modbus::server::Service for Service {
     type Request = SlaveRequest<'static>;
-    type Future = future::Ready<Result<Option<Response>, Exception>>;
+    type Response = Response;
+    type Exception = Exception;
+    type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         if req.slave != self.slave.into() {
@@ -23,7 +25,7 @@ impl tokio_modbus::server::Service for Service {
             Request::ReadInputRegisters(_addr, cnt) => {
                 let mut registers = vec![0; cnt.into()];
                 registers[2] = 0x77;
-                future::ready(Ok(Some(Response::ReadInputRegisters(registers))))
+                future::ready(Ok(Response::ReadInputRegisters(registers)))
             }
             _ => future::ready(Err(Exception::IllegalFunction)),
         }

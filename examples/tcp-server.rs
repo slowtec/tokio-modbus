@@ -28,7 +28,9 @@ struct ExampleService {
 
 impl tokio_modbus::server::Service for ExampleService {
     type Request = Request<'static>;
-    type Future = future::Ready<Result<Option<Response>, Exception>>;
+    type Response = Response;
+    type Exception = Exception;
+    type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         let res = match req {
@@ -55,7 +57,7 @@ impl tokio_modbus::server::Service for ExampleService {
                 Err(Exception::IllegalFunction)
             }
         };
-        future::ready(res.map(Some))
+        future::ready(res)
     }
 }
 
