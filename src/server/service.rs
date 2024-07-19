@@ -9,7 +9,7 @@ pub trait Service {
     type Request;
 
     /// The future response value.
-    type Future: Future<Output = Result<crate::Response, crate::Exception>> + Send;
+    type Future: Future<Output = Result<Option<crate::Response>, crate::Exception>> + Send;
 
     /// Process the request and return the response asynchronously.
     fn call(&self, req: Self::Request) -> Self::Future;

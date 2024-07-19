@@ -12,7 +12,7 @@ use tokio_modbus::{
 pub struct TestService {}
 
 impl TestService {
-    fn handle(&self, req: Request<'static>) -> Result<Response, Exception> {
+    fn handle(&self, req: Request<'static>) -> Result<Option<Response>, Exception> {
         use Request::*;
 
         match req {
@@ -33,7 +33,7 @@ impl TestService {
 impl Service for TestService {
     type Request = Request<'static>;
 
-    type Future = future::Ready<Result<Response, Exception>>;
+    type Future = future::Ready<Result<Option<Response>, Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         future::ready(self.handle(req))

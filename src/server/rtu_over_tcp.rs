@@ -220,10 +220,10 @@ mod tests {
 
         impl Service for DummyService {
             type Request = Request<'static>;
-            type Future = future::Ready<Result<Response, Exception>>;
+            type Future = future::Ready<Result<Option<Response>, Exception>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
-                future::ready(Ok(self.response.clone()))
+                future::ready(Ok(Some(self.response.clone())))
             }
         }
 
@@ -253,10 +253,10 @@ mod tests {
 
         impl Service for DummyService {
             type Request = Request<'static>;
-            type Future = future::Ready<Result<Response, Exception>>;
+            type Future = future::Ready<Result<Option<Response>, Exception>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
-                future::ready(Ok(self.response.clone()))
+                future::ready(Ok(Some(self.response.clone())))
             }
         }
 
@@ -265,7 +265,7 @@ mod tests {
         };
 
         let pdu = Request::ReadInputRegisters(0, 1);
-        let rsp_adu = service.call(pdu).await.unwrap();
+        let rsp_adu = service.call(pdu).await.unwrap().unwrap();
 
         assert_eq!(rsp_adu, service.response);
     }
