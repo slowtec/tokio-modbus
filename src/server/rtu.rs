@@ -73,12 +73,9 @@ impl Server {
 }
 
 /// frame wrapper around the underlying service's responses to forwarded requests
-async fn process<S, Req>(
-    mut framed: Framed<SerialStream, ServerCodec>,
-    service: S,
-) -> io::Result<()>
+async fn process<S>(mut framed: Framed<SerialStream, ServerCodec>, service: S) -> io::Result<()>
 where
-    S: Service<Request = Req> + Send + Sync + 'static,
+    S: Service + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
 {
     loop {
