@@ -11,24 +11,32 @@ struct Service {
     slave: Slave,
 }
 
+impl Service {
+    fn handle(&self, req: SlaveRequest<'_>) -> Result<Option<Response>, Exception> {
+        let SlaveRequest { slave, request } = req;
+        if slave != self.slave.into() {
+            // Filtering: Ignore requests with mismatching slave IDs.
+            return Ok(None);
+        }
+        match request {
+            Request::ReadInputRegisters(_addr, cnt) => {
+                let mut registers = vec![0; cnt.into()];
+                registers[2] = 0x77;
+                Ok(Some(Response::ReadInputRegisters(registers)))
+            }
+            _ => Err(Exception::IllegalFunction),
+        }
+    }
+}
+
 impl tokio_modbus::server::Service for Service {
     type Request = SlaveRequest<'static>;
-    type Response = Response;
+    type Response = Option<Response>;
     type Exception = Exception;
     type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        if req.slave != self.slave.into() {
-            return future::ready(Err(Exception::IllegalFunction));
-        }
-        match req.request {
-            Request::ReadInputRegisters(_addr, cnt) => {
-                let mut registers = vec![0; cnt.into()];
-                registers[2] = 0x77;
-                future::ready(Ok(Response::ReadInputRegisters(registers)))
-            }
-            _ => future::ready(Err(Exception::IllegalFunction)),
-        }
+        future::ready(self.handle(req))
     }
 }
 
