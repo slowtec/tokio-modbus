@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.14.0 (Unreleased)
+## v0.14.0 (2024-07-21)
 
 ### Breaking Changes
 
