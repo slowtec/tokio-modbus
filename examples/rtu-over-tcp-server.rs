@@ -28,36 +28,37 @@ struct ExampleService {
 
 impl tokio_modbus::server::Service for ExampleService {
     type Request = SlaveRequest<'static>;
-    type Future = future::Ready<Result<Response, Exception>>;
+    type Response = Response;
+    type Exception = Exception;
+    type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         println!("{}", req.slave);
-        match req.request {
-            Request::ReadInputRegisters(addr, cnt) => future::ready(
+        let res = match req.request {
+            Request::ReadInputRegisters(addr, cnt) => {
                 register_read(&self.input_registers.lock().unwrap(), addr, cnt)
-                    .map(Response::ReadInputRegisters),
-            ),
-            Request::ReadHoldingRegisters(addr, cnt) => future::ready(
+                    .map(Response::ReadInputRegisters)
+            }
+            Request::ReadHoldingRegisters(addr, cnt) => {
                 register_read(&self.holding_registers.lock().unwrap(), addr, cnt)
-                    .map(Response::ReadHoldingRegisters),
-            ),
-            Request::WriteMultipleRegisters(addr, values) => future::ready(
+                    .map(Response::ReadHoldingRegisters)
+            }
+            Request::WriteMultipleRegisters(addr, values) => {
                 register_write(&mut self.holding_registers.lock().unwrap(), addr, &values)
-                    .map(|_| Response::WriteMultipleRegisters(addr, values.len() as u16)),
-            ),
-            Request::WriteSingleRegister(addr, value) => future::ready(
-                register_write(
-                    &mut self.holding_registers.lock().unwrap(),
-                    addr,
-                    std::slice::from_ref(&value),
-                )
-                .map(|_| Response::WriteSingleRegister(addr, value)),
-            ),
+                    .map(|_| Response::WriteMultipleRegisters(addr, values.len() as u16))
+            }
+            Request::WriteSingleRegister(addr, value) => register_write(
+                &mut self.holding_registers.lock().unwrap(),
+                addr,
+                std::slice::from_ref(&value),
+            )
+            .map(|_| Response::WriteSingleRegister(addr, value)),
             _ => {
                 println!("SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}");
-                future::ready(Err(Exception::IllegalFunction))
+                Err(Exception::IllegalFunction)
             }
-        }
+        };
+        future::ready(res)
     }
 }
 

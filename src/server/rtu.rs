@@ -16,6 +16,7 @@ use crate::{
         ExceptionResponse, OptionalResponsePdu,
     },
     server::service::Service,
+    Exception, Response,
 };
 
 use super::Terminated;
@@ -44,6 +45,8 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
+        S::Response: Into<Option<Response>>,
+        S::Exception: Into<Exception>,
     {
         let framed = Framed::new(self.serial, ServerCodec::default());
         process(framed, service).await
@@ -57,6 +60,8 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
+        S::Response: Into<Option<Response>>,
+        S::Exception: Into<Exception>,
         X: Future<Output = ()> + Sync + Send + Unpin + 'static,
     {
         let framed = Framed::new(self.serial, ServerCodec::default());
@@ -73,13 +78,12 @@ impl Server {
 }
 
 /// frame wrapper around the underlying service's responses to forwarded requests
-async fn process<S, Req>(
-    mut framed: Framed<SerialStream, ServerCodec>,
-    service: S,
-) -> io::Result<()>
+async fn process<S>(mut framed: Framed<SerialStream, ServerCodec>, service: S) -> io::Result<()>
 where
-    S: Service<Request = Req> + Send + Sync + 'static,
+    S: Service + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
+    S::Response: Into<Option<Response>>,
+    S::Exception: Into<Exception>,
 {
     loop {
         let Some(request) = framed.next().await.transpose()? else {
@@ -92,9 +96,10 @@ where
         let OptionalResponsePdu(Some(response_pdu)) = service
             .call(request.into())
             .await
+            .map(Into::into)
             .map_err(|e| ExceptionResponse {
                 function: fc,
-                exception: e,
+                exception: e.into(),
             })
             .into()
         else {

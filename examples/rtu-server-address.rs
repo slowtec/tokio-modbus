@@ -13,7 +13,9 @@ struct Service {
 
 impl tokio_modbus::server::Service for Service {
     type Request = SlaveRequest<'static>;
-    type Future = future::Ready<Result<Response, Exception>>;
+    type Response = Response;
+    type Exception = Exception;
+    type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         if req.slave != self.slave.into() {

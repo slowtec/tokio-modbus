@@ -444,12 +444,6 @@ impl From<ExceptionResponse> for ResponsePdu {
     }
 }
 
-impl From<Result<Response, ExceptionResponse>> for ResponsePdu {
-    fn from(from: Result<Response, ExceptionResponse>) -> Self {
-        ResponsePdu(from.map(Into::into).map_err(Into::into))
-    }
-}
-
 #[cfg(any(
     feature = "rtu-over-tcp-server",
     feature = "rtu-server",
@@ -463,22 +457,13 @@ pub(crate) struct OptionalResponsePdu(pub(crate) Option<ResponsePdu>);
     feature = "rtu-server",
     feature = "tcp-server"
 ))]
-impl<T> From<Option<T>> for OptionalResponsePdu
-where
-    T: Into<ResponsePdu>,
-{
-    fn from(from: Option<T>) -> Self {
-        Self(from.map(Into::into))
-    }
-}
-
-#[cfg(any(feature = "rtu-server", feature = "tcp-server"))]
-impl<T> From<T> for OptionalResponsePdu
-where
-    T: Into<ResponsePdu>,
-{
-    fn from(from: T) -> Self {
-        Self(Some(from.into()))
+impl From<Result<Option<Response>, ExceptionResponse>> for OptionalResponsePdu {
+    fn from(from: Result<Option<Response>, ExceptionResponse>) -> Self {
+        match from {
+            Ok(None) => Self(None),
+            Ok(Some(response)) => Self(Some(response.into())),
+            Err(exception) => Self(Some(exception.into())),
+        }
     }
 }
 

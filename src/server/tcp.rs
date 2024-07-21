@@ -21,6 +21,7 @@ use crate::{
         ExceptionResponse, OptionalResponsePdu,
     },
     server::service::Service,
+    Exception, Response,
 };
 
 use super::Terminated;
@@ -75,6 +76,8 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
+        S::Response: Into<Option<Response>>,
+        S::Exception: Into<Exception>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
         F: Future<Output = io::Result<Option<(S, T)>>>,
@@ -114,6 +117,8 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
+        S::Response: Into<Option<Response>>,
+        S::Exception: Into<Exception>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         X: Future<Output = ()> + Sync + Send + Unpin + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
@@ -133,10 +138,12 @@ impl Server {
 }
 
 /// The request-response loop spawned by [`serve_until`] for each client
-async fn process<S, T, Req>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Result<()>
+async fn process<S, T>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Result<()>
 where
-    S: Service<Request = Req> + Send + Sync + 'static,
+    S: Service + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
+    S::Response: Into<Option<Response>>,
+    S::Exception: Into<Exception>,
     T: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
@@ -150,9 +157,10 @@ where
         let OptionalResponsePdu(Some(response_pdu)) = service
             .call(request.into())
             .await
+            .map(Into::into)
             .map_err(|e| ExceptionResponse {
                 function: fc,
-                exception: e,
+                exception: e.into(),
             })
             .into()
         else {
@@ -217,7 +225,9 @@ mod tests {
 
         impl Service for DummyService {
             type Request = Request<'static>;
-            type Future = future::Ready<Result<Response, Exception>>;
+            type Response = Response;
+            type Exception = Exception;
+            type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
                 future::ready(Ok(self.response.clone()))
@@ -250,7 +260,9 @@ mod tests {
 
         impl Service for DummyService {
             type Request = Request<'static>;
-            type Future = future::Ready<Result<Response, Exception>>;
+            type Response = Response;
+            type Exception = Exception;
+            type Future = future::Ready<Result<Self::Response, Exception>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
                 future::ready(Ok(self.response.clone()))

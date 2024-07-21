@@ -3,6 +3,12 @@
 
 # Changelog
 
+## v0.14.0 (Unreleased)
+
+### Breaking Changes
+
+- Server: Added associated types `Response` and `Exception` to `Service` trait.
+
 ## v0.13.1 (2024-06-25)
 
 - Fix: Do not panic on disconnect.

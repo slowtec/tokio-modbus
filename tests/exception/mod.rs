@@ -33,7 +33,11 @@ impl TestService {
 impl Service for TestService {
     type Request = Request<'static>;
 
-    type Future = future::Ready<Result<Response, Exception>>;
+    type Response = Response;
+
+    type Exception = Exception;
+
+    type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         future::ready(self.handle(req))
