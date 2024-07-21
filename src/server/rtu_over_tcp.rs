@@ -20,11 +20,9 @@ use crate::{
         rtu::{RequestAdu, ResponseAdu},
         ExceptionResponse, OptionalResponsePdu,
     },
-    server::service::Service,
-    Exception, Response,
 };
 
-use super::Terminated;
+use super::{Service, Terminated};
 
 #[async_trait]
 pub trait BindSocket {
@@ -76,8 +74,6 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
-        S::Response: Into<Option<Response>>,
-        S::Exception: Into<Exception>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
         F: Future<Output = io::Result<Option<(S, T)>>>,
@@ -118,8 +114,6 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
-        S::Response: Into<Option<Response>>,
-        S::Exception: Into<Exception>,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         X: Future<Output = ()> + Sync + Send + Unpin + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
@@ -143,8 +137,6 @@ async fn process<S, T>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Re
 where
     S: Service + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
-    S::Response: Into<Option<Response>>,
-    S::Exception: Into<Exception>,
     T: AsyncRead + AsyncWrite + Unpin,
 {
     loop {

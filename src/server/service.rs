@@ -6,13 +6,24 @@ use std::{future::Future, ops::Deref};
 /// A Modbus server service.
 pub trait Service {
     /// Requests handled by the service.
+    ///
+    /// Both [`tokio_modbus::Request`](crate::Request) and
+    /// [`tokio_modbus::SlaveRequest`](crate::SlaveRequest)
+    /// are possible choices.
     type Request;
 
     /// Responses sent by the service.
-    type Response;
+    ///
+    /// Both [`tokio_modbus::Response`](crate::Response) and
+    /// `Option<tokio_modbus::Response>` are possible choices.
+    /// The latter allows to selectively ignore requests
+    /// by not sending a response.
+    type Response: Into<Option<crate::Response>>;
 
     /// Exceptional responses sent by the service.
-    type Exception;
+    ///
+    /// Use [`tokio_modbus::Exception`](crate::Exception) as default.
+    type Exception: Into<crate::Exception>;
 
     /// The future response value.
     type Future: Future<Output = Result<Self::Response, Self::Exception>> + Send;

@@ -45,6 +45,8 @@ mod error;
 pub use self::error::{Error, ProtocolError};
 
 mod frame;
+#[cfg(feature = "server")]
+pub use self::frame::SlaveRequest;
 pub use self::frame::{
     Address, Exception, ExceptionResponse, FunctionCode, Quantity, Request, Response,
 };
