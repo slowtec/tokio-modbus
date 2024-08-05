@@ -27,7 +27,7 @@ jobs:
       - name: Generate Cargo.lock
         run: cargo generate-lockfile
 
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check
           arguments: >-
