@@ -81,6 +81,7 @@ impl<'a> TryFrom<Request<'a>> for Bytes {
                     data.put_u16(*w);
                 }
             }
+            ReportServerId => {}
             MaskWriteRegister(address, and_mask, or_mask) => {
                 data.put_u16(address);
                 data.put_u16(and_mask);
@@ -145,6 +146,14 @@ impl From<Response> for Bytes {
             WriteMultipleCoils(address, quantity) | WriteMultipleRegisters(address, quantity) => {
                 data.put_u16(address);
                 data.put_u16(quantity);
+            }
+            ReportServerId(server_id, run_indication, additional_data) => {
+                data.put_u8(2 + u8_len(additional_data.len()));
+                data.put_u8(server_id);
+                data.put_u8(if run_indication { 0xFF } else { 0x00 });
+                for b in additional_data {
+                    data.put_u8(b);
+                }
             }
             WriteSingleRegister(address, word) => {
                 data.put_u16(address);
@@ -224,6 +233,7 @@ impl TryFrom<Bytes> for Request<'static> {
                 }
                 WriteMultipleRegisters(address, data.into())
             }
+            0x11 => ReportServerId,
             0x16 => {
                 let address = rdr.read_u16::<BigEndian>()?;
                 let and_mask = rdr.read_u16::<BigEndian>()?;
@@ -317,6 +327,26 @@ impl TryFrom<Bytes> for Response {
 
             0x10 => {
                 WriteMultipleRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
+            }
+            0x11 => {
+                let byte_count = rdr.read_u8()?;
+                let server_id = rdr.read_u8()?;
+                let run_indication_status = match rdr.read_u8()? {
+                    0x00 => false,
+                    0xFF => true,
+                    status => {
+                        return Err(Error::new(
+                            ErrorKind::InvalidData,
+                            format!("Invalid run indication status value: {status}"),
+                        ));
+                    }
+                };
+                let data_len = byte_count.saturating_sub(2).into();
+                let mut data = Vec::with_capacity(data_len);
+                for _ in 0..data_len {
+                    data.push(rdr.read_u8()?);
+                }
+                ReportServerId(server_id, run_indication_status, data)
             }
             0x16 => {
                 let address = rdr.read_u16::<BigEndian>()?;
@@ -449,6 +479,7 @@ fn request_byte_count(req: &Request<'_>) -> usize {
         | WriteSingleCoil(_, _) => 5,
         WriteMultipleCoils(_, ref coils) => 6 + packed_coils_len(coils.len()),
         WriteMultipleRegisters(_, ref data) => 6 + data.len() * 2,
+        ReportServerId => 1,
         MaskWriteRegister(_, _, _) => 7,
         ReadWriteMultipleRegisters(_, _, _, ref data) => 10 + data.len() * 2,
         Custom(_, ref data) => 1 + data.len(),
@@ -467,6 +498,7 @@ fn response_byte_count(rsp: &Response) -> usize {
         ReadInputRegisters(ref data)
         | ReadHoldingRegisters(ref data)
         | ReadWriteMultipleRegisters(ref data) => 2 + data.len() * 2,
+        ReportServerId(_, _, ref data) => 3 + data.len(),
         MaskWriteRegister(_, _, _) => 7,
         Custom(_, ref data) => 1 + data.len(),
     }
@@ -691,6 +723,12 @@ mod tests {
         }
 
         #[test]
+        fn report_server_id() {
+            let bytes: Bytes = Request::ReportServerId.try_into().unwrap();
+            assert_eq!(bytes[0], 0x11);
+        }
+
+        #[test]
         fn masked_write_register() {
             let bytes: Bytes = Request::MaskWriteRegister(0xABCD, 0xEF12, 0x2345)
                 .try_into()
@@ -855,6 +893,13 @@ mod tests {
         }
 
         #[test]
+        fn report_server_id() {
+            let bytes = Bytes::from(vec![0x11]);
+            let req = Request::try_from(bytes).unwrap();
+            assert_eq!(req, Request::ReportServerId);
+        }
+
+        #[test]
         fn masked_write_register() {
             let bytes = Bytes::from(vec![0x16, 0xAB, 0xCD, 0xEF, 0x12, 0x23, 0x45]);
             let req = Request::try_from(bytes).unwrap();
@@ -971,6 +1016,17 @@ mod tests {
             assert_eq!(bytes[2], 0x06);
             assert_eq!(bytes[3], 0x00);
             assert_eq!(bytes[4], 0x02);
+        }
+
+        #[test]
+        fn report_server_id() {
+            let bytes: Bytes = Response::ReportServerId(0x42, true, vec![0x10, 0x20]).into();
+            assert_eq!(bytes[0], 0x11);
+            assert_eq!(bytes[1], 0x04);
+            assert_eq!(bytes[2], 0x42);
+            assert_eq!(bytes[3], 0xFF);
+            assert_eq!(bytes[4], 0x10);
+            assert_eq!(bytes[5], 0x20);
         }
 
         #[test]
@@ -1099,6 +1155,13 @@ mod tests {
             let bytes = Bytes::from(vec![0x10, 0x00, 0x06, 0x00, 0x02]);
             let rsp = Response::try_from(bytes).unwrap();
             assert_eq!(rsp, Response::WriteMultipleRegisters(0x06, 2));
+        }
+
+        #[test]
+        fn report_server_id() {
+            let bytes = Bytes::from(vec![0x11, 0x04, 0x042, 0xFF, 0x10, 0x20]);
+            let rsp = Response::try_from(bytes).unwrap();
+            assert_eq!(rsp, Response::ReportServerId(0x42, true, vec![0x10, 0x20]));
         }
 
         #[test]

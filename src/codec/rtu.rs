@@ -157,7 +157,7 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         #[allow(clippy::match_same_arms)]
         let len = match fn_code {
-            0x01..=0x04 | 0x0C | 0x17 => {
+            0x01..=0x04 | 0x0C | 0x11 | 0x17 => {
                 return Ok(adu_buf
                     .get(2)
                     .map(|&byte_count| 2 + usize::from(byte_count)));
