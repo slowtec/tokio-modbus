@@ -3,6 +3,14 @@
 
 # Changelog
 
+## v0.14.1 (2024-09-10)
+
+- Implement `Report Server ID` (function code 17).
+
+### Breaking Changes
+
+- Server: Added `FunctionCode::ReportServerId`.
+
 ## v0.14.0 (2024-07-21)
 
 ### Breaking Changes
