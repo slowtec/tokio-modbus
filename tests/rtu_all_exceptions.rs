@@ -10,10 +10,7 @@ mod exception;
 use std::{thread, time::Duration};
 
 use exception::check_client_context;
-use tokio_modbus::{
-    client::{self},
-    server::rtu::Server,
-};
+use tokio_modbus::{client, server::rtu::Server};
 use tokio_serial::SerialPortBuilder;
 
 use crate::exception::TestService;
