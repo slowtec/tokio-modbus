@@ -169,7 +169,7 @@ pub enum Request<'a> {
     /// The second parameter is the vector of values to write to the registers.
     WriteMultipleRegisters(Address, Cow<'a, [Word]>),
 
-    /// A request to report server ID.
+    /// A request to report server ID (Serial Line only).
     ReportServerId,
 
     /// A request to set or clear individual bits of a holding register.
