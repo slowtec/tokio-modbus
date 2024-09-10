@@ -16,8 +16,7 @@ use futures_util::future::Either;
 use crate::{frame::*, Result, Slave};
 
 use super::{
-    Client as AsyncClient, Context as AsyncContext, Reader as AsyncReader, SlaveContext,
-    Writer as AsyncWriter,
+    Client as AsyncClient, Context as AsyncContext, Reader as _, SlaveContext, Writer as _,
 };
 
 fn block_on_with_timeout<T, E>(

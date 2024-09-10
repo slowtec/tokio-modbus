@@ -4,7 +4,7 @@
 use std::future;
 
 use tokio_modbus::{
-    client::{Context, Reader, Writer},
+    client::{Context, Reader as _, Writer as _},
     server::Service,
     Exception, Request, Response,
 };

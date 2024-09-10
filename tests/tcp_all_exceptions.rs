@@ -12,7 +12,7 @@ use std::{net::SocketAddr, time::Duration};
 use exception::check_client_context;
 use tokio::net::TcpListener;
 use tokio_modbus::{
-    client::{self},
+    client,
     server::tcp::{accept_tcp_connection, Server},
 };
 
