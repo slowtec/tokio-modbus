@@ -38,6 +38,9 @@ pub enum FunctionCode {
     /// Modbus Function Code: `16` (`0x10`).
     WriteMultipleRegisters,
 
+    /// Modbus Function Code: `17` (`0x11`).
+    ReportServerId,
+
     /// Modbus Function Code: `22` (`0x16`).
     MaskWriteRegister,
 
@@ -63,6 +66,7 @@ impl FunctionCode {
             0x04 => Self::ReadInputRegisters,
             0x0F => Self::WriteMultipleCoils,
             0x10 => Self::WriteMultipleRegisters,
+            0x11 => Self::ReportServerId,
             0x16 => Self::MaskWriteRegister,
             0x17 => Self::ReadWriteMultipleRegisters,
             code => Self::Custom(code),
@@ -85,6 +89,7 @@ impl FunctionCode {
             Self::ReadInputRegisters => 0x04,
             Self::WriteMultipleCoils => 0x0F,
             Self::WriteMultipleRegisters => 0x10,
+            Self::ReportServerId => 0x11,
             Self::MaskWriteRegister => 0x16,
             Self::ReadWriteMultipleRegisters => 0x17,
             Self::Custom(code) => code,
@@ -164,6 +169,9 @@ pub enum Request<'a> {
     /// The second parameter is the vector of values to write to the registers.
     WriteMultipleRegisters(Address, Cow<'a, [Word]>),
 
+    /// A request to report server ID (Serial Line only).
+    ReportServerId,
+
     /// A request to set or clear individual bits of a holding register.
     /// The first parameter is the address of the holding register.
     /// The second parameter is the AND mask.
@@ -213,6 +221,7 @@ impl<'a> Request<'a> {
             WriteMultipleRegisters(addr, words) => {
                 WriteMultipleRegisters(addr, Cow::Owned(words.into_owned()))
             }
+            ReportServerId => ReportServerId,
             MaskWriteRegister(addr, and_mask, or_mask) => {
                 MaskWriteRegister(addr, and_mask, or_mask)
             }
@@ -241,6 +250,8 @@ impl<'a> Request<'a> {
 
             WriteSingleRegister(_, _) => FunctionCode::WriteSingleRegister,
             WriteMultipleRegisters(_, _) => FunctionCode::WriteMultipleRegisters,
+
+            ReportServerId => FunctionCode::ReportServerId,
 
             MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
 
@@ -322,6 +333,12 @@ pub enum Response {
     /// The second parameter contains the amount of register that have been written
     WriteMultipleRegisters(Address, Quantity),
 
+    /// Response to a `ReportServerId` request
+    /// The first parameter contains the server ID
+    /// The second parameter indicates whether the server is running
+    /// The third parameter contains additional data from the server
+    ReportServerId(u8, bool, Vec<u8>),
+
     /// Response `MaskWriteRegister`
     /// The first parameter is the address of the holding register.
     /// The second parameter is the AND mask.
@@ -356,6 +373,8 @@ impl Response {
 
             WriteSingleRegister(_, _) => FunctionCode::WriteSingleRegister,
             WriteMultipleRegisters(_, _) => FunctionCode::WriteMultipleRegisters,
+
+            ReportServerId(_, _, _) => FunctionCode::ReportServerId,
 
             MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
 
