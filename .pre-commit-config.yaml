@@ -66,6 +66,10 @@ repos:
       - id: fmt
         args: [--all, --]
       - id: clippy
+        # With default features
+        name: clippy
+        args: [--locked, --workspace, --all-targets, --, -D, warnings]
+      - id: clippy
         name: clippy --all-features
         args:
           [
