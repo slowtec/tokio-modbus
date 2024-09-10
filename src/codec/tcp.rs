@@ -33,11 +33,13 @@ impl Default for ClientCodec {
     }
 }
 
+#[cfg(feature = "server")]
 #[derive(Debug, PartialEq)]
 pub(crate) struct ServerCodec {
     pub(crate) decoder: AduDecoder,
 }
 
+#[cfg(feature = "server")]
 impl Default for ServerCodec {
     fn default() -> Self {
         Self {
@@ -115,6 +117,7 @@ impl Decoder for ClientCodec {
     }
 }
 
+#[cfg(feature = "server")]
 impl Decoder for ServerCodec {
     type Item = RequestAdu<'static>;
     type Error = Error;
@@ -162,6 +165,7 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
     }
 }
 
+#[cfg(feature = "server")]
 impl Encoder<ResponseAdu> for ServerCodec {
     type Error = Error;
 
