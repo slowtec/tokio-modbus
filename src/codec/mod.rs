@@ -103,7 +103,6 @@ impl<'a> TryFrom<Request<'a>> for Bytes {
                     data.put_u8(*d);
                 }
             }
-            Disconnect => unreachable!(),
         }
         Ok(data.freeze())
     }
@@ -460,7 +459,6 @@ fn request_byte_count(req: &Request<'_>) -> usize {
         MaskWriteRegister(_, _, _) => 7,
         ReadWriteMultipleRegisters(_, _, _, ref data) => 10 + data.len() * 2,
         Custom(_, ref data) => 1 + data.len(),
-        Disconnect => unreachable!(),
     }
 }
 

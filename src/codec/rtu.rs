@@ -315,13 +315,7 @@ impl Decoder for ServerCodec {
         // to transmission errors, because the frame's bytes
         // have already been verified with the CRC.
         RequestPdu::try_from(pdu_data)
-            .map(|pdu| {
-                Some(RequestAdu {
-                    hdr,
-                    pdu,
-                    disconnect: false,
-                })
-            })
+            .map(|pdu| Some(RequestAdu { hdr, pdu }))
             .map_err(|err| {
                 // Unrecoverable error
                 log::error!("Failed to decode request PDU: {}", err);
@@ -334,21 +328,7 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> Result<()> {
-        let RequestAdu {
-            hdr,
-            pdu,
-            disconnect,
-        } = adu;
-        if disconnect {
-            // The disconnect happens implicitly after letting this request
-            // fail by returning an error. This will drop the attached
-            // transport, e.g. for closing a stale, exclusive connection
-            // to a serial port before trying to reconnect.
-            return Err(Error::new(
-                ErrorKind::NotConnected,
-                "Disconnecting - not an error",
-            ));
-        }
+        let RequestAdu { hdr, pdu } = adu;
         let pdu_data: Bytes = pdu.try_into()?;
         buf.reserve(pdu_data.len() + 3);
         buf.put_u8(hdr.slave_id);
@@ -741,11 +721,7 @@ mod tests {
             let pdu = req.into();
             let slave_id = 0x01;
             let hdr = Header { slave_id };
-            let adu = RequestAdu {
-                hdr,
-                pdu,
-                disconnect: false,
-            };
+            let adu = RequestAdu { hdr, pdu };
             codec.encode(adu, &mut buf).unwrap();
 
             assert_eq!(
@@ -761,11 +737,7 @@ mod tests {
             let pdu = req.into();
             let slave_id = 0x01;
             let hdr = Header { slave_id };
-            let adu = RequestAdu {
-                hdr,
-                pdu,
-                disconnect: false,
-            };
+            let adu = RequestAdu { hdr, pdu };
             let mut buf = BytesMut::with_capacity(40);
             #[allow(unsafe_code)]
             unsafe {

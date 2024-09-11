@@ -7,7 +7,7 @@ use std::{borrow::Cow, fmt::Debug, io};
 
 use async_trait::async_trait;
 
-use crate::{frame::*, slave::*, Error, Result};
+use crate::{frame::*, slave::*, Result};
 
 #[cfg(feature = "rtu")]
 pub mod rtu;
@@ -21,11 +21,22 @@ pub mod sync;
 /// Transport independent asynchronous client trait
 #[async_trait]
 pub trait Client: SlaveContext + Send + Debug {
-    /// Invoke a _Modbus_ function
+    /// Invokes a _Modbus_ function.
     async fn call(&mut self, request: Request<'_>) -> Result<Response>;
+
+    /// Disconnects the client.
+    ///
+    /// Permanently disconnects the client by shutting down the
+    /// underlying stream in a graceful manner (`AsyncDrop`).
+    ///
+    /// Dropping the client without explicitly disconnecting it
+    /// beforehand should also work and free all resources. The
+    /// actual behavior might depend on the underlying transport
+    /// protocol (RTU/TCP) that is used by the client.
+    async fn disconnect(&mut self) -> io::Result<()>;
 }
 
-/// Asynchronous Modbus reader
+/// Asynchronous _Modbus_ reader
 #[async_trait]
 pub trait Reader: Client {
     /// Read multiple coils (0x01)
@@ -83,22 +94,6 @@ pub struct Context {
     client: Box<dyn Client>,
 }
 
-impl Context {
-    /// Disconnect the client
-    pub async fn disconnect(&mut self) -> Result<()> {
-        // Disconnecting is expected to fail!
-        let res = self.client.call(Request::Disconnect).await;
-        match res {
-            Ok(_) => unreachable!(),
-            Err(Error::Transport(err)) => match err.kind() {
-                io::ErrorKind::NotConnected | io::ErrorKind::BrokenPipe => Ok(Ok(())),
-                _ => Err(Error::Transport(err)),
-            },
-            Err(err) => Err(err),
-        }
-    }
-}
-
 impl From<Box<dyn Client>> for Context {
     fn from(client: Box<dyn Client>) -> Self {
         Self { client }
@@ -115,6 +110,10 @@ impl From<Context> for Box<dyn Client> {
 impl Client for Context {
     async fn call(&mut self, request: Request<'_>) -> Result<Response> {
         self.client.call(request).await
+    }
+
+    async fn disconnect(&mut self) -> io::Result<()> {
+        self.client.disconnect().await
     }
 }
 
@@ -319,10 +318,10 @@ impl Writer for Context {
 
 #[cfg(test)]
 mod tests {
-    use crate::Result;
+    use crate::{Error, Result};
 
     use super::*;
-    use std::sync::Mutex;
+    use std::{io, sync::Mutex};
 
     #[derive(Default, Debug)]
     pub(crate) struct ClientMock {
@@ -357,6 +356,10 @@ mod tests {
                 }
                 Err(err) => Err(err),
             }
+        }
+
+        async fn disconnect(&mut self) -> io::Result<()> {
+            Ok(())
         }
     }
 
