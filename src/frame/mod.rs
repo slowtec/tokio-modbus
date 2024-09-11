@@ -387,22 +387,34 @@ impl Response {
 
 /// A server (slave) exception.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
 pub enum Exception {
-    IllegalFunction = 0x01,
-    IllegalDataAddress = 0x02,
-    IllegalDataValue = 0x03,
-    ServerDeviceFailure = 0x04,
-    Acknowledge = 0x05,
-    ServerDeviceBusy = 0x06,
-    MemoryParityError = 0x08,
-    GatewayPathUnavailable = 0x0A,
-    GatewayTargetDevice = 0x0B,
+    IllegalFunction, // 0x01
+    IllegalDataAddress, // 0x02
+    IllegalDataValue, // 0x03
+    ServerDeviceFailure, // 0x04
+    Acknowledge, // 0x05
+    ServerDeviceBusy, // 0x06
+    MemoryParityError, // 0x08
+    GatewayPathUnavailable, // 0x0A
+    GatewayTargetDevice, // 0x0B
+    Other(u8),
 }
 
 impl From<Exception> for u8 {
     fn from(from: Exception) -> Self {
-        from as u8
+        use crate::frame::Exception::*;
+        match from {
+            IllegalFunction => 0x01,
+            IllegalDataAddress => 0x02,
+            IllegalDataValue => 0x03,
+            ServerDeviceFailure => 0x04,
+            Acknowledge => 0x05,
+            ServerDeviceBusy => 0x06,
+            MemoryParityError => 0x08,
+            GatewayPathUnavailable => 0x0A,
+            GatewayTargetDevice => 0x0B,
+            Other(code) => code,
+        }
     }
 }
 
@@ -420,6 +432,7 @@ impl Exception {
             MemoryParityError => "Memory parity error",
             GatewayPathUnavailable => "Gateway path unavailable",
             GatewayTargetDevice => "Gateway target device failed to respond",
+            Other(_) => "Other",
         }
     }
 }

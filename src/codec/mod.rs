@@ -385,7 +385,7 @@ impl TryFrom<Bytes> for ExceptionResponse {
             ));
         }
         let function = fn_err_code - 0x80;
-        let exception = Exception::try_from(rdr.read_u8()?)?;
+        let exception = Exception::from(rdr.read_u8()?);
         Ok(ExceptionResponse {
             function: FunctionCode::new(function),
             exception,
@@ -393,12 +393,10 @@ impl TryFrom<Bytes> for ExceptionResponse {
     }
 }
 
-impl TryFrom<u8> for Exception {
-    type Error = Error;
-
-    fn try_from(code: u8) -> Result<Self, Self::Error> {
+impl From<u8> for Exception {
+    fn from(code: u8) -> Self {
         use crate::frame::Exception::*;
-        let ex = match code {
+        match code {
             0x01 => IllegalFunction,
             0x02 => IllegalDataAddress,
             0x03 => IllegalDataValue,
@@ -408,11 +406,8 @@ impl TryFrom<u8> for Exception {
             0x08 => MemoryParityError,
             0x0A => GatewayPathUnavailable,
             0x0B => GatewayTargetDevice,
-            _ => {
-                return Err(Error::new(ErrorKind::InvalidData, "Invalid exception code"));
-            }
-        };
-        Ok(ex)
+            other => Other(other),
+        }
     }
 }
 
