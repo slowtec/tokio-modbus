@@ -408,8 +408,8 @@ pub enum Exception {
     GatewayTargetDevice,
     /// None of the above.
     ///
-    /// Although encoding one of the predefined values as this is possible, it is not recommended,
-    /// instead prefer to use [`Self::new()`] to prevent such ambiguities.
+    /// Although encoding one of the predefined values as this is possible, it is not recommended.
+    /// Instead, prefer to use [`Self::new()`] to prevent such ambiguities.
     Custom(u8),
 }
 
