@@ -431,6 +431,25 @@ impl From<Exception> for u8 {
 }
 
 impl Exception {
+    /// Create a new [`Exception`] with `value`.
+    #[must_use]
+    pub const fn new(value: u8) -> Self {
+        use crate::frame::Exception::*;
+
+        match value {
+            0x01 => IllegalFunction,
+            0x02 => IllegalDataAddress,
+            0x03 => IllegalDataValue,
+            0x04 => ServerDeviceFailure,
+            0x05 => Acknowledge,
+            0x06 => ServerDeviceBusy,
+            0x08 => MemoryParityError,
+            0x0A => GatewayPathUnavailable,
+            0x0B => GatewayTargetDevice,
+            code => Custom(code),
+        }
+    }
+
     pub(crate) fn description(&self) -> &str {
         use crate::frame::Exception::*;
 

@@ -395,19 +395,7 @@ impl TryFrom<Bytes> for ExceptionResponse {
 
 impl From<u8> for Exception {
     fn from(code: u8) -> Self {
-        use crate::frame::Exception::*;
-        match code {
-            0x01 => IllegalFunction,
-            0x02 => IllegalDataAddress,
-            0x03 => IllegalDataValue,
-            0x04 => ServerDeviceFailure,
-            0x05 => Acknowledge,
-            0x06 => ServerDeviceBusy,
-            0x08 => MemoryParityError,
-            0x0A => GatewayPathUnavailable,
-            0x0B => GatewayTargetDevice,
-            custom => Custom(custom),
-        }
+        Self::new(code)
     }
 }
 
