@@ -407,7 +407,7 @@ pub enum Exception {
     /// 0x0B
     GatewayTargetDevice,
     /// None of the above.
-    Other(u8),
+    Custom(u8),
 }
 
 impl From<Exception> for u8 {
@@ -423,7 +423,7 @@ impl From<Exception> for u8 {
             MemoryParityError => 0x08,
             GatewayPathUnavailable => 0x0A,
             GatewayTargetDevice => 0x0B,
-            Other(code) => code,
+            Custom(code) => code,
         }
     }
 }
@@ -442,7 +442,7 @@ impl Exception {
             MemoryParityError => "Memory parity error",
             GatewayPathUnavailable => "Gateway path unavailable",
             GatewayTargetDevice => "Gateway target device failed to respond",
-            Other(_) => "Other",
+            Custom(_) => "Other",
         }
     }
 }

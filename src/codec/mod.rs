@@ -406,7 +406,7 @@ impl From<u8> for Exception {
             0x08 => MemoryParityError,
             0x0A => GatewayPathUnavailable,
             0x0B => GatewayTargetDevice,
-            other => Other(other),
+            other => Custom(other),
         }
     }
 }
