@@ -3,6 +3,15 @@
 
 # Changelog
 
+## v0.15.0 (Unreleased)
+
+- Added `Exception::Other`.
+
+### Breaking Changes
+
+- Replaced `TryFrom<u8>` with `From<u8>` for Exception.
+- Removed `#[repr(u8)]` on Exception.
+
 ## v0.14.1 (2024-09-10)
 
 - Implement `Report Server ID` (function code 17).
