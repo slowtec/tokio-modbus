@@ -388,15 +388,25 @@ impl Response {
 /// A server (slave) exception.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Exception {
-    IllegalFunction,        // 0x01
-    IllegalDataAddress,     // 0x02
-    IllegalDataValue,       // 0x03
-    ServerDeviceFailure,    // 0x04
-    Acknowledge,            // 0x05
-    ServerDeviceBusy,       // 0x06
-    MemoryParityError,      // 0x08
-    GatewayPathUnavailable, // 0x0A
-    GatewayTargetDevice,    // 0x0B
+    /// 0x01
+    IllegalFunction,
+    /// 0x02
+    IllegalDataAddress,
+    /// 0x03
+    IllegalDataValue,
+    /// 0x04
+    ServerDeviceFailure,
+    /// 0x05
+    Acknowledge,
+    /// 0x06
+    ServerDeviceBusy,
+    /// 0x08
+    MemoryParityError,
+    /// 0x0A
+    GatewayPathUnavailable,
+    /// 0x0B
+    GatewayTargetDevice,
+    /// None of the above.
     Other(u8),
 }
 
