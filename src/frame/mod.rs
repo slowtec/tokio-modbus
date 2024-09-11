@@ -444,7 +444,7 @@ impl Exception {
             MemoryParityError => "Memory parity error",
             GatewayPathUnavailable => "Gateway path unavailable",
             GatewayTargetDevice => "Gateway target device failed to respond",
-            Custom(_) => "Other",
+            Custom(_) => "Custom",
         }
     }
 }
