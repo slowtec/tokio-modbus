@@ -12,7 +12,7 @@ struct Service;
 impl tokio_modbus::server::Service for Service {
     type Request = SlaveRequest<'static>;
     type Response = Response;
-    type Exception = Exception;
+    type Exception = ExceptionCode;
     type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
@@ -23,7 +23,7 @@ impl tokio_modbus::server::Service for Service {
                 future::ready(Ok(Response::ReadInputRegisters(registers)))
             }
             Request::ReadHoldingRegisters(_, _) => {
-                future::ready(Err(Exception::IllegalDataAddress))
+                future::ready(Err(ExceptionCode::IllegalDataAddress))
             }
             _ => unimplemented!(),
         }
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)");
     let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
     println!("CLIENT: The result is '{response:?}'");
-    assert!(matches!(response, Err(Exception::IllegalDataAddress)));
+    assert!(matches!(response, Err(ExceptionCode::IllegalDataAddress)));
 
     println!("CLIENT: Done.");
     Ok(())

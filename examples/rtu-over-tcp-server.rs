@@ -29,7 +29,7 @@ struct ExampleService {
 impl tokio_modbus::server::Service for ExampleService {
     type Request = SlaveRequest<'static>;
     type Response = Response;
-    type Exception = Exception;
+    type Exception = ExceptionCode;
     type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
@@ -55,7 +55,7 @@ impl tokio_modbus::server::Service for ExampleService {
             .map(|_| Response::WriteSingleRegister(addr, value)),
             _ => {
                 println!("SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}");
-                Err(Exception::IllegalFunction)
+                Err(ExceptionCode::IllegalFunction)
             }
         };
         future::ready(res)
@@ -85,7 +85,7 @@ fn register_read(
     registers: &HashMap<u16, u16>,
     addr: u16,
     cnt: u16,
-) -> Result<Vec<u16>, Exception> {
+) -> Result<Vec<u16>, ExceptionCode> {
     let mut response_values = vec![0; cnt.into()];
     for i in 0..cnt {
         let reg_addr = addr + i;
@@ -93,7 +93,7 @@ fn register_read(
             response_values[i as usize] = *r;
         } else {
             println!("SERVER: Exception::IllegalDataAddress");
-            return Err(Exception::IllegalDataAddress);
+            return Err(ExceptionCode::IllegalDataAddress);
         }
     }
 
@@ -106,14 +106,14 @@ fn register_write(
     registers: &mut HashMap<u16, u16>,
     addr: u16,
     values: &[u16],
-) -> Result<(), Exception> {
+) -> Result<(), ExceptionCode> {
     for (i, value) in values.iter().enumerate() {
         let reg_addr = addr + i as u16;
         if let Some(r) = registers.get_mut(&reg_addr) {
             *r = *value;
         } else {
             println!("SERVER: Exception::IllegalDataAddress");
-            return Err(Exception::IllegalDataAddress);
+            return Err(ExceptionCode::IllegalDataAddress);
         }
     }
 
@@ -180,7 +180,7 @@ async fn client_context(socket_addr: SocketAddr) {
             println!("CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)");
             let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
-            assert!(matches!(response, Err(Exception::IllegalDataAddress)));
+            assert!(matches!(response, Err(ExceptionCode::IllegalDataAddress)));
 
             println!("CLIENT: Done.")
         },

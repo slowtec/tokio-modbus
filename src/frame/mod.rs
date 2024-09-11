@@ -387,7 +387,7 @@ impl Response {
 
 /// A server (slave) exception.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Exception {
+pub enum ExceptionCode {
     /// 0x01
     IllegalFunction,
     /// 0x02
@@ -413,9 +413,9 @@ pub enum Exception {
     Custom(u8),
 }
 
-impl From<Exception> for u8 {
-    fn from(from: Exception) -> Self {
-        use crate::frame::Exception::*;
+impl From<ExceptionCode> for u8 {
+    fn from(from: ExceptionCode) -> Self {
+        use crate::frame::ExceptionCode::*;
         match from {
             IllegalFunction => 0x01,
             IllegalDataAddress => 0x02,
@@ -431,11 +431,11 @@ impl From<Exception> for u8 {
     }
 }
 
-impl Exception {
-    /// Create a new [`Exception`] with `value`.
+impl ExceptionCode {
+    /// Create a new [`ExceptionCode`] with `value`.
     #[must_use]
     pub const fn new(value: u8) -> Self {
-        use crate::frame::Exception::*;
+        use crate::frame::ExceptionCode::*;
 
         match value {
             0x01 => IllegalFunction,
@@ -452,7 +452,7 @@ impl Exception {
     }
 
     pub(crate) fn description(&self) -> &str {
-        use crate::frame::Exception::*;
+        use crate::frame::ExceptionCode::*;
 
         match *self {
             IllegalFunction => "Illegal function",
@@ -473,7 +473,7 @@ impl Exception {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExceptionResponse {
     pub function: FunctionCode,
-    pub exception: Exception,
+    pub exception: ExceptionCode,
 }
 
 /// Represents a message from the client (slave) to the server (master).
@@ -537,13 +537,13 @@ impl From<ResponsePdu> for Result<Response, ExceptionResponse> {
     }
 }
 
-impl fmt::Display for Exception {
+impl fmt::Display for ExceptionCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.description())
     }
 }
 
-impl error::Error for Exception {
+impl error::Error for ExceptionCode {
     fn description(&self) -> &str {
         self.description()
     }

@@ -48,7 +48,7 @@ mod frame;
 #[cfg(feature = "server")]
 pub use self::frame::SlaveRequest;
 pub use self::frame::{
-    Address, Exception, ExceptionResponse, FunctionCode, Quantity, Request, Response,
+    Address, ExceptionCode, ExceptionResponse, FunctionCode, Quantity, Request, Response,
 };
 
 /// Specialized [`std::result::Result`] type for type-checked responses of the _Modbus_ client API.
@@ -58,8 +58,8 @@ pub use self::frame::{
 /// This [`Result`] type contains 2 layers of errors.
 ///
 /// 1. [`Error`]: An unexpected protocol or network error that occurred during client/server communication.
-/// 2. [`Exception`]: An error occurred on the _Modbus_ server.
-pub type Result<T> = std::result::Result<std::result::Result<T, Exception>, Error>;
+/// 2. [`ExceptionCode`]: An error occurred on the _Modbus_ server.
+pub type Result<T> = std::result::Result<std::result::Result<T, ExceptionCode>, Error>;
 
 mod service;
 

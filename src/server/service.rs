@@ -22,8 +22,8 @@ pub trait Service {
 
     /// Exceptional responses sent by the service.
     ///
-    /// Use [`tokio_modbus::Exception`](crate::Exception) as default.
-    type Exception: Into<crate::Exception>;
+    /// Use [`tokio_modbus::ExceptionCode`](crate::ExceptionCode) as default.
+    type Exception: Into<crate::ExceptionCode>;
 
     /// The future response value.
     type Future: Future<Output = Result<Self::Response, Self::Exception>> + Send;
