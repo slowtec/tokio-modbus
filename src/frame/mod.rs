@@ -387,26 +387,70 @@ impl Response {
 
 /// A server (slave) exception.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
 pub enum Exception {
-    IllegalFunction = 0x01,
-    IllegalDataAddress = 0x02,
-    IllegalDataValue = 0x03,
-    ServerDeviceFailure = 0x04,
-    Acknowledge = 0x05,
-    ServerDeviceBusy = 0x06,
-    MemoryParityError = 0x08,
-    GatewayPathUnavailable = 0x0A,
-    GatewayTargetDevice = 0x0B,
+    /// 0x01
+    IllegalFunction,
+    /// 0x02
+    IllegalDataAddress,
+    /// 0x03
+    IllegalDataValue,
+    /// 0x04
+    ServerDeviceFailure,
+    /// 0x05
+    Acknowledge,
+    /// 0x06
+    ServerDeviceBusy,
+    /// 0x08
+    MemoryParityError,
+    /// 0x0A
+    GatewayPathUnavailable,
+    /// 0x0B
+    GatewayTargetDevice,
+    /// None of the above.
+    ///
+    /// Although encoding one of the predefined values as this is possible, it is not recommended.
+    /// Instead, prefer to use [`Self::new()`] to prevent such ambiguities.
+    Custom(u8),
 }
 
 impl From<Exception> for u8 {
     fn from(from: Exception) -> Self {
-        from as u8
+        use crate::frame::Exception::*;
+        match from {
+            IllegalFunction => 0x01,
+            IllegalDataAddress => 0x02,
+            IllegalDataValue => 0x03,
+            ServerDeviceFailure => 0x04,
+            Acknowledge => 0x05,
+            ServerDeviceBusy => 0x06,
+            MemoryParityError => 0x08,
+            GatewayPathUnavailable => 0x0A,
+            GatewayTargetDevice => 0x0B,
+            Custom(code) => code,
+        }
     }
 }
 
 impl Exception {
+    /// Create a new [`Exception`] with `value`.
+    #[must_use]
+    pub const fn new(value: u8) -> Self {
+        use crate::frame::Exception::*;
+
+        match value {
+            0x01 => IllegalFunction,
+            0x02 => IllegalDataAddress,
+            0x03 => IllegalDataValue,
+            0x04 => ServerDeviceFailure,
+            0x05 => Acknowledge,
+            0x06 => ServerDeviceBusy,
+            0x08 => MemoryParityError,
+            0x0A => GatewayPathUnavailable,
+            0x0B => GatewayTargetDevice,
+            other => Custom(other),
+        }
+    }
+
     pub(crate) fn description(&self) -> &str {
         use crate::frame::Exception::*;
 
@@ -420,6 +464,7 @@ impl Exception {
             MemoryParityError => "Memory parity error",
             GatewayPathUnavailable => "Gateway path unavailable",
             GatewayTargetDevice => "Gateway target device failed to respond",
+            Custom(_) => "Custom",
         }
     }
 }
