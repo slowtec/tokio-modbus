@@ -385,17 +385,11 @@ impl TryFrom<Bytes> for ExceptionResponse {
             ));
         }
         let function = fn_err_code - 0x80;
-        let exception = Exception::from(rdr.read_u8()?);
+        let exception = Exception::new(rdr.read_u8()?);
         Ok(ExceptionResponse {
             function: FunctionCode::new(function),
             exception,
         })
-    }
-}
-
-impl From<u8> for Exception {
-    fn from(code: u8) -> Self {
-        Self::new(code)
     }
 }
 
