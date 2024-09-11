@@ -5,12 +5,11 @@
 
 ## v0.15.0 (Unreleased)
 
-- Added `Exception::Other`.
+- Added `Exception::Custom` and `Exception::new`.
 
 ### Breaking Changes
 
-- Replaced `TryFrom<u8>` with `From<u8>` for Exception.
-- Removed `#[repr(u8)]` on Exception.
+- Removed `TryFrom<u8>` and `#[repr(u8)]` for Exception.
 
 ## v0.14.1 (2024-09-10)
 
