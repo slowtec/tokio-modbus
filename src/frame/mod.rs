@@ -447,7 +447,7 @@ impl Exception {
             0x08 => MemoryParityError,
             0x0A => GatewayPathUnavailable,
             0x0B => GatewayTargetDevice,
-            code => Custom(code),
+            other => Custom(other),
         }
     }
 
