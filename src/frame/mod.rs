@@ -407,6 +407,8 @@ pub enum Exception {
     /// 0x0B
     GatewayTargetDevice,
     /// None of the above.
+    ///
+    /// Although encoding one of the predefined values as this is possible, it is not recommended.
     Custom(u8),
 }
 
