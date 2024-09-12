@@ -5,7 +5,7 @@
 
 ## v0.15.0 (Unreleased)
 
-- Added `Exception::::new`.
+- Added `Exception::new`.
 
 ### Breaking Changes
 
