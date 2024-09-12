@@ -12,7 +12,7 @@ struct Service {
 }
 
 impl Service {
-    fn handle(&self, req: SlaveRequest<'_>) -> Result<Option<Response>, Exception> {
+    fn handle(&self, req: SlaveRequest<'_>) -> Result<Option<Response>, ExceptionCode> {
         let SlaveRequest { slave, request } = req;
         if slave != self.slave.into() {
             // Filtering: Ignore requests with mismatching slave IDs.
@@ -24,7 +24,7 @@ impl Service {
                 registers[2] = 0x77;
                 Ok(Some(Response::ReadInputRegisters(registers)))
             }
-            _ => Err(Exception::IllegalFunction),
+            _ => Err(ExceptionCode::IllegalFunction),
         }
     }
 }
@@ -32,7 +32,7 @@ impl Service {
 impl tokio_modbus::server::Service for Service {
     type Request = SlaveRequest<'static>;
     type Response = Option<Response>;
-    type Exception = Exception;
+    type Exception = ExceptionCode;
     type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("CLIENT: Reading with illegal function... (should return IllegalFunction)");
     let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
     println!("CLIENT: The result is '{response:?}'");
-    assert!(matches!(response, Err(Exception::IllegalFunction)));
+    assert!(matches!(response, Err(ExceptionCode::IllegalFunction)));
 
     println!("CLIENT: Done.");
 

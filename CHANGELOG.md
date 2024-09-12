@@ -11,6 +11,8 @@
 
 - Added `Exception::Custom`.
 - Removed `TryFrom<u8>` and `#[repr(u8)]` for `Exception`.
+- Renamed `Exception` to `ExceptionCode` to be more consistent with
+  `FunctionCode`.
 
 ## v0.14.1 (2024-09-10)
 

@@ -385,7 +385,7 @@ impl TryFrom<Bytes> for ExceptionResponse {
             ));
         }
         let function = fn_err_code - 0x80;
-        let exception = Exception::new(rdr.read_u8()?);
+        let exception = ExceptionCode::new(rdr.read_u8()?);
         Ok(ExceptionResponse {
             function: FunctionCode::new(function),
             exception,
@@ -529,7 +529,7 @@ mod tests {
     fn exception_response_into_bytes() {
         let bytes: Bytes = ExceptionResponse {
             function: FunctionCode::ReadHoldingRegisters,
-            exception: Exception::IllegalDataAddress,
+            exception: ExceptionCode::IllegalDataAddress,
         }
         .into();
         assert_eq!(bytes[0], 0x83);
@@ -546,7 +546,7 @@ mod tests {
             rsp,
             ExceptionResponse {
                 function: FunctionCode::ReadHoldingRegisters,
-                exception: Exception::IllegalDataAddress,
+                exception: ExceptionCode::IllegalDataAddress,
             }
         );
     }
@@ -557,7 +557,7 @@ mod tests {
         let rsp_pdu: Bytes = Response::ReadCoils(vec![]).into();
         let ex_pdu: Bytes = ExceptionResponse {
             function: FunctionCode::ReadHoldingRegisters,
-            exception: Exception::ServerDeviceFailure,
+            exception: ExceptionCode::ServerDeviceFailure,
         }
         .into();
 

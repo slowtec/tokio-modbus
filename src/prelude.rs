@@ -29,7 +29,7 @@ pub mod sync {
 ///////////////////////////////////////////////////////////////////
 /// Types
 ///////////////////////////////////////////////////////////////////
-pub use crate::{Exception, ProtocolError, Request, Response, Slave, SlaveId};
+pub use crate::{ExceptionCode, ProtocolError, Request, Response, Slave, SlaveId};
 
 #[cfg(feature = "server")]
 pub use crate::frame::SlaveRequest;

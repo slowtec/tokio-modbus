@@ -221,7 +221,7 @@ mod tests {
         impl Service for DummyService {
             type Request = Request<'static>;
             type Response = Response;
-            type Exception = Exception;
+            type Exception = ExceptionCode;
             type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
@@ -256,7 +256,7 @@ mod tests {
         impl Service for DummyService {
             type Request = Request<'static>;
             type Response = Response;
-            type Exception = Exception;
+            type Exception = ExceptionCode;
             type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
             fn call(&self, _: Self::Request) -> Self::Future {
