@@ -5,22 +5,20 @@
 
 ## v0.15.0 (Unreleased)
 
-- Added `Exception::new`.
+- Implement `Report Server ID` (function code 17).
+- Added `ExceptionCode::new`.
 
 ### Breaking Changes
 
-- Added `Exception::Custom`.
-- Removed `TryFrom<u8>` and `#[repr(u8)]` for `Exception`.
+- Added `FunctionCode::ReportServerId`.
 - Renamed `Exception` to `ExceptionCode` to be more consistent with
   `FunctionCode`.
+- Added `ExceptionCode::Custom`.
+- Removed `TryFrom<u8>` and `#[repr(u8)]` for `Exception`.
 
 ## v0.14.1 (2024-09-10)
 
-- Implement `Report Server ID` (function code 17).
-
-### Breaking Changes
-
-- Server: Added `FunctionCode::ReportServerId`.
+- Yanked: Adding `FunctionCode::ReportServerId` is a breaking change.
 
 ## v0.14.0 (2024-07-21)
 
