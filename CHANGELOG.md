@@ -10,7 +10,7 @@
 
 ### Breaking Changes
 
-- Added `FunctionCode::ReportServerId`.
+- Added all `FunctionCode`s defined in the protocol specification.
 - Renamed `Exception` to `ExceptionCode` to be more consistent with
   `FunctionCode`.
 - Added `ExceptionCode::Custom`.
