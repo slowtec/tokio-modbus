@@ -16,36 +16,66 @@ use std::{
 use crate::bytes::Bytes;
 
 /// A Modbus function code.
+///
+/// All function codes as defined by the protocol specification V1.1b3.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FunctionCode {
-    /// Modbus Function Code: `01` (`0x01`).
+    /// 01 (0x01) Read Coils.
     ReadCoils,
-    /// Modbus Function Code: `02` (`0x02`).
+
+    /// 02 (0x02) Read Discrete Inputs
     ReadDiscreteInputs,
 
-    /// Modbus Function Code: `05` (`0x05`).
-    WriteSingleCoil,
-    /// Modbus Function Code: `06` (`0x06`).
-    WriteSingleRegister,
-
-    /// Modbus Function Code: `03` (`0x03`).
+    /// 03 (0x03) Read Holding Registers
     ReadHoldingRegisters,
-    /// Modbus Function Code: `04` (`0x04`).
+
+    /// 04 (0x04) Read Input Registers
     ReadInputRegisters,
 
-    /// Modbus Function Code: `15` (`0x0F`).
+    /// 05 (0x05) Write Single Coil
+    WriteSingleCoil,
+
+    /// 06 (0x06) Write Single Register
+    WriteSingleRegister,
+
+    /// 07 (0x07) Read Exception Status (Serial Line only)
+    ReadExceptionStatus,
+
+    /// 08 (0x08) Diagnostics (Serial Line only)
+    Diagnostics,
+
+    /// 11 (0x0B) Get Comm Event Counter (Serial Line only)
+    GetCommEventCounter,
+
+    /// 12 (0x0C) Get Comm Event Log (Serial Line only)
+    GetCommEventLog,
+
+    /// 15 (0x0F) Write Multiple Coils
     WriteMultipleCoils,
-    /// Modbus Function Code: `16` (`0x10`).
+
+    /// 16 (0x10) Write Multiple Registers
     WriteMultipleRegisters,
 
-    /// Modbus Function Code: `17` (`0x11`).
+    /// 17 (0x11) Report Slave ID (Serial Line only)
     ReportServerId,
 
-    /// Modbus Function Code: `22` (`0x16`).
+    /// 20 (0x14) Read File Record
+    ReadFileRecord,
+
+    /// 21 (0x15) Write File Record
+    WriteFileRecord,
+
+    /// 22 (0x16) Mask Write Register
     MaskWriteRegister,
 
-    /// Modbus Function Code: `23` (`0x17`).
+    /// 23 (0x17) Read/Write Multiple Registers
     ReadWriteMultipleRegisters,
+
+    /// 24 (0x18) Read FIFO Queue
+    ReadFifoQueue,
+
+    /// 43 ( 0x2B) Encapsulated Interface Transport
+    EncapsulatedInterfaceTransport,
 
     /// Custom Modbus Function Code.
     Custom(u8),
@@ -60,15 +90,23 @@ impl FunctionCode {
         match value {
             0x01 => Self::ReadCoils,
             0x02 => Self::ReadDiscreteInputs,
-            0x05 => Self::WriteSingleCoil,
-            0x06 => Self::WriteSingleRegister,
             0x03 => Self::ReadHoldingRegisters,
             0x04 => Self::ReadInputRegisters,
+            0x05 => Self::WriteSingleCoil,
+            0x06 => Self::WriteSingleRegister,
+            0x07 => Self::ReadExceptionStatus,
+            0x08 => Self::Diagnostics,
+            0x0B => Self::GetCommEventCounter,
+            0x0C => Self::GetCommEventLog,
             0x0F => Self::WriteMultipleCoils,
             0x10 => Self::WriteMultipleRegisters,
             0x11 => Self::ReportServerId,
+            0x14 => Self::ReadFileRecord,
+            0x15 => Self::WriteFileRecord,
             0x16 => Self::MaskWriteRegister,
             0x17 => Self::ReadWriteMultipleRegisters,
+            0x18 => Self::ReadFifoQueue,
+            0x2B => Self::EncapsulatedInterfaceTransport,
             code => Self::Custom(code),
         }
     }
@@ -83,15 +121,23 @@ impl FunctionCode {
         match self {
             Self::ReadCoils => 0x01,
             Self::ReadDiscreteInputs => 0x02,
-            Self::WriteSingleCoil => 0x05,
-            Self::WriteSingleRegister => 0x06,
             Self::ReadHoldingRegisters => 0x03,
             Self::ReadInputRegisters => 0x04,
+            Self::WriteSingleCoil => 0x05,
+            Self::WriteSingleRegister => 0x06,
+            Self::ReadExceptionStatus => 0x07,
+            Self::Diagnostics => 0x08,
+            Self::GetCommEventCounter => 0x0B,
+            Self::GetCommEventLog => 0x0C,
             Self::WriteMultipleCoils => 0x0F,
             Self::WriteMultipleRegisters => 0x10,
             Self::ReportServerId => 0x11,
+            Self::ReadFileRecord => 0x14,
+            Self::WriteFileRecord => 0x15,
             Self::MaskWriteRegister => 0x16,
             Self::ReadWriteMultipleRegisters => 0x17,
+            Self::ReadFifoQueue => 0x18,
+            Self::EncapsulatedInterfaceTransport => 0x2B,
             Self::Custom(code) => code,
             Self::Disconnect => unreachable!(),
         }
