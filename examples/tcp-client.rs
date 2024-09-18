@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("The coupler ID is '{id}'");
 
     println!("Disconnecting");
-    ctx.disconnect().await??;
+    ctx.disconnect().await?;
 
     Ok(())
 }

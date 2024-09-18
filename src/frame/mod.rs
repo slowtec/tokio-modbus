@@ -79,8 +79,6 @@ pub enum FunctionCode {
 
     /// Custom Modbus Function Code.
     Custom(u8),
-
-    Disconnect,
 }
 
 impl FunctionCode {
@@ -111,11 +109,7 @@ impl FunctionCode {
         }
     }
 
-    /// Get the [`u8`] value of the current [`FunctionCode`].
-    ///
-    /// # Panics
-    ///
-    /// Panics on [`Disconnect`](Self::Disconnect) which has no corresponding Modbus function code.
+    /// Gets the [`u8`] value of the current [`FunctionCode`].
     #[must_use]
     pub const fn value(self) -> u8 {
         match self {
@@ -139,7 +133,6 @@ impl FunctionCode {
             Self::ReadFifoQueue => 0x18,
             Self::EncapsulatedInterfaceTransport => 0x2B,
             Self::Custom(code) => code,
-            Self::Disconnect => unreachable!(),
         }
     }
 }
@@ -235,17 +228,6 @@ pub enum Request<'a> {
     /// The first parameter is the Modbus function code.
     /// The second parameter is the raw bytes of the request.
     Custom(u8, Cow<'a, [u8]>),
-
-    /// A poison pill for stopping the client service and to release
-    /// the underlying transport, e.g. for disconnecting from an
-    /// exclusively used serial port.
-    ///
-    /// This is an ugly workaround, because `tokio-proto` does not
-    /// provide other means to gracefully shut down the `ClientService`.
-    /// Otherwise the bound transport is never freed as long as the
-    /// executor is active, even when dropping the Modbus client
-    /// context.
-    Disconnect,
 }
 
 impl<'a> Request<'a> {
@@ -275,7 +257,6 @@ impl<'a> Request<'a> {
                 ReadWriteMultipleRegisters(addr, qty, write_addr, Cow::Owned(words.into_owned()))
             }
             Custom(func, bytes) => Custom(func, Cow::Owned(bytes.into_owned())),
-            Disconnect => Disconnect,
         }
     }
 
@@ -304,8 +285,6 @@ impl<'a> Request<'a> {
             ReadWriteMultipleRegisters(_, _, _, _) => FunctionCode::ReadWriteMultipleRegisters,
 
             Custom(code, _) => FunctionCode::Custom(*code),
-
-            Disconnect => unreachable!(),
         }
     }
 }

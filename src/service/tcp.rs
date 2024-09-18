@@ -7,7 +7,7 @@ use std::{
 };
 
 use futures_util::{SinkExt as _, StreamExt as _};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt as _};
 use tokio_util::codec::Framed;
 
 use crate::{
@@ -23,7 +23,7 @@ const INITIAL_TRANSACTION_ID: TransactionId = 0;
 /// Modbus TCP client
 #[derive(Debug)]
 pub(crate) struct Client<T> {
-    framed: Framed<T, codec::tcp::ClientCodec>,
+    framed: Option<Framed<T, codec::tcp::ClientCodec>>,
     unit_id: UnitId,
     transaction_id: AtomicU16,
 }
@@ -37,7 +37,7 @@ where
         let unit_id: UnitId = slave.into();
         let transaction_id = AtomicU16::new(INITIAL_TRANSACTION_ID);
         Self {
-            framed,
+            framed: Some(framed),
             unit_id,
             transaction_id,
         }
@@ -58,35 +58,36 @@ where
         }
     }
 
-    fn next_request_adu<'a, R>(&self, req: R, disconnect: bool) -> RequestAdu<'a>
+    fn next_request_adu<'a, R>(&self, req: R) -> RequestAdu<'a>
     where
         R: Into<RequestPdu<'a>>,
     {
         RequestAdu {
             hdr: self.next_request_hdr(self.unit_id),
             pdu: req.into(),
-            disconnect,
         }
+    }
+
+    fn framed(&mut self) -> io::Result<&mut Framed<T, codec::tcp::ClientCodec>> {
+        let Some(framed) = &mut self.framed else {
+            return Err(io::Error::new(io::ErrorKind::NotConnected, "disconnected"));
+        };
+        Ok(framed)
     }
 
     pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         log::debug!("Call {:?}", req);
-        let req_function_code = if matches!(req, Request::Disconnect) {
-            None
-        } else {
-            Some(req.function_code())
-        };
-        let req_adu = self.next_request_adu(req, req_function_code.is_none());
+
+        let req_function_code = req.function_code();
+        let req_adu = self.next_request_adu(req);
         let req_hdr = req_adu.hdr;
 
-        self.framed.read_buffer_mut().clear();
-        self.framed.send(req_adu).await?;
+        let framed = self.framed()?;
 
-        let res_adu = self
-            .framed
-            .next()
-            .await
-            .ok_or_else(io::Error::last_os_error)??;
+        framed.read_buffer_mut().clear();
+        framed.send(req_adu).await?;
+
+        let res_adu = framed.next().await.ok_or_else(io::Error::last_os_error)??;
         let ResponseAdu {
             hdr: res_hdr,
             pdu: res_pdu,
@@ -97,9 +98,6 @@ where
         if let Err(message) = verify_response_header(&req_hdr, &res_hdr) {
             return Err(ProtocolError::HeaderMismatch { message, result }.into());
         }
-
-        debug_assert!(req_function_code.is_some());
-        let req_function_code = req_function_code.unwrap();
 
         // Match function codes of request and response.
         let rsp_function_code = match &result {
@@ -121,6 +119,24 @@ where
              }| exception,
         ))
     }
+
+    async fn disconnect(&mut self) -> io::Result<()> {
+        let Some(framed) = self.framed.take() else {
+            // Already disconnected.
+            return Ok(());
+        };
+        framed
+            .into_inner()
+            .shutdown()
+            .await
+            .or_else(|err| match err.kind() {
+                io::ErrorKind::NotConnected | io::ErrorKind::BrokenPipe => {
+                    // Already disconnected.
+                    Ok(())
+                }
+                _ => Err(err),
+            })
+    }
 }
 
 impl<T> SlaveContext for Client<T> {
@@ -135,7 +151,11 @@ where
     T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
 {
     async fn call(&mut self, req: Request<'_>) -> Result<Response> {
-        Client::call(self, req).await
+        self.call(req).await
+    }
+
+    async fn disconnect(&mut self) -> io::Result<()> {
+        self.disconnect().await
     }
 }
 

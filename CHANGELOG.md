@@ -15,6 +15,9 @@
   `FunctionCode`.
 - Added `ExceptionCode::Custom`.
 - Removed `TryFrom<u8>` and `#[repr(u8)]` for `Exception`.
+- Removed `FunctionCode::Disconnect`.
+- Client: Added new `disconnect()` method to trait that returns
+  `std::io::Result`.
 
 ## v0.14.1 (2024-09-10)
 
@@ -32,7 +35,7 @@
 
 ### Breaking Changes
 
-- Add `FunctionCode::Disconnect`.
+- Added `FunctionCode::Disconnect`.
 
 ## v0.13.0 (2024-06-23, yanked)
 

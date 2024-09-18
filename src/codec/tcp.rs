@@ -125,11 +125,7 @@ impl Decoder for ServerCodec {
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu<'static>>> {
         if let Some((hdr, pdu_data)) = self.decoder.decode(buf)? {
             let pdu = RequestPdu::try_from(pdu_data)?;
-            Ok(Some(RequestAdu {
-                hdr,
-                pdu,
-                disconnect: false,
-            }))
+            Ok(Some(RequestAdu { hdr, pdu }))
         } else {
             Ok(None)
         }
@@ -140,20 +136,7 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> Result<()> {
-        let RequestAdu {
-            hdr,
-            pdu,
-            disconnect,
-        } = adu;
-        if disconnect {
-            // The disconnect happens implicitly after letting this request
-            // fail by returning an error. This will drop the attached
-            // transport, e.g. for terminating an open connection.
-            return Err(Error::new(
-                ErrorKind::NotConnected,
-                "Disconnecting - not an error",
-            ));
-        }
+        let RequestAdu { hdr, pdu } = adu;
         let pdu_data: Bytes = pdu.try_into()?;
         buf.reserve(pdu_data.len() + 7);
         buf.put_u16(hdr.transaction_id);
@@ -288,11 +271,7 @@ mod tests {
                 transaction_id: TRANSACTION_ID,
                 unit_id: UNIT_ID,
             };
-            let adu = RequestAdu {
-                hdr,
-                pdu,
-                disconnect: false,
-            };
+            let adu = RequestAdu { hdr, pdu };
             codec.encode(adu, &mut buf).unwrap();
             // header
             assert_eq!(buf[0], TRANSACTION_ID_HI);
@@ -316,11 +295,7 @@ mod tests {
                 transaction_id: TRANSACTION_ID,
                 unit_id: UNIT_ID,
             };
-            let adu = RequestAdu {
-                hdr,
-                pdu,
-                disconnect: false,
-            };
+            let adu = RequestAdu { hdr, pdu };
             let mut buf = BytesMut::with_capacity(40);
             #[allow(unsafe_code)]
             unsafe {

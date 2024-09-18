@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Sensor value is: {rsp:?}");
 
     println!("Disconnecting");
-    ctx.disconnect().await??;
+    ctx.disconnect().await?;
 
     Ok(())
 }

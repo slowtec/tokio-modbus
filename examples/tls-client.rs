@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Reading Holding Registers");
     let data = ctx.read_holding_registers(40000, 68).await?;
     println!("Holding Registers Data is '{:?}'", data);
-    ctx.disconnect().await??;
+    ctx.disconnect().await?;
 
     Ok(())
 }
