@@ -12,13 +12,13 @@ pub(crate) struct Header {
     pub(crate) unit_id: UnitId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct RequestAdu<'a> {
     pub(crate) hdr: Header,
     pub(crate) pdu: RequestPdu<'a>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct ResponseAdu {
     pub(crate) hdr: Header,
     pub(crate) pdu: ResponsePdu,

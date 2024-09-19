@@ -21,7 +21,7 @@ const MAX_FRAME_LEN: usize = 256;
 
 type DroppedBytes = SmallVec<[u8; MAX_FRAME_LEN]>;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub(crate) struct FrameDecoder {
     dropped_bytes: SmallVec<[u8; MAX_FRAME_LEN]>,
 }
@@ -104,23 +104,23 @@ impl FrameDecoder {
 }
 
 #[cfg(feature = "server")]
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 pub(crate) struct RequestDecoder {
     frame_decoder: FrameDecoder,
 }
 
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 pub(crate) struct ResponseDecoder {
     frame_decoder: FrameDecoder,
 }
 
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 pub(crate) struct ClientCodec {
     pub(crate) decoder: ResponseDecoder,
 }
 
 #[cfg(feature = "server")]
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 pub(crate) struct ServerCodec {
     pub(crate) decoder: RequestDecoder,
 }
