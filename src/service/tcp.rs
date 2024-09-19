@@ -1,10 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::{
-    fmt, io,
-    sync::atomic::{AtomicU16, Ordering},
-};
+use std::{fmt, io};
 
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt as _};
@@ -20,12 +17,18 @@ use crate::{
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
 
+fn next_transaction_id(transaction_id: &mut TransactionId) -> TransactionId {
+    let next_transaction_id = *transaction_id;
+    *transaction_id = next_transaction_id.wrapping_add(1);
+    next_transaction_id
+}
+
 /// Modbus TCP client
 #[derive(Debug)]
 pub(crate) struct Client<T> {
     framed: Option<Framed<T, codec::tcp::ClientCodec>>,
     unit_id: UnitId,
-    transaction_id: AtomicU16,
+    transaction_id: TransactionId,
 }
 
 impl<T> Client<T>
@@ -35,7 +38,7 @@ where
     pub(crate) fn new(transport: T, slave: Slave) -> Self {
         let framed = Framed::new(transport, codec::tcp::ClientCodec::default());
         let unit_id: UnitId = slave.into();
-        let transaction_id = AtomicU16::new(INITIAL_TRANSACTION_ID);
+        let transaction_id = INITIAL_TRANSACTION_ID;
         Self {
             framed: Some(framed),
             unit_id,
@@ -43,22 +46,15 @@ where
         }
     }
 
-    fn next_transaction_id(&self) -> TransactionId {
-        let transaction_id = self.transaction_id.load(Ordering::Relaxed);
-        self.transaction_id
-            .store(transaction_id.wrapping_add(1), Ordering::Relaxed);
-        transaction_id
-    }
-
-    fn next_request_hdr(&self, unit_id: UnitId) -> Header {
-        let transaction_id = self.next_transaction_id();
+    fn next_request_hdr(&mut self, unit_id: UnitId) -> Header {
+        let transaction_id = next_transaction_id(&mut self.transaction_id);
         Header {
             transaction_id,
             unit_id,
         }
     }
 
-    fn next_request_adu<'a, R>(&self, req: R) -> RequestAdu<'a>
+    fn next_request_adu<'a, R>(&mut self, req: R) -> RequestAdu<'a>
     where
         R: Into<RequestPdu<'a>>,
     {
