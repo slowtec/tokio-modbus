@@ -9,18 +9,34 @@ use tokio_util::codec::Framed;
 
 use crate::{
     codec,
-    frame::{tcp::*, *},
+    frame::{
+        tcp::{Header, RequestAdu, ResponseAdu, TransactionId, UnitId},
+        RequestPdu, ResponsePdu,
+    },
     service::verify_response_header,
     slave::*,
-    ProtocolError, Result,
+    ExceptionResponse, ProtocolError, Request, Response, Result,
 };
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
 
-fn next_transaction_id(transaction_id: &mut TransactionId) -> TransactionId {
-    let next_transaction_id = *transaction_id;
-    *transaction_id = next_transaction_id.wrapping_add(1);
-    next_transaction_id
+#[derive(Debug)]
+struct TransactionIdGenerator {
+    next_transaction_id: TransactionId,
+}
+
+impl TransactionIdGenerator {
+    const fn new() -> Self {
+        Self {
+            next_transaction_id: INITIAL_TRANSACTION_ID,
+        }
+    }
+
+    fn next(&mut self) -> TransactionId {
+        let next_transaction_id = self.next_transaction_id;
+        self.next_transaction_id = next_transaction_id.wrapping_add(1);
+        next_transaction_id
+    }
 }
 
 /// Modbus TCP client
@@ -28,7 +44,7 @@ fn next_transaction_id(transaction_id: &mut TransactionId) -> TransactionId {
 pub(crate) struct Client<T> {
     framed: Option<Framed<T, codec::tcp::ClientCodec>>,
     unit_id: UnitId,
-    transaction_id: TransactionId,
+    transaction_id_generator: TransactionIdGenerator,
 }
 
 impl<T> Client<T>
@@ -38,16 +54,16 @@ where
     pub(crate) fn new(transport: T, slave: Slave) -> Self {
         let framed = Framed::new(transport, codec::tcp::ClientCodec::new());
         let unit_id: UnitId = slave.into();
-        let transaction_id = INITIAL_TRANSACTION_ID;
+        let transaction_id_generator = TransactionIdGenerator::new();
         Self {
             framed: Some(framed),
             unit_id,
-            transaction_id,
+            transaction_id_generator,
         }
     }
 
     fn next_request_hdr(&mut self, unit_id: UnitId) -> Header {
-        let transaction_id = next_transaction_id(&mut self.transaction_id);
+        let transaction_id = self.transaction_id_generator.next();
         Header {
             transaction_id,
             unit_id,
