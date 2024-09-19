@@ -502,7 +502,7 @@ pub struct ExceptionResponse {
 }
 
 /// Represents a message from the client (slave) to the server (master).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct RequestPdu<'a>(pub(crate) Request<'a>);
 
 impl<'a> From<Request<'a>> for RequestPdu<'a> {
