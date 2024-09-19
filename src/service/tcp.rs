@@ -43,8 +43,8 @@ impl TransactionIdGenerator {
 #[derive(Debug)]
 pub(crate) struct Client<T> {
     framed: Option<Framed<T, codec::tcp::ClientCodec>>,
-    unit_id: UnitId,
     transaction_id_generator: TransactionIdGenerator,
+    unit_id: UnitId,
 }
 
 impl<T> Client<T>
@@ -53,12 +53,12 @@ where
 {
     pub(crate) fn new(transport: T, slave: Slave) -> Self {
         let framed = Framed::new(transport, codec::tcp::ClientCodec::new());
-        let unit_id: UnitId = slave.into();
         let transaction_id_generator = TransactionIdGenerator::new();
+        let unit_id: UnitId = slave.into();
         Self {
             framed: Some(framed),
-            unit_id,
             transaction_id_generator,
+            unit_id,
         }
     }
 
