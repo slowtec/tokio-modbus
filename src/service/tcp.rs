@@ -33,7 +33,7 @@ where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     pub(crate) fn new(transport: T, slave: Slave) -> Self {
-        let framed = Framed::new(transport, codec::tcp::ClientCodec::default());
+        let framed = Framed::new(transport, codec::tcp::ClientCodec::new());
         let unit_id: UnitId = slave.into();
         let transaction_id = AtomicU16::new(INITIAL_TRANSACTION_ID);
         Self {
