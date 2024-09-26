@@ -71,6 +71,8 @@ pub trait Writer: Client {
     fn write_multiple_coils(&mut self, addr: Address, coils: &[Coil]) -> Result<()>;
     fn write_single_register(&mut self, addr: Address, word: Word) -> Result<()>;
     fn write_multiple_registers(&mut self, addr: Address, words: &[Word]) -> Result<()>;
+    fn masked_write_register(&mut self, addr: Address, and_mask: Word, or_mask: Word)
+        -> Result<()>;
 }
 
 /// A synchronous Modbus client context.
@@ -191,6 +193,20 @@ impl Writer for Context {
             &self.runtime,
             self.timeout,
             self.async_ctx.write_multiple_coils(addr, data),
+        )
+    }
+
+    fn masked_write_register(
+        &mut self,
+        addr: Address,
+        and_mask: Word,
+        or_mask: Word,
+    ) -> Result<()> {
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx
+                .masked_write_register(addr, and_mask, or_mask),
         )
     }
 }
