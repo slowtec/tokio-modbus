@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.15.0 (Unreleased)
+## v0.15.0 (2024-10-10)
 
 - Implement `Report Server ID` (function code 17).
 - Added `ExceptionCode::new`.
