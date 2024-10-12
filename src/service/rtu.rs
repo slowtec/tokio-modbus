@@ -96,8 +96,7 @@ impl<T> Client<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
-    pub(crate) fn new(transport: T, slave: Slave) -> Self {
-        let connection = ClientConnection::new(transport);
+    pub(crate) fn new(connection: ClientConnection<T>, slave: Slave) -> Self {
         let slave_id = slave.into();
         Self {
             connection: Some(connection),
@@ -149,7 +148,6 @@ where
 
 #[cfg(test)]
 mod tests {
-
     use core::{
         pin::Pin,
         task::{Context, Poll},
@@ -157,6 +155,8 @@ mod tests {
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
     use crate::Error;
+
+    use super::*;
 
     #[derive(Debug)]
     struct MockTransport;
@@ -190,8 +190,9 @@ mod tests {
     #[tokio::test]
     async fn handle_broken_pipe() {
         let transport = MockTransport;
+        let connection = ClientConnection::new(transport);
         let mut client =
-            crate::service::rtu::Client::new(transport, crate::service::rtu::Slave::broadcast());
+            crate::service::rtu::Client::new(connection, crate::service::rtu::Slave::broadcast());
         let res = client
             .call(crate::service::rtu::Request::ReadCoils(0x00, 5))
             .await;
