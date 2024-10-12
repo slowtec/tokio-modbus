@@ -4,7 +4,7 @@
 default_stages:
   # Prevent that hooks run twice, triggered by both
   # the Git commit-msg and the pre-commit hook.
-  - commit
+  - pre-commit
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -44,7 +44,7 @@ repos:
       - id: codespell
         args: [--ignore-words=.codespellignore]
   - repo: https://github.com/sirosen/check-jsonschema
-    rev: 0.29.3
+    rev: 0.29.4
     hooks:
       - id: check-github-actions
       - id: check-github-workflows
