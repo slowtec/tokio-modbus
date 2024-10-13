@@ -11,15 +11,84 @@ use crate::{
     codec,
     frame::{rtu::*, *},
     slave::*,
-    ProtocolError, Result,
+    Result,
 };
 
-use super::{disconnect, verify_response_header};
+use super::disconnect;
+
+/// Modbus RTU client
+#[derive(Debug)]
+pub struct ClientConnection<T> {
+    framed: Framed<T, codec::rtu::ClientCodec>,
+}
+
+impl<T> ClientConnection<T>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(transport: T) -> Self {
+        let framed = Framed::new(transport, codec::rtu::ClientCodec::default());
+        Self { framed }
+    }
+
+    pub async fn disconnect(self) -> io::Result<()> {
+        let Self { framed } = self;
+        disconnect(framed).await
+    }
+
+    pub async fn send_request<'a>(
+        &mut self,
+        request: Request<'a>,
+        server: Slave,
+    ) -> io::Result<RequestContext> {
+        self.send_request_pdu(request, server).await
+    }
+
+    async fn send_request_pdu<'a, R>(
+        &mut self,
+        request: R,
+        server: Slave,
+    ) -> io::Result<RequestContext>
+    where
+        R: Into<RequestPdu<'a>>,
+    {
+        let request_adu = request_adu(request, server);
+        let context = request_adu.context();
+
+        let Self { framed } = self;
+
+        framed.read_buffer_mut().clear();
+        framed.send(request_adu).await?;
+
+        Ok(context)
+    }
+
+    pub async fn recv_response(&mut self, request_context: RequestContext) -> Result<Response> {
+        let res_adu = self
+            .framed
+            .next()
+            .await
+            .unwrap_or_else(|| Err(io::Error::from(io::ErrorKind::BrokenPipe)))?;
+
+        res_adu.try_into_response(request_context)
+    }
+}
+
+fn request_adu<'a, R>(req: R, server: Slave) -> RequestAdu<'a>
+where
+    R: Into<RequestPdu<'a>>,
+{
+    let hdr = Header {
+        slave_id: server.into(),
+    };
+    let pdu = req.into();
+    RequestAdu { hdr, pdu }
+}
 
 /// Modbus RTU client
 #[derive(Debug)]
 pub(crate) struct Client<T> {
-    framed: Option<Framed<T, codec::rtu::ClientCodec>>,
+    connection: Option<ClientConnection<T>>,
     slave_id: SlaveId,
 }
 
@@ -28,85 +97,33 @@ where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     pub(crate) fn new(transport: T, slave: Slave) -> Self {
-        let framed = Framed::new(transport, codec::rtu::ClientCodec::default());
+        let connection = ClientConnection::new(transport);
         let slave_id = slave.into();
         Self {
+            connection: Some(connection),
             slave_id,
-            framed: Some(framed),
         }
-    }
-
-    fn framed(&mut self) -> io::Result<&mut Framed<T, codec::rtu::ClientCodec>> {
-        let Some(framed) = &mut self.framed else {
-            return Err(io::Error::new(io::ErrorKind::NotConnected, "disconnected"));
-        };
-        Ok(framed)
-    }
-
-    fn next_request_adu<'a, R>(&self, req: R) -> RequestAdu<'a>
-    where
-        R: Into<RequestPdu<'a>>,
-    {
-        let slave_id = self.slave_id;
-        let hdr = Header { slave_id };
-        let pdu = req.into();
-        RequestAdu { hdr, pdu }
-    }
-
-    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
-        log::debug!("Call {:?}", req);
-
-        let req_function_code = req.function_code();
-        let req_adu = self.next_request_adu(req);
-        let req_hdr = req_adu.hdr;
-
-        let framed = self.framed()?;
-
-        framed.read_buffer_mut().clear();
-        framed.send(req_adu).await?;
-
-        let res_adu = framed
-            .next()
-            .await
-            .unwrap_or_else(|| Err(io::Error::from(io::ErrorKind::BrokenPipe)))?;
-        let ResponseAdu {
-            hdr: res_hdr,
-            pdu: res_pdu,
-        } = res_adu;
-        let ResponsePdu(result) = res_pdu;
-
-        // Match headers of request and response.
-        if let Err(message) = verify_response_header(&req_hdr, &res_hdr) {
-            return Err(ProtocolError::HeaderMismatch { message, result }.into());
-        }
-
-        // Match function codes of request and response.
-        let rsp_function_code = match &result {
-            Ok(response) => response.function_code(),
-            Err(ExceptionResponse { function, .. }) => *function,
-        };
-        if req_function_code != rsp_function_code {
-            return Err(ProtocolError::FunctionCodeMismatch {
-                request: req_function_code,
-                result,
-            }
-            .into());
-        }
-
-        Ok(result.map_err(
-            |ExceptionResponse {
-                 function: _,
-                 exception,
-             }| exception,
-        ))
     }
 
     async fn disconnect(&mut self) -> io::Result<()> {
-        let Some(framed) = self.framed.take() else {
+        let Some(connection) = self.connection.take() else {
             // Already disconnected.
             return Ok(());
         };
-        disconnect(framed).await
+        disconnect(connection.framed).await
+    }
+
+    async fn call(&mut self, request: Request<'_>) -> Result<Response> {
+        log::debug!("Call {:?}", request);
+
+        let Some(connection) = &mut self.connection else {
+            return Err(io::Error::new(io::ErrorKind::NotConnected, "disconnected").into());
+        };
+
+        let request_context = connection
+            .send_request(request, Slave(self.slave_id))
+            .await?;
+        connection.recv_response(request_context).await
     }
 }
 
@@ -139,36 +156,7 @@ mod tests {
     };
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
-    use crate::{
-        service::{rtu::Header, verify_response_header},
-        Error,
-    };
-
-    #[test]
-    fn validate_same_headers() {
-        // Given
-        let req_hdr = Header { slave_id: 0 };
-        let rsp_hdr = Header { slave_id: 0 };
-
-        // When
-        let result = verify_response_header(&req_hdr, &rsp_hdr);
-
-        // Then
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn invalid_validate_not_same_slave_id() {
-        // Given
-        let req_hdr = Header { slave_id: 0 };
-        let rsp_hdr = Header { slave_id: 5 };
-
-        // When
-        let result = verify_response_header(&req_hdr, &rsp_hdr);
-
-        // Then
-        assert!(result.is_err());
-    }
+    use crate::Error;
 
     #[derive(Debug)]
     struct MockTransport;
