@@ -12,6 +12,8 @@ pub use crate::client;
 #[cfg(feature = "rtu")]
 pub mod rtu {
     pub use crate::client::rtu::*;
+    pub use crate::frame::rtu::RequestContext;
+    pub use crate::service::rtu::ClientConnection;
 }
 
 #[allow(missing_docs)]

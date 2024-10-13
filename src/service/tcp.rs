@@ -11,9 +11,8 @@ use crate::{
     codec,
     frame::{
         tcp::{Header, RequestAdu, ResponseAdu, TransactionId, UnitId},
-        RequestPdu, ResponsePdu,
+        verify_response_header, RequestPdu, ResponsePdu,
     },
-    service::verify_response_header,
     slave::*,
     ExceptionResponse, ProtocolError, Request, Response, Result,
 };
