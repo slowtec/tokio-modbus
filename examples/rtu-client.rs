@@ -15,13 +15,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let builder = tokio_serial::new(tty_path, 19200);
     let port = SerialStream::open(&builder).unwrap();
 
-    let mut ctx = rtu::attach_slave(port, slave);
+    let mut conn = rtu::ClientConnection::new(port);
     println!("Reading a sensor value");
-    let rsp = ctx.read_holding_registers(0x082B, 2).await??;
-    println!("Sensor value is: {rsp:?}");
+    let request = Request::ReadHoldingRegisters(0x082B, 2);
+    let request_context = conn.send_request(request, slave).await?;
+    let Response::ReadHoldingRegisters(value) = conn.recv_response(request_context).await?? else {
+        // The response variant will always match its corresponding request variant if successful.
+        unreachable!();
+    };
+    println!("Sensor value is: {value:?}");
 
     println!("Disconnecting");
-    ctx.disconnect().await?;
+    conn.disconnect().await?;
 
     Ok(())
 }

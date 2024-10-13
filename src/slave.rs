@@ -10,6 +10,7 @@ pub type SlaveId = u8;
 
 /// A single byte for addressing Modbus slave devices.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct Slave(pub SlaveId);
 
 impl Slave {
