@@ -103,7 +103,7 @@ impl FrameDecoder {
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 #[derive(Debug, Default)]
 pub(crate) struct RequestDecoder {
     frame_decoder: FrameDecoder,
@@ -119,13 +119,13 @@ pub(crate) struct ClientCodec {
     pub(crate) decoder: ResponseDecoder,
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 #[derive(Debug, Default)]
 pub(crate) struct ServerCodec {
     pub(crate) decoder: RequestDecoder,
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         let len = match fn_code {
@@ -216,7 +216,7 @@ fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 impl Decoder for RequestDecoder {
     type Item = (SlaveId, Bytes);
     type Error = Error;
@@ -299,7 +299,7 @@ impl Decoder for ClientCodec {
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 impl Decoder for ServerCodec {
     type Item = RequestAdu<'static>;
     type Error = Error;
@@ -339,7 +339,7 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 impl Encoder<ResponseAdu> for ServerCodec {
     type Error = Error;
 
@@ -370,7 +370,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "server")]
+    #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
     fn test_get_request_pdu_len() {
         let mut buf = BytesMut::new();
 
@@ -553,7 +553,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg(feature = "server")]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
         fn decode_empty_server_message() {
             let mut codec = ServerCodec::default();
             let mut buf = BytesMut::new();
@@ -566,7 +566,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg(feature = "server")]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
         fn decode_single_byte_server_message() {
             let mut codec = ServerCodec::default();
             let mut buf = BytesMut::from(&[0x00][..]);
@@ -579,7 +579,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg(feature = "server")]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
         fn decode_partly_received_server_message_0x16() {
             let mut codec = ServerCodec::default();
             let mut buf = BytesMut::from(
@@ -597,7 +597,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg(feature = "server")]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
         fn decode_partly_received_server_message_0x0f() {
             let mut codec = ServerCodec::default();
             let mut buf = BytesMut::from(
@@ -615,7 +615,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg(feature = "server")]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
         fn decode_partly_received_server_message_0x10() {
             let mut codec = ServerCodec::default();
             let mut buf = BytesMut::from(
