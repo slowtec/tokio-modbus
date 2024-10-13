@@ -4,7 +4,7 @@
 use std::{fmt, io};
 
 use futures_util::{SinkExt as _, StreamExt as _};
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt as _};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
 
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
     ProtocolError, Result,
 };
 
-use super::verify_response_header;
+use super::{disconnect, verify_response_header};
 
 /// Modbus RTU client
 #[derive(Debug)]
@@ -106,17 +106,7 @@ where
             // Already disconnected.
             return Ok(());
         };
-        framed
-            .into_inner()
-            .shutdown()
-            .await
-            .or_else(|err| match err.kind() {
-                io::ErrorKind::NotConnected | io::ErrorKind::BrokenPipe => {
-                    // Already disconnected.
-                    Ok(())
-                }
-                _ => Err(err),
-            })
+        disconnect(framed).await
     }
 }
 

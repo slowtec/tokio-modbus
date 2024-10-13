@@ -4,7 +4,7 @@
 use std::{fmt, io};
 
 use futures_util::{SinkExt as _, StreamExt as _};
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt as _};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
 
 use crate::{
@@ -17,6 +17,8 @@ use crate::{
     slave::*,
     ExceptionResponse, ProtocolError, Request, Response, Result,
 };
+
+use super::disconnect;
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
 
@@ -137,17 +139,7 @@ where
             // Already disconnected.
             return Ok(());
         };
-        framed
-            .into_inner()
-            .shutdown()
-            .await
-            .or_else(|err| match err.kind() {
-                io::ErrorKind::NotConnected | io::ErrorKind::BrokenPipe => {
-                    // Already disconnected.
-                    Ok(())
-                }
-                _ => Err(err),
-            })
+        disconnect(framed).await
     }
 }
 
