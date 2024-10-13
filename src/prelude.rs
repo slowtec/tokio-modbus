@@ -13,7 +13,7 @@ pub use crate::client;
 pub mod rtu {
     pub use crate::client::rtu::*;
     pub use crate::frame::rtu::RequestContext;
-    pub use crate::service::rtu::ClientConnection;
+    pub use crate::service::rtu::{Client, ClientContext};
 }
 
 #[allow(missing_docs)]
