@@ -16,13 +16,13 @@ use crate::{
 
 use super::disconnect;
 
-/// Modbus RTU client
+/// _Modbus_ RTU client.
 #[derive(Debug)]
-pub struct ClientConnection<T> {
+pub struct Client<T> {
     framed: Framed<T, codec::rtu::ClientCodec>,
 }
 
-impl<T> ClientConnection<T>
+impl<T> Client<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -72,6 +72,103 @@ where
 
         res_adu.try_into_response(request_context)
     }
+
+    pub async fn call<'a>(&mut self, request: Request<'a>, server: Slave) -> Result<Response> {
+        let request_context = self.send_request(request, server).await?;
+        self.recv_response(request_context).await
+    }
+}
+
+/// _Modbus_ RTU client with (server) context and connection state.
+///
+/// Client that invokes methods (request/response) on a single or many (broadcast) server(s).
+///
+/// The server can be switched between method calls.
+#[derive(Debug)]
+pub struct ClientContext<T> {
+    client: Option<Client<T>>,
+    server: Slave,
+}
+
+impl<T> ClientContext<T> {
+    pub fn new(client: Client<T>, server: Slave) -> Self {
+        Self {
+            client: Some(client),
+            server,
+        }
+    }
+
+    #[must_use]
+    pub const fn is_connected(&self) -> bool {
+        self.client.is_some()
+    }
+
+    #[must_use]
+    pub const fn server(&self) -> Slave {
+        self.server
+    }
+
+    pub fn set_server(&mut self, server: Slave) {
+        self.server = server;
+    }
+}
+
+impl<T> ClientContext<T>
+where
+    T: AsyncWrite + Unpin,
+{
+    pub async fn disconnect(&mut self) -> io::Result<()> {
+        let Some(client) = self.client.take() else {
+            // Already disconnected.
+            return Ok(());
+        };
+        disconnect(client.framed).await
+    }
+}
+
+impl<T> ClientContext<T>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    pub async fn call(&mut self, request: Request<'_>) -> Result<Response> {
+        log::debug!("Call {:?}", request);
+
+        let Some(client) = &mut self.client else {
+            return Err(io::Error::new(io::ErrorKind::NotConnected, "disconnected").into());
+        };
+
+        client.call(request, self.server).await
+    }
+}
+
+impl<T> ClientContext<T>
+where
+    T: AsyncRead + AsyncWrite + Unpin + fmt::Debug + Send + 'static,
+{
+    #[must_use]
+    pub fn boxed(self) -> Box<dyn crate::client::Client> {
+        Box::new(self)
+    }
+}
+
+impl<T> SlaveContext for ClientContext<T> {
+    fn set_slave(&mut self, slave: Slave) {
+        self.set_server(slave);
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> crate::client::Client for ClientContext<T>
+where
+    T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
+{
+    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+        self.call(req).await
+    }
+
+    async fn disconnect(&mut self) -> io::Result<()> {
+        self.disconnect().await
+    }
 }
 
 fn request_adu<'a, R>(req: R, server: Slave) -> RequestAdu<'a>
@@ -83,67 +180,6 @@ where
     };
     let pdu = req.into();
     RequestAdu { hdr, pdu }
-}
-
-/// Modbus RTU client
-#[derive(Debug)]
-pub(crate) struct Client<T> {
-    connection: Option<ClientConnection<T>>,
-    slave_id: SlaveId,
-}
-
-impl<T> Client<T>
-where
-    T: AsyncRead + AsyncWrite + Unpin,
-{
-    pub(crate) fn new(connection: ClientConnection<T>, slave: Slave) -> Self {
-        let slave_id = slave.into();
-        Self {
-            connection: Some(connection),
-            slave_id,
-        }
-    }
-
-    async fn disconnect(&mut self) -> io::Result<()> {
-        let Some(connection) = self.connection.take() else {
-            // Already disconnected.
-            return Ok(());
-        };
-        disconnect(connection.framed).await
-    }
-
-    async fn call(&mut self, request: Request<'_>) -> Result<Response> {
-        log::debug!("Call {:?}", request);
-
-        let Some(connection) = &mut self.connection else {
-            return Err(io::Error::new(io::ErrorKind::NotConnected, "disconnected").into());
-        };
-
-        let request_context = connection
-            .send_request(request, Slave(self.slave_id))
-            .await?;
-        connection.recv_response(request_context).await
-    }
-}
-
-impl<T> SlaveContext for Client<T> {
-    fn set_slave(&mut self, slave: Slave) {
-        self.slave_id = slave.into();
-    }
-}
-
-#[async_trait::async_trait]
-impl<T> crate::client::Client for Client<T>
-where
-    T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
-{
-    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
-        self.call(req).await
-    }
-
-    async fn disconnect(&mut self) -> io::Result<()> {
-        self.disconnect().await
-    }
 }
 
 #[cfg(test)]
@@ -190,12 +226,9 @@ mod tests {
     #[tokio::test]
     async fn handle_broken_pipe() {
         let transport = MockTransport;
-        let connection = ClientConnection::new(transport);
-        let mut client =
-            crate::service::rtu::Client::new(connection, crate::service::rtu::Slave::broadcast());
-        let res = client
-            .call(crate::service::rtu::Request::ReadCoils(0x00, 5))
-            .await;
+        let client = Client::new(transport);
+        let mut context = ClientContext::new(client, Slave::broadcast());
+        let res = context.call(Request::ReadCoils(0x00, 5)).await;
         assert!(res.is_err());
         let err = res.err().unwrap();
         assert!(

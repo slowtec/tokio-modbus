@@ -5,7 +5,7 @@
 
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::prelude::rtu::ClientConnection;
+use crate::service::rtu::{Client, ClientContext};
 
 use super::*;
 
@@ -23,17 +23,9 @@ pub fn attach_slave<T>(transport: T, slave: Slave) -> Context
 where
     T: AsyncRead + AsyncWrite + Debug + Unpin + Send + 'static,
 {
-    let connection = ClientConnection::new(transport);
-    client_context(connection, slave)
-}
-
-/// Creates a client/server connection.
-pub fn client_context<T>(connection: ClientConnection<T>, server: Slave) -> Context
-where
-    T: AsyncRead + AsyncWrite + Debug + Unpin + Send + 'static,
-{
-    let client = crate::service::rtu::Client::new(connection, server);
+    let client = Client::new(transport);
+    let context = ClientContext::new(client, slave);
     Context {
-        client: Box::new(client),
+        client: Box::new(context),
     }
 }
