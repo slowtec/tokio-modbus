@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Reading sensor values (request/response using the low-level API");
     let request = Request::ReadHoldingRegisters(SENSOR_ADDRESS, SENSOR_QUANTITY);
-    let request_context = client.send_request(request, SERVER).await?;
+    let request_context = client.send_request(SERVER, request).await?;
     let Response::ReadHoldingRegisters(values) = client.recv_response(request_context).await??
     else {
         // The response variant will always match its corresponding request variant if successful.
