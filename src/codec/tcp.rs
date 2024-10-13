@@ -33,7 +33,7 @@ impl ClientCodec {
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(feature = "tcp-server")]
 #[derive(Debug, Default)]
 pub(crate) struct ServerCodec {
     pub(crate) decoder: AduDecoder,
@@ -108,7 +108,7 @@ impl Decoder for ClientCodec {
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(feature = "tcp-server")]
 impl Decoder for ServerCodec {
     type Item = RequestAdu<'static>;
     type Error = Error;
@@ -139,7 +139,7 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(feature = "tcp-server")]
 impl Encoder<ResponseAdu> for ServerCodec {
     type Error = Error;
 
