@@ -36,46 +36,51 @@ where
         disconnect(framed).await
     }
 
+    pub async fn call<'a>(&mut self, server: Slave, request: Request<'a>) -> Result<Response> {
+        let request_context = self.send_request(server, request).await?;
+        self.recv_response(request_context).await
+    }
+
     pub async fn send_request<'a>(
         &mut self,
-        request: Request<'a>,
         server: Slave,
+        request: Request<'a>,
     ) -> io::Result<RequestContext> {
-        self.send_request_pdu(request, server).await
+        self.send_request_pdu(server, request).await
     }
 
     async fn send_request_pdu<'a, R>(
         &mut self,
-        request: R,
         server: Slave,
+        request_pdu: R,
     ) -> io::Result<RequestContext>
     where
         R: Into<RequestPdu<'a>>,
     {
-        let request_adu = request_adu(request, server);
-        let context = request_adu.context();
+        let request_adu = request_adu(server, request_pdu);
+        self.send_request_adu(request_adu).await
+    }
 
-        let Self { framed } = self;
+    async fn send_request_adu<'a>(
+        &mut self,
+        request_adu: RequestAdu<'a>,
+    ) -> io::Result<RequestContext> {
+        let request_context = request_adu.context();
 
-        framed.read_buffer_mut().clear();
-        framed.send(request_adu).await?;
+        self.framed.read_buffer_mut().clear();
+        self.framed.send(request_adu).await?;
 
-        Ok(context)
+        Ok(request_context)
     }
 
     pub async fn recv_response(&mut self, request_context: RequestContext) -> Result<Response> {
-        let res_adu = self
+        let response_adu = self
             .framed
             .next()
             .await
             .unwrap_or_else(|| Err(io::Error::from(io::ErrorKind::BrokenPipe)))?;
 
-        res_adu.try_into_response(request_context)
-    }
-
-    pub async fn call<'a>(&mut self, request: Request<'a>, server: Slave) -> Result<Response> {
-        let request_context = self.send_request(request, server).await?;
-        self.recv_response(request_context).await
+        response_adu.try_into_response(request_context)
     }
 }
 
@@ -137,7 +142,7 @@ where
             return Err(io::Error::new(io::ErrorKind::NotConnected, "disconnected").into());
         };
 
-        client.call(request, self.server).await
+        client.call(self.server, request).await
     }
 }
 
@@ -171,14 +176,14 @@ where
     }
 }
 
-fn request_adu<'a, R>(req: R, server: Slave) -> RequestAdu<'a>
+fn request_adu<'a, R>(server: Slave, request_pdu: R) -> RequestAdu<'a>
 where
     R: Into<RequestPdu<'a>>,
 {
     let hdr = Header {
         slave_id: server.into(),
     };
-    let pdu = req.into();
+    let pdu = request_pdu.into();
     RequestAdu { hdr, pdu }
 }
 
