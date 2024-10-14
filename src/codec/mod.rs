@@ -56,11 +56,9 @@ fn encode_request_pdu(buf: &mut BytesMut, request: &Request<'_>) {
         }
         WriteMultipleCoils(address, coils) => {
             buf.put_u16(*address);
-            let len = coils.len();
-            buf.put_u16(u16_len(len));
-            let packed_coils = pack_coils(coils);
-            buf.put_u8(u8_len(packed_coils.len()));
-            buf.put_slice(&packed_coils);
+            buf.put_u16(u16_len(coils.len()));
+            buf.put_u8(u8_len(packed_coils_len(coils.len())));
+            pack_coils(buf, coils);
         }
         WriteSingleRegister(address, word) => {
             buf.put_u16(*address);
@@ -106,11 +104,8 @@ impl From<Response> for Bytes {
         data.put_u8(rsp.function_code().value());
         match rsp {
             ReadCoils(coils) | ReadDiscreteInputs(coils) => {
-                let packed_coils = pack_coils(&coils);
-                data.put_u8(u8_len(packed_coils.len()));
-                for b in packed_coils {
-                    data.put_u8(b);
-                }
+                data.put_u8(u8_len(packed_coils_len(coils.len())));
+                pack_coils(&mut data, &coils);
             }
             ReadInputRegisters(registers)
             | ReadHoldingRegisters(registers)
@@ -132,9 +127,7 @@ impl From<Response> for Bytes {
                 data.put_u8(2 + u8_len(additional_data.len()));
                 data.put_u8(server_id);
                 data.put_u8(if run_indication { 0xFF } else { 0x00 });
-                for b in additional_data {
-                    data.put_u8(b);
-                }
+                data.put_slice(&additional_data);
             }
             WriteSingleRegister(address, word) => {
                 data.put_u16(address);
@@ -146,9 +139,7 @@ impl From<Response> for Bytes {
                 data.put_u16(or_mask);
             }
             Custom(_, custom_data) => {
-                for d in custom_data {
-                    data.put_u8(d);
-                }
+                data.put_slice(&custom_data);
             }
         }
         data.freeze()
@@ -408,14 +399,16 @@ fn packed_coils_len(bitcount: usize) -> usize {
     (bitcount + 7) / 8
 }
 
-fn pack_coils(coils: &[Coil]) -> Vec<u8> {
-    let packed_size = packed_coils_len(coils.len());
-    let mut res = vec![0; packed_size];
+fn pack_coils(buf: &mut BytesMut, coils: &[Coil]) -> usize {
+    let packed_coils_len = packed_coils_len(coils.len());
+    let offset = buf.len();
+    buf.resize(offset + packed_coils_len, 0);
+    let buf = &mut buf[offset..];
     for (i, b) in coils.iter().enumerate() {
         let v = u8::from(*b); // 0 or 1
-        res[i / 8] |= v << (i % 8);
+        buf[i / 8] |= v << (i % 8);
     }
-    res
+    packed_coils_len
 }
 
 fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
@@ -471,7 +464,13 @@ mod tests {
 
     fn request_to_pdu_bytes(request: &Request<'_>) -> Bytes {
         let mut buf = BytesMut::new();
-        super::encode_request_pdu(&mut buf, request);
+        encode_request_pdu(&mut buf, request);
+        buf.freeze()
+    }
+
+    fn pack_coils_to_bytes(coils: &[bool]) -> Bytes {
+        let mut buf = BytesMut::new();
+        pack_coils(&mut buf, coils);
         buf.freeze()
     }
 
@@ -489,16 +488,16 @@ mod tests {
 
     #[test]
     fn convert_booleans_to_bytes() {
-        assert_eq!(pack_coils(&[]), &[]);
-        assert_eq!(pack_coils(&[true]), &[0b1]);
-        assert_eq!(pack_coils(&[false]), &[0b0]);
-        assert_eq!(pack_coils(&[true, false]), &[0b_01]);
-        assert_eq!(pack_coils(&[false, true]), &[0b_10]);
-        assert_eq!(pack_coils(&[true, true]), &[0b_11]);
-        assert_eq!(pack_coils(&[true; 8]), &[0b_1111_1111]);
-        assert_eq!(pack_coils(&[true; 9]), &[255, 1]);
-        assert_eq!(pack_coils(&[false; 8]), &[0]);
-        assert_eq!(pack_coils(&[false; 9]), &[0, 0]);
+        assert_eq!(&pack_coils_to_bytes(&[])[..], &[]);
+        assert_eq!(&pack_coils_to_bytes(&[true])[..], &[0b1]);
+        assert_eq!(&pack_coils_to_bytes(&[false])[..], &[0b0]);
+        assert_eq!(&pack_coils_to_bytes(&[true, false])[..], &[0b_01]);
+        assert_eq!(&pack_coils_to_bytes(&[false, true])[..], &[0b_10]);
+        assert_eq!(&pack_coils_to_bytes(&[true, true])[..], &[0b_11]);
+        assert_eq!(&pack_coils_to_bytes(&[true; 8])[..], &[0b_1111_1111]);
+        assert_eq!(&pack_coils_to_bytes(&[true; 9])[..], &[255, 1]);
+        assert_eq!(&pack_coils_to_bytes(&[false; 8])[..], &[0]);
+        assert_eq!(&pack_coils_to_bytes(&[false; 9])[..], &[0, 0]);
     }
 
     #[test]
