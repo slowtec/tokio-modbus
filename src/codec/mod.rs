@@ -9,7 +9,7 @@ use std::{
 use byteorder::{BigEndian, ReadBytesExt as _};
 
 use crate::{
-    bytes::Bytes,
+    bytes::{Buf as _, Bytes},
     frame::{Coil, RequestPdu, ResponsePdu},
     ExceptionCode, ExceptionResponse, FunctionCode, Request, Response,
 };
@@ -163,23 +163,24 @@ fn encode_response_result_pdu(
     }
 }
 
+fn read_u16_be(reader: &mut impl io::Read) -> io::Result<u16> {
+    reader.read_u16::<BigEndian>()
+}
+
 impl TryFrom<Bytes> for Request<'static> {
     type Error = Error;
 
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
         use crate::frame::Request::*;
-        let mut rdr = Cursor::new(&bytes);
+        let rdr = &mut Cursor::new(&bytes);
         let fn_code = rdr.read_u8()?;
         let req = match fn_code {
-            0x01 => ReadCoils(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x02 => ReadDiscreteInputs(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x05 => WriteSingleCoil(
-                rdr.read_u16::<BigEndian>()?,
-                coil_to_bool(rdr.read_u16::<BigEndian>()?)?,
-            ),
+            0x01 => ReadCoils(read_u16_be(rdr)?, read_u16_be(rdr)?),
+            0x02 => ReadDiscreteInputs(read_u16_be(rdr)?, read_u16_be(rdr)?),
+            0x05 => WriteSingleCoil(read_u16_be(rdr)?, coil_to_bool(read_u16_be(rdr)?)?),
             0x0F => {
-                let address = rdr.read_u16::<BigEndian>()?;
-                let quantity = rdr.read_u16::<BigEndian>()?;
+                let address = read_u16_be(rdr)?;
+                let quantity = read_u16_be(rdr)?;
                 let byte_count = rdr.read_u8()?;
                 if bytes.len() < 6 + usize::from(byte_count) {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
@@ -187,44 +188,42 @@ impl TryFrom<Bytes> for Request<'static> {
                 let x = &bytes[6..];
                 WriteMultipleCoils(address, decode_packed_coils(x, quantity).into())
             }
-            0x04 => ReadInputRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
-            0x03 => {
-                ReadHoldingRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
-            }
-            0x06 => WriteSingleRegister(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
+            0x04 => ReadInputRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
+            0x03 => ReadHoldingRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
+            0x06 => WriteSingleRegister(read_u16_be(rdr)?, read_u16_be(rdr)?),
 
             0x10 => {
-                let address = rdr.read_u16::<BigEndian>()?;
-                let quantity = rdr.read_u16::<BigEndian>()?;
+                let address = read_u16_be(rdr)?;
+                let quantity = read_u16_be(rdr)?;
                 let byte_count = rdr.read_u8()?;
                 if bytes.len() < 6 + usize::from(byte_count) {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
                 }
                 let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
+                    data.push(read_u16_be(rdr)?);
                 }
                 WriteMultipleRegisters(address, data.into())
             }
             0x11 => ReportServerId,
             0x16 => {
-                let address = rdr.read_u16::<BigEndian>()?;
-                let and_mask = rdr.read_u16::<BigEndian>()?;
-                let or_mask = rdr.read_u16::<BigEndian>()?;
+                let address = read_u16_be(rdr)?;
+                let and_mask = read_u16_be(rdr)?;
+                let or_mask = read_u16_be(rdr)?;
                 MaskWriteRegister(address, and_mask, or_mask)
             }
             0x17 => {
-                let read_address = rdr.read_u16::<BigEndian>()?;
-                let read_quantity = rdr.read_u16::<BigEndian>()?;
-                let write_address = rdr.read_u16::<BigEndian>()?;
-                let write_quantity = rdr.read_u16::<BigEndian>()?;
+                let read_address = read_u16_be(rdr)?;
+                let read_quantity = read_u16_be(rdr)?;
+                let write_address = read_u16_be(rdr)?;
+                let write_quantity = read_u16_be(rdr)?;
                 let write_count = rdr.read_u8()?;
                 if bytes.len() < 10 + usize::from(write_count) {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
                 }
                 let mut data = Vec::with_capacity(write_quantity.into());
                 for _ in 0..write_quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
+                    data.push(read_u16_be(rdr)?);
                 }
                 ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
             }
@@ -252,57 +251,93 @@ impl TryFrom<Bytes> for RequestPdu<'static> {
 impl TryFrom<Bytes> for Response {
     type Error = Error;
 
+    #[allow(clippy::too_many_lines)] // TODO
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
         use crate::frame::Response::*;
-        let mut rdr = Cursor::new(&bytes);
+        let rdr = &mut Cursor::new(&bytes);
         let fn_code = rdr.read_u8()?;
         let rsp = match fn_code {
             0x01 => {
                 let byte_count = rdr.read_u8()?;
-                let x = &bytes[2..];
+                let packed_coils = &bytes[2..];
+                if packed_coils.len() != byte_count.into() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid quantity",
+                    ));
+                }
                 // Here we have not information about the exact requested quantity so we just
                 // unpack the whole byte.
                 let quantity = u16::from(byte_count) * 8;
-                ReadCoils(decode_packed_coils(x, quantity))
+                ReadCoils(decode_packed_coils(packed_coils, quantity))
             }
             0x02 => {
                 let byte_count = rdr.read_u8()?;
-                let x = &bytes[2..];
+                let packed_coils = &bytes[2..];
+                if packed_coils.len() != byte_count.into() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid quantity",
+                    ));
+                }
                 // Here we have no information about the exact requested quantity so we just
                 // unpack the whole byte.
                 let quantity = u16::from(byte_count) * 8;
-                ReadDiscreteInputs(decode_packed_coils(x, quantity))
+                ReadDiscreteInputs(decode_packed_coils(packed_coils, quantity))
             }
-            0x05 => WriteSingleCoil(
-                rdr.read_u16::<BigEndian>()?,
-                coil_to_bool(rdr.read_u16::<BigEndian>()?)?,
-            ),
-            0x0F => WriteMultipleCoils(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
+            0x05 => WriteSingleCoil(read_u16_be(rdr)?, coil_to_bool(read_u16_be(rdr)?)?),
+            0x0F => WriteMultipleCoils(read_u16_be(rdr)?, read_u16_be(rdr)?),
             0x04 => {
                 let byte_count = rdr.read_u8()?;
+                if byte_count % 2 != 0 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid quantity",
+                    ));
+                }
                 let quantity = byte_count / 2;
                 let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
+                    data.push(read_u16_be(rdr)?);
+                }
+                if rdr.has_remaining() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid quantity",
+                    ));
                 }
                 ReadInputRegisters(data)
             }
             0x03 => {
                 let byte_count = rdr.read_u8()?;
+                if byte_count % 2 != 0 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid quantity",
+                    ));
+                }
                 let quantity = byte_count / 2;
                 let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
+                    data.push(read_u16_be(rdr)?);
+                }
+                if rdr.has_remaining() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid quantity",
+                    ));
                 }
                 ReadHoldingRegisters(data)
             }
-            0x06 => WriteSingleRegister(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
+            0x06 => WriteSingleRegister(read_u16_be(rdr)?, read_u16_be(rdr)?),
 
-            0x10 => {
-                WriteMultipleRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?)
-            }
+            0x10 => WriteMultipleRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
             0x11 => {
                 let byte_count = rdr.read_u8()?;
+                if byte_count < 2 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, "too short"));
+                }
+                let data_len = (byte_count - 2).into();
                 let server_id = rdr.read_u8()?;
                 let run_indication_status = match rdr.read_u8()? {
                     0x00 => false,
@@ -310,29 +345,46 @@ impl TryFrom<Bytes> for Response {
                     status => {
                         return Err(Error::new(
                             ErrorKind::InvalidData,
-                            format!("Invalid run indication status value: {status}"),
+                            format!("invalid run indication status: 0x{status:02X}"),
                         ));
                     }
                 };
-                let data_len = byte_count.saturating_sub(2).into();
                 let mut data = Vec::with_capacity(data_len);
                 for _ in 0..data_len {
                     data.push(rdr.read_u8()?);
                 }
+                if rdr.has_remaining() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid quantity",
+                    ));
+                }
                 ReportServerId(server_id, run_indication_status, data)
             }
             0x16 => {
-                let address = rdr.read_u16::<BigEndian>()?;
-                let and_mask = rdr.read_u16::<BigEndian>()?;
-                let or_mask = rdr.read_u16::<BigEndian>()?;
+                let address = read_u16_be(rdr)?;
+                let and_mask = read_u16_be(rdr)?;
+                let or_mask = read_u16_be(rdr)?;
                 MaskWriteRegister(address, and_mask, or_mask)
             }
             0x17 => {
                 let byte_count = rdr.read_u8()?;
+                if byte_count % 2 != 0 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid quantity",
+                    ));
+                }
                 let quantity = byte_count / 2;
                 let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
-                    data.push(rdr.read_u16::<BigEndian>()?);
+                    data.push(read_u16_be(rdr)?);
+                }
+                if rdr.has_remaining() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid quantity",
+                    ));
                 }
                 ReadWriteMultipleRegisters(data)
             }

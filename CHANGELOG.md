@@ -5,6 +5,9 @@
 
 ## v0.16.0 (Unreleased)
 
+- Request encoding: Reduced allocations
+- Response decoding: More strict validation
+
 ### Breaking Changes
 
 - Increased MSRV from 1.65 to 1.76
