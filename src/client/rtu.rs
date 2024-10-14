@@ -85,18 +85,7 @@ where
         server: Slave,
         request: Request<'a>,
     ) -> io::Result<RequestContext> {
-        self.send_request_pdu(server, request).await
-    }
-
-    async fn send_request_pdu<'a, R>(
-        &mut self,
-        server: Slave,
-        request_pdu: R,
-    ) -> io::Result<RequestContext>
-    where
-        R: Into<RequestPdu<'a>>,
-    {
-        let request_adu = request_adu(server, request_pdu);
+        let request_adu = request_adu(server, request);
         self.send_request_adu(request_adu).await
     }
 
