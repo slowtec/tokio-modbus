@@ -3,7 +3,7 @@
 
 use std::io::{Cursor, Error, ErrorKind, Result};
 
-use byteorder::BigEndian;
+use byteorder::{BigEndian, ReadBytesExt as _};
 use smallvec::SmallVec;
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -13,7 +13,7 @@ use crate::{
     slave::SlaveId,
 };
 
-use super::*;
+use super::{encode_request_pdu, request_pdu_size, RequestPdu};
 
 // [Modbus over Serial Line Specification and Implementation Guide V1.02](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf), page 13
 // "The maximum size of a Modbus RTU frame is 256 bytes."
@@ -289,7 +289,7 @@ impl Decoder for ClientCodec {
         // Decoding of the PDU is unlikely to fail due
         // to transmission errors, because the frame's bytes
         // have already been verified with the CRC.
-        ResponsePdu::try_from(pdu_data)
+        super::ResponsePdu::try_from(pdu_data)
             .map(|pdu| Some(ResponseAdu { hdr, pdu }))
             .map_err(|err| {
                 // Unrecoverable error
@@ -314,7 +314,7 @@ impl Decoder for ServerCodec {
         // Decoding of the PDU is unlikely to fail due
         // to transmission errors, because the frame's bytes
         // have already been verified with the CRC.
-        RequestPdu::try_from(pdu_data)
+        super::RequestPdu::try_from(pdu_data)
             .map(|pdu| Some(RequestAdu { hdr, pdu }))
             .map_err(|err| {
                 // Unrecoverable error
@@ -348,12 +348,15 @@ impl Encoder<ResponseAdu> for ServerCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: ResponseAdu, buf: &mut BytesMut) -> Result<()> {
-        let ResponseAdu { hdr, pdu } = adu;
-        let pdu_data: Bytes = pdu.into();
-        buf.reserve(pdu_data.len() + 3);
+        let ResponseAdu {
+            hdr,
+            pdu: super::ResponsePdu(pdu_res),
+        } = adu;
+        let buf_offset = buf.len();
+        buf.reserve(super::response_result_pdu_size(&pdu_res) + 3);
         buf.put_u8(hdr.slave_id);
-        buf.put_slice(&pdu_data);
-        let crc = calc_crc(buf);
+        super::encode_response_result_pdu(buf, &pdu_res);
+        let crc = calc_crc(&buf[buf_offset..]);
         buf.put_u16(crc);
         Ok(())
     }
@@ -509,6 +512,8 @@ mod tests {
     }
 
     mod client {
+
+        use crate::{codec::ResponsePdu, Request, Response};
 
         use super::*;
 

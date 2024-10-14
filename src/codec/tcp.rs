@@ -148,14 +148,17 @@ impl Encoder<ResponseAdu> for ServerCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: ResponseAdu, buf: &mut BytesMut) -> Result<()> {
-        let ResponseAdu { hdr, pdu } = adu;
-        let pdu_data: Bytes = pdu.into();
-        buf.reserve(pdu_data.len() + 7);
+        let ResponseAdu {
+            hdr,
+            pdu: ResponsePdu(pdu_result),
+        } = adu;
+        let response_result_pdu_size = super::response_result_pdu_size(&pdu_result);
+        buf.reserve(response_result_pdu_size + 7);
         buf.put_u16(hdr.transaction_id);
         buf.put_u16(PROTOCOL_ID);
-        buf.put_u16(u16_len(pdu_data.len() + 1));
+        buf.put_u16(u16_len(response_result_pdu_size + 1));
         buf.put_u8(hdr.unit_id);
-        buf.put_slice(&pdu_data);
+        super::encode_response_result_pdu(buf, &pdu_result);
         Ok(())
     }
 }
