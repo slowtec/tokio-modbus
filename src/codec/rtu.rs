@@ -328,12 +328,16 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> Result<()> {
-        let RequestAdu { hdr, pdu } = adu;
-        let pdu_data: Bytes = pdu.try_into()?;
-        buf.reserve(pdu_data.len() + 3);
+        let RequestAdu {
+            hdr,
+            pdu: RequestPdu(request),
+        } = adu;
+        let buf_offset = buf.len();
+        let request_pdu_size = request_pdu_size(&request);
+        buf.reserve((buf.capacity() - buf_offset) + request_pdu_size + 3);
         buf.put_u8(hdr.slave_id);
-        buf.put_slice(&pdu_data);
-        let crc = calc_crc(buf);
+        encode_request_pdu(buf, &request);
+        let crc = calc_crc(&buf[buf_offset..]);
         buf.put_u16(crc);
         Ok(())
     }

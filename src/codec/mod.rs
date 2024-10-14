@@ -19,6 +19,7 @@ pub(crate) mod rtu;
 #[cfg(feature = "tcp")]
 pub(crate) mod tcp;
 
+#[cfg(any(test, feature = "rtu", feature = "tcp"))]
 #[allow(clippy::cast_possible_truncation)]
 fn u16_len(len: usize) -> u16 {
     // This type conversion should always be safe, because either
@@ -37,82 +38,63 @@ fn u8_len(len: usize) -> u8 {
     len as u8
 }
 
-impl<'a> TryFrom<Request<'a>> for Bytes {
-    type Error = Error;
-
-    #[allow(clippy::panic_in_result_fn)] // Intentional unreachable!()
-    fn try_from(req: Request<'a>) -> Result<Bytes, Self::Error> {
-        use crate::frame::Request::*;
-        let cnt = request_byte_count(&req);
-        let mut data = BytesMut::with_capacity(cnt);
-        data.put_u8(req.function_code().value());
-        match req {
-            ReadCoils(address, quantity)
-            | ReadDiscreteInputs(address, quantity)
-            | ReadInputRegisters(address, quantity)
-            | ReadHoldingRegisters(address, quantity) => {
-                data.put_u16(address);
-                data.put_u16(quantity);
-            }
-            WriteSingleCoil(address, state) => {
-                data.put_u16(address);
-                data.put_u16(bool_to_coil(state));
-            }
-            WriteMultipleCoils(address, coils) => {
-                data.put_u16(address);
-                let len = coils.len();
-                data.put_u16(u16_len(len));
-                let packed_coils = pack_coils(&coils);
-                data.put_u8(u8_len(packed_coils.len()));
-                for b in packed_coils {
-                    data.put_u8(b);
-                }
-            }
-            WriteSingleRegister(address, word) => {
-                data.put_u16(address);
-                data.put_u16(word);
-            }
-            WriteMultipleRegisters(address, words) => {
-                data.put_u16(address);
-                let len = words.len();
-                data.put_u16(u16_len(len));
-                data.put_u8(u8_len(len * 2));
-                for w in &*words {
-                    data.put_u16(*w);
-                }
-            }
-            ReportServerId => {}
-            MaskWriteRegister(address, and_mask, or_mask) => {
-                data.put_u16(address);
-                data.put_u16(and_mask);
-                data.put_u16(or_mask);
-            }
-            ReadWriteMultipleRegisters(read_address, quantity, write_address, words) => {
-                data.put_u16(read_address);
-                data.put_u16(quantity);
-                data.put_u16(write_address);
-                let n = words.len();
-                data.put_u16(u16_len(n));
-                data.put_u8(u8_len(n * 2));
-                for w in &*words {
-                    data.put_u16(*w);
-                }
-            }
-            Custom(_, custom_data) => {
-                for d in &*custom_data {
-                    data.put_u8(*d);
-                }
+#[cfg(any(test, feature = "rtu", feature = "tcp"))]
+fn encode_request_pdu(buf: &mut BytesMut, request: &Request<'_>) {
+    use crate::frame::Request::*;
+    buf.put_u8(request.function_code().value());
+    match request {
+        ReadCoils(address, quantity)
+        | ReadDiscreteInputs(address, quantity)
+        | ReadInputRegisters(address, quantity)
+        | ReadHoldingRegisters(address, quantity) => {
+            buf.put_u16(*address);
+            buf.put_u16(*quantity);
+        }
+        WriteSingleCoil(address, state) => {
+            buf.put_u16(*address);
+            buf.put_u16(bool_to_coil(*state));
+        }
+        WriteMultipleCoils(address, coils) => {
+            buf.put_u16(*address);
+            let len = coils.len();
+            buf.put_u16(u16_len(len));
+            let packed_coils = pack_coils(coils);
+            buf.put_u8(u8_len(packed_coils.len()));
+            buf.put_slice(&packed_coils);
+        }
+        WriteSingleRegister(address, word) => {
+            buf.put_u16(*address);
+            buf.put_u16(*word);
+        }
+        WriteMultipleRegisters(address, words) => {
+            buf.put_u16(*address);
+            let len = words.len();
+            buf.put_u16(u16_len(len));
+            buf.put_u8(u8_len(len * 2));
+            for w in words.as_ref() {
+                buf.put_u16(*w);
             }
         }
-        Ok(data.freeze())
-    }
-}
-
-impl<'a> TryFrom<RequestPdu<'a>> for Bytes {
-    type Error = Error;
-
-    fn try_from(pdu: RequestPdu<'a>) -> Result<Bytes, Self::Error> {
-        pdu.0.try_into()
+        ReportServerId => {}
+        MaskWriteRegister(address, and_mask, or_mask) => {
+            buf.put_u16(*address);
+            buf.put_u16(*and_mask);
+            buf.put_u16(*or_mask);
+        }
+        ReadWriteMultipleRegisters(read_address, quantity, write_address, words) => {
+            buf.put_u16(*read_address);
+            buf.put_u16(*quantity);
+            buf.put_u16(*write_address);
+            let n = words.len();
+            buf.put_u16(u16_len(n));
+            buf.put_u8(u8_len(n * 2));
+            for w in words.as_ref() {
+                buf.put_u16(*w);
+            }
+        }
+        Custom(_, custom_data) => {
+            buf.put_slice(custom_data.as_ref());
+        }
     }
 }
 
@@ -444,7 +426,8 @@ fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
     res
 }
 
-fn request_byte_count(req: &Request<'_>) -> usize {
+#[cfg(any(feature = "rtu", feature = "tcp"))]
+fn request_pdu_size(req: &Request<'_>) -> usize {
     use crate::frame::Request::*;
     match *req {
         ReadCoils(_, _)
@@ -485,6 +468,12 @@ mod tests {
     use std::borrow::Cow;
 
     use super::*;
+
+    fn request_to_pdu_bytes(request: &Request<'_>) -> Bytes {
+        let mut buf = BytesMut::new();
+        super::encode_request_pdu(&mut buf, request);
+        buf.freeze()
+    }
 
     #[test]
     fn convert_bool_to_coil() {
@@ -551,7 +540,7 @@ mod tests {
 
     #[test]
     fn pdu_into_bytes() {
-        let req_pdu: Bytes = Request::ReadCoils(0x01, 5).try_into().unwrap();
+        let req_pdu: Bytes = request_to_pdu_bytes(&Request::ReadCoils(0x01, 5));
         let rsp_pdu: Bytes = Response::ReadCoils(vec![]).into();
         let ex_pdu: Bytes = ExceptionResponse {
             function: FunctionCode::ReadHoldingRegisters,
@@ -571,7 +560,7 @@ mod tests {
         assert_eq!(ex_pdu[0], 0x83);
         assert_eq!(ex_pdu[1], 0x04);
 
-        let req_pdu: Bytes = Request::ReadHoldingRegisters(0x082B, 2).try_into().unwrap();
+        let req_pdu: Bytes = request_to_pdu_bytes(&Request::ReadHoldingRegisters(0x082B, 2));
         assert_eq!(req_pdu.len(), 5);
         assert_eq!(req_pdu[0], 0x03);
         assert_eq!(req_pdu[1], 0x08);
@@ -582,9 +571,10 @@ mod tests {
 
     #[test]
     fn pdu_with_a_lot_of_data_into_bytes() {
-        let _req_pdu: Bytes = Request::WriteMultipleRegisters(0x01, Cow::Borrowed(&[0; 80]))
-            .try_into()
-            .unwrap();
+        let _req_pdu: Bytes = request_to_pdu_bytes(&Request::WriteMultipleRegisters(
+            0x01,
+            Cow::Borrowed(&[0; 80]),
+        ));
         let _rsp_pdu: Bytes = Response::ReadInputRegisters(vec![0; 80]).into();
     }
 
@@ -594,7 +584,7 @@ mod tests {
 
         #[test]
         fn read_coils() {
-            let bytes: Bytes = Request::ReadCoils(0x12, 4).try_into().unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::ReadCoils(0x12, 4));
             assert_eq!(bytes[0], 1);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x12);
@@ -604,7 +594,7 @@ mod tests {
 
         #[test]
         fn read_discrete_inputs() {
-            let bytes: Bytes = Request::ReadDiscreteInputs(0x03, 19).try_into().unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::ReadDiscreteInputs(0x03, 19));
             assert_eq!(bytes[0], 2);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x03);
@@ -614,7 +604,7 @@ mod tests {
 
         #[test]
         fn write_single_coil() {
-            let bytes: Bytes = Request::WriteSingleCoil(0x1234, true).try_into().unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::WriteSingleCoil(0x1234, true));
             assert_eq!(bytes[0], 5);
             assert_eq!(bytes[1], 0x12);
             assert_eq!(bytes[2], 0x34);
@@ -625,9 +615,8 @@ mod tests {
         #[test]
         fn write_multiple_coils() {
             let states = [true, false, true, true];
-            let bytes: Bytes = Request::WriteMultipleCoils(0x3311, Cow::Borrowed(&states))
-                .try_into()
-                .unwrap();
+            let bytes: Bytes =
+                request_to_pdu_bytes(&Request::WriteMultipleCoils(0x3311, Cow::Borrowed(&states)));
             assert_eq!(bytes[0], 0x0F);
             assert_eq!(bytes[1], 0x33);
             assert_eq!(bytes[2], 0x11);
@@ -639,7 +628,7 @@ mod tests {
 
         #[test]
         fn read_input_registers() {
-            let bytes: Bytes = Request::ReadInputRegisters(0x09, 77).try_into().unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::ReadInputRegisters(0x09, 77));
             assert_eq!(bytes[0], 4);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x09);
@@ -649,7 +638,7 @@ mod tests {
 
         #[test]
         fn read_holding_registers() {
-            let bytes: Bytes = Request::ReadHoldingRegisters(0x09, 77).try_into().unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::ReadHoldingRegisters(0x09, 77));
             assert_eq!(bytes[0], 3);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x09);
@@ -659,9 +648,7 @@ mod tests {
 
         #[test]
         fn write_single_register() {
-            let bytes: Bytes = Request::WriteSingleRegister(0x07, 0xABCD)
-                .try_into()
-                .unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::WriteSingleRegister(0x07, 0xABCD));
             assert_eq!(bytes[0], 6);
             assert_eq!(bytes[1], 0x00);
             assert_eq!(bytes[2], 0x07);
@@ -671,10 +658,10 @@ mod tests {
 
         #[test]
         fn write_multiple_registers() {
-            let bytes: Bytes =
-                Request::WriteMultipleRegisters(0x06, Cow::Borrowed(&[0xABCD, 0xEF12]))
-                    .try_into()
-                    .unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::WriteMultipleRegisters(
+                0x06,
+                Cow::Borrowed(&[0xABCD, 0xEF12]),
+            ));
 
             // function code
             assert_eq!(bytes[0], 0x10);
@@ -699,15 +686,14 @@ mod tests {
 
         #[test]
         fn report_server_id() {
-            let bytes: Bytes = Request::ReportServerId.try_into().unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::ReportServerId);
             assert_eq!(bytes[0], 0x11);
         }
 
         #[test]
         fn masked_write_register() {
-            let bytes: Bytes = Request::MaskWriteRegister(0xABCD, 0xEF12, 0x2345)
-                .try_into()
-                .unwrap();
+            let bytes: Bytes =
+                request_to_pdu_bytes(&Request::MaskWriteRegister(0xABCD, 0xEF12, 0x2345));
 
             // function code
             assert_eq!(bytes[0], 0x16);
@@ -728,10 +714,12 @@ mod tests {
         #[test]
         fn read_write_multiple_registers() {
             let data = [0xABCD, 0xEF12];
-            let bytes: Bytes =
-                Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, Cow::Borrowed(&data))
-                    .try_into()
-                    .unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::ReadWriteMultipleRegisters(
+                0x05,
+                51,
+                0x03,
+                Cow::Borrowed(&data),
+            ));
 
             // function code
             assert_eq!(bytes[0], 0x17);
@@ -764,9 +752,10 @@ mod tests {
 
         #[test]
         fn custom() {
-            let bytes: Bytes = Request::Custom(0x55, Cow::Borrowed(&[0xCC, 0x88, 0xAA, 0xFF]))
-                .try_into()
-                .unwrap();
+            let bytes: Bytes = request_to_pdu_bytes(&Request::Custom(
+                0x55,
+                Cow::Borrowed(&[0xCC, 0x88, 0xAA, 0xFF]),
+            ));
             assert_eq!(bytes[0], 0x55);
             assert_eq!(bytes[1], 0xCC);
             assert_eq!(bytes[2], 0x88);
