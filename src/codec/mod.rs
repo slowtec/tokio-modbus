@@ -185,7 +185,7 @@ impl TryFrom<Bytes> for Request<'static> {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
                 }
                 let x = &bytes[6..];
-                WriteMultipleCoils(address, unpack_coils(x, quantity).into())
+                WriteMultipleCoils(address, decode_packed_coils(x, quantity).into())
             }
             0x04 => ReadInputRegisters(rdr.read_u16::<BigEndian>()?, rdr.read_u16::<BigEndian>()?),
             0x03 => {
@@ -263,7 +263,7 @@ impl TryFrom<Bytes> for Response {
                 // Here we have not information about the exact requested quantity so we just
                 // unpack the whole byte.
                 let quantity = u16::from(byte_count) * 8;
-                ReadCoils(unpack_coils(x, quantity))
+                ReadCoils(decode_packed_coils(x, quantity))
             }
             0x02 => {
                 let byte_count = rdr.read_u8()?;
@@ -271,7 +271,7 @@ impl TryFrom<Bytes> for Response {
                 // Here we have no information about the exact requested quantity so we just
                 // unpack the whole byte.
                 let quantity = u16::from(byte_count) * 8;
-                ReadDiscreteInputs(unpack_coils(x, quantity))
+                ReadDiscreteInputs(decode_packed_coils(x, quantity))
             }
             0x05 => WriteSingleCoil(
                 rdr.read_u16::<BigEndian>()?,
@@ -415,7 +415,7 @@ fn encode_packed_coils(buf: &mut crate::bytes::BytesMut, coils: &[Coil]) -> usiz
     packed_coils_size
 }
 
-fn unpack_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
+fn decode_packed_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
     let mut res = Vec::with_capacity(count.into());
     for i in 0usize..count.into() {
         res.push((bytes[i / 8] >> (i % 8)) & 0b1 > 0);
@@ -532,13 +532,13 @@ mod tests {
 
     #[test]
     fn test_unpack_bits() {
-        assert_eq!(unpack_coils(&[], 0), &[]);
-        assert_eq!(unpack_coils(&[0, 0], 0), &[]);
-        assert_eq!(unpack_coils(&[0b1], 1), &[true]);
-        assert_eq!(unpack_coils(&[0b01], 2), &[true, false]);
-        assert_eq!(unpack_coils(&[0b10], 2), &[false, true]);
-        assert_eq!(unpack_coils(&[0b101], 3), &[true, false, true]);
-        assert_eq!(unpack_coils(&[0xff, 0b11], 10), &[true; 10]);
+        assert_eq!(decode_packed_coils(&[], 0), &[]);
+        assert_eq!(decode_packed_coils(&[0, 0], 0), &[]);
+        assert_eq!(decode_packed_coils(&[0b1], 1), &[true]);
+        assert_eq!(decode_packed_coils(&[0b01], 2), &[true, false]);
+        assert_eq!(decode_packed_coils(&[0b10], 2), &[false, true]);
+        assert_eq!(decode_packed_coils(&[0b101], 3), &[true, false, true]);
+        assert_eq!(decode_packed_coils(&[0xff, 0b11], 10), &[true; 10]);
     }
 
     #[test]
