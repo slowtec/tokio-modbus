@@ -183,7 +183,7 @@ impl TryFrom<Bytes> for Request<'static> {
                 let quantity = read_u16_be(rdr)?;
                 let byte_count = rdr.read_u8()?;
                 if bytes.len() < 6 + usize::from(byte_count) {
-                    return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
+                    return Err(Error::new(ErrorKind::InvalidData, "too short"));
                 }
                 let x = &bytes[6..];
                 WriteMultipleCoils(address, decode_packed_coils(x, quantity).into())
@@ -197,7 +197,7 @@ impl TryFrom<Bytes> for Request<'static> {
                 let quantity = read_u16_be(rdr)?;
                 let byte_count = rdr.read_u8()?;
                 if bytes.len() < 6 + usize::from(byte_count) {
-                    return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
+                    return Err(Error::new(ErrorKind::InvalidData, "too short"));
                 }
                 let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
@@ -219,7 +219,7 @@ impl TryFrom<Bytes> for Request<'static> {
                 let write_quantity = read_u16_be(rdr)?;
                 let write_count = rdr.read_u8()?;
                 if bytes.len() < 10 + usize::from(write_count) {
-                    return Err(Error::new(ErrorKind::InvalidData, "Invalid byte count"));
+                    return Err(Error::new(ErrorKind::InvalidData, "too short"));
                 }
                 let mut data = Vec::with_capacity(write_quantity.into());
                 for _ in 0..write_quantity {
@@ -227,14 +227,23 @@ impl TryFrom<Bytes> for Request<'static> {
                 }
                 ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
             }
-            fn_code if fn_code < 0x80 => Custom(fn_code, bytes[1..].to_vec().into()),
+            fn_code if fn_code < 0x80 => {
+                return Ok(Custom(fn_code, bytes[1..].to_vec().into()));
+            }
             fn_code => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
-                    format!("Invalid function code: 0x{fn_code:0>2X}"),
+                    format!("invalid function code: 0x{fn_code:02X}"),
                 ));
             }
         };
+        // Verify that all data has been consumed and decoded.
+        if rdr.has_remaining() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "undecoded request data",
+            ));
+        }
         Ok(req)
     }
 }
@@ -300,12 +309,6 @@ impl TryFrom<Bytes> for Response {
                 for _ in 0..quantity {
                     data.push(read_u16_be(rdr)?);
                 }
-                if rdr.has_remaining() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid quantity",
-                    ));
-                }
                 ReadInputRegisters(data)
             }
             0x03 => {
@@ -320,12 +323,6 @@ impl TryFrom<Bytes> for Response {
                 let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
                     data.push(read_u16_be(rdr)?);
-                }
-                if rdr.has_remaining() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid quantity",
-                    ));
                 }
                 ReadHoldingRegisters(data)
             }
@@ -353,12 +350,6 @@ impl TryFrom<Bytes> for Response {
                 for _ in 0..data_len {
                     data.push(rdr.read_u8()?);
                 }
-                if rdr.has_remaining() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid quantity",
-                    ));
-                }
                 ReportServerId(server_id, run_indication_status, data)
             }
             0x16 => {
@@ -380,19 +371,20 @@ impl TryFrom<Bytes> for Response {
                 for _ in 0..quantity {
                     data.push(read_u16_be(rdr)?);
                 }
-                if rdr.has_remaining() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid quantity",
-                    ));
-                }
                 ReadWriteMultipleRegisters(data)
             }
             _ => {
                 let mut bytes = bytes;
-                Custom(fn_code, bytes.split_off(1))
+                return Ok(Custom(fn_code, bytes.split_off(1)));
             }
         };
+        // Verify that all data has been consumed and decoded.
+        if rdr.has_remaining() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "undecoded response data",
+            ));
+        }
         Ok(rsp)
     }
 }

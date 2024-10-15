@@ -6,7 +6,7 @@
 ## v0.16.0 (Unreleased)
 
 - Request encoding: Reduced allocations
-- Response decoding: More strict validation
+- Request/response decoding: More strict validation
 
 ### Breaking Changes
 
