@@ -5,8 +5,9 @@
 
 ## v0.16.0 (Unreleased)
 
-- Request encoding: Reduced allocations
-- Request/response decoding: More strict validation
+- Encoding of requests: Less allocations
+- Decoding of requests/responses: More strict validation
+- Limit request/response PDU size to 253 bytes (encoding/decoding)
 
 ### Breaking Changes
 

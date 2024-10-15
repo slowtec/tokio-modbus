@@ -333,7 +333,7 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
             pdu: RequestPdu(request),
         } = adu;
         let buf_offset = buf.len();
-        let request_pdu_size = request_pdu_size(&request);
+        let request_pdu_size = request_pdu_size(&request)?;
         buf.reserve((buf.capacity() - buf_offset) + request_pdu_size + 3);
         buf.put_u8(hdr.slave_id);
         encode_request_pdu(buf, &request);
@@ -353,7 +353,8 @@ impl Encoder<ResponseAdu> for ServerCodec {
             pdu: super::ResponsePdu(pdu_res),
         } = adu;
         let buf_offset = buf.len();
-        buf.reserve(super::response_result_pdu_size(&pdu_res) + 3);
+        let response_result_pdu_size = super::response_result_pdu_size(&pdu_res)?;
+        buf.reserve(response_result_pdu_size + 3);
         buf.put_u8(hdr.slave_id);
         super::encode_response_result_pdu(buf, &pdu_res);
         let crc = calc_crc(&buf[buf_offset..]);

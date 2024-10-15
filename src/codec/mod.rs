@@ -3,7 +3,7 @@
 
 use std::{
     convert::TryFrom,
-    io::{self, Cursor, Error, ErrorKind},
+    io::{self, BufRead as _, Cursor, Error, ErrorKind},
 };
 
 use byteorder::{BigEndian, ReadBytesExt as _};
@@ -19,6 +19,11 @@ pub(crate) mod rtu;
 
 #[cfg(feature = "tcp")]
 pub(crate) mod tcp;
+
+/// Maximum request/response PDU size.
+///
+/// As defined by the spec for both RTU and TCP.
+const MAX_PDU_SIZE: usize = 253;
 
 #[cfg(any(test, feature = "rtu", feature = "tcp"))]
 #[allow(clippy::cast_possible_truncation)]
@@ -85,9 +90,9 @@ fn encode_request_pdu(buf: &mut crate::bytes::BytesMut, request: &Request<'_>) {
             buf.put_u16(*read_address);
             buf.put_u16(*quantity);
             buf.put_u16(*write_address);
-            let n = words.len();
-            buf.put_u16(u16_len(n));
-            buf.put_u8(u8_len(n * 2));
+            let len = words.len();
+            buf.put_u16(u16_len(len));
+            buf.put_u8(u8_len(len * 2));
             for w in words.as_ref() {
                 buf.put_u16(*w);
             }
@@ -172,6 +177,12 @@ impl TryFrom<Bytes> for Request<'static> {
 
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
         use crate::frame::Request::*;
+        if bytes.len() > MAX_PDU_SIZE {
+            return Err(io::Error::new(
+                ErrorKind::InvalidData,
+                "request PDU size exceeded",
+            ));
+        }
         let rdr = &mut Cursor::new(&bytes);
         let fn_code = rdr.read_u8()?;
         let req = match fn_code {
@@ -181,12 +192,13 @@ impl TryFrom<Bytes> for Request<'static> {
             0x0F => {
                 let address = read_u16_be(rdr)?;
                 let quantity = read_u16_be(rdr)?;
-                let byte_count = rdr.read_u8()?;
-                if bytes.len() < 6 + usize::from(byte_count) {
-                    return Err(Error::new(ErrorKind::InvalidData, "too short"));
+                let byte_count = usize::from(rdr.read_u8()?);
+                if bytes.len() < 6 + byte_count {
+                    return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
                 }
-                let x = &bytes[6..];
-                WriteMultipleCoils(address, decode_packed_coils(x, quantity).into())
+                rdr.consume(byte_count);
+                let packed_coils = &bytes[6..6 + byte_count];
+                WriteMultipleCoils(address, decode_packed_coils(packed_coils, quantity).into())
             }
             0x04 => ReadInputRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
             0x03 => ReadHoldingRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
@@ -196,8 +208,8 @@ impl TryFrom<Bytes> for Request<'static> {
                 let address = read_u16_be(rdr)?;
                 let quantity = read_u16_be(rdr)?;
                 let byte_count = rdr.read_u8()?;
-                if bytes.len() < 6 + usize::from(byte_count) {
-                    return Err(Error::new(ErrorKind::InvalidData, "too short"));
+                if u16::from(byte_count) != quantity * 2 {
+                    return Err(io::Error::new(ErrorKind::InvalidData, "invalid quantity"));
                 }
                 let mut data = Vec::with_capacity(quantity.into());
                 for _ in 0..quantity {
@@ -218,8 +230,11 @@ impl TryFrom<Bytes> for Request<'static> {
                 let write_address = read_u16_be(rdr)?;
                 let write_quantity = read_u16_be(rdr)?;
                 let write_count = rdr.read_u8()?;
-                if bytes.len() < 10 + usize::from(write_count) {
-                    return Err(Error::new(ErrorKind::InvalidData, "too short"));
+                if u16::from(write_count) != write_quantity * 2 {
+                    return Err(io::Error::new(
+                        ErrorKind::InvalidData,
+                        "invalid write quantity",
+                    ));
                 }
                 let mut data = Vec::with_capacity(write_quantity.into());
                 for _ in 0..write_quantity {
@@ -228,6 +243,7 @@ impl TryFrom<Bytes> for Request<'static> {
                 ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
             }
             fn_code if fn_code < 0x80 => {
+                // Consume all remaining bytes as custom data.
                 return Ok(Custom(fn_code, bytes[1..].to_vec().into()));
             }
             fn_code => {
@@ -263,18 +279,22 @@ impl TryFrom<Bytes> for Response {
     #[allow(clippy::too_many_lines)] // TODO
     fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
         use crate::frame::Response::*;
+        if bytes.len() > MAX_PDU_SIZE {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "response PDU size exceeded",
+            ));
+        }
         let rdr = &mut Cursor::new(&bytes);
         let fn_code = rdr.read_u8()?;
         let rsp = match fn_code {
             0x01 => {
                 let byte_count = rdr.read_u8()?;
-                let packed_coils = &bytes[2..];
-                if packed_coils.len() != byte_count.into() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid quantity",
-                    ));
+                if bytes.len() < 2 + usize::from(byte_count) {
+                    return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
                 }
+                let packed_coils = &bytes[2..2 + usize::from(byte_count)];
+                rdr.consume(byte_count.into());
                 // Here we have not information about the exact requested quantity so we just
                 // unpack the whole byte.
                 let quantity = u16::from(byte_count) * 8;
@@ -282,13 +302,11 @@ impl TryFrom<Bytes> for Response {
             }
             0x02 => {
                 let byte_count = rdr.read_u8()?;
-                let packed_coils = &bytes[2..];
-                if packed_coils.len() != byte_count.into() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid quantity",
-                    ));
+                if bytes.len() < 2 + usize::from(byte_count) {
+                    return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
                 }
+                let packed_coils = &bytes[2..2 + usize::from(byte_count)];
+                rdr.consume(byte_count.into());
                 // Here we have no information about the exact requested quantity so we just
                 // unpack the whole byte.
                 let quantity = u16::from(byte_count) * 8;
@@ -374,6 +392,7 @@ impl TryFrom<Bytes> for Response {
                 ReadWriteMultipleRegisters(data)
             }
             _ => {
+                // Consume all remaining bytes as custom data.
                 let mut bytes = bytes;
                 return Ok(Custom(fn_code, bytes.split_off(1)));
             }
@@ -468,9 +487,9 @@ fn decode_packed_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
 }
 
 #[cfg(any(feature = "rtu", feature = "tcp"))]
-fn request_pdu_size(req: &Request<'_>) -> usize {
+fn request_pdu_size(req: &Request<'_>) -> io::Result<usize> {
     use crate::frame::Request::*;
-    match req {
+    let size = match req {
         ReadCoils(_, _)
         | ReadDiscreteInputs(_, _)
         | ReadInputRegisters(_, _)
@@ -483,13 +502,20 @@ fn request_pdu_size(req: &Request<'_>) -> usize {
         MaskWriteRegister(_, _, _) => 7,
         ReadWriteMultipleRegisters(_, _, _, data) => 10 + data.len() * 2,
         Custom(_, data) => 1 + data.len(),
+    };
+    if size > MAX_PDU_SIZE {
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "request PDU size exceeded",
+        ));
     }
+    Ok(size)
 }
 
 #[cfg(feature = "server")]
-fn response_pdu_size(rsp: &Response) -> usize {
+fn response_pdu_size(rsp: &Response) -> io::Result<usize> {
     use crate::frame::Response::*;
-    match rsp {
+    let size = match rsp {
         ReadCoils(coils) | ReadDiscreteInputs(coils) => 2 + packed_coils_size(coils),
         WriteSingleCoil(_, _)
         | WriteMultipleCoils(_, _)
@@ -501,14 +527,21 @@ fn response_pdu_size(rsp: &Response) -> usize {
         ReportServerId(_, _, ref data) => 3 + data.len(),
         MaskWriteRegister(_, _, _) => 7,
         Custom(_, ref data) => 1 + data.len(),
+    };
+    if size > MAX_PDU_SIZE {
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "response PDU size exceeded",
+        ));
     }
+    Ok(size)
 }
 
 #[cfg(feature = "server")]
-fn response_result_pdu_size(res: &Result<Response, ExceptionResponse>) -> usize {
+fn response_result_pdu_size(res: &Result<Response, ExceptionResponse>) -> io::Result<usize> {
     match res {
         Ok(rsp) => response_pdu_size(rsp),
-        Err(_) => 2,
+        Err(_) => Ok(2),
     }
 }
 
