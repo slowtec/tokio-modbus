@@ -3,6 +3,12 @@
 
 # Changelog
 
+## v0.16.0 (Unreleased)
+
+### Breaking Changes
+
+- Increased MSRV from 1.65 to 1.76
+
 ## v0.15.0 (2024-10-10)
 
 - Implement `Report Server ID` (function code 17).

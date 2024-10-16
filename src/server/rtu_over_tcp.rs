@@ -18,7 +18,7 @@ use crate::{
     codec::rtu::ServerCodec,
     frame::{
         rtu::{RequestAdu, ResponseAdu},
-        ExceptionResponse, OptionalResponsePdu,
+        ExceptionResponse, OptionalResponsePdu, RequestPdu,
     },
 };
 
@@ -140,15 +140,22 @@ where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
-        let Some(request) = framed.next().await.transpose()? else {
+        let Some(request_adu) = framed.next().await.transpose().inspect_err(|err| {
+            log::debug!("Failed to receive and decode request ADU: {err}");
+        })?
+        else {
             log::debug!("TCP socket has been closed");
             break;
         };
 
-        let fc = request.pdu.0.function_code();
-        let hdr = request.hdr;
+        let RequestAdu {
+            hdr,
+            pdu: RequestPdu(request),
+        } = &request_adu;
+        let hdr = *hdr;
+        let fc = request.function_code();
         let OptionalResponsePdu(Some(response_pdu)) = service
-            .call(request.into())
+            .call(request_adu.into())
             .await
             .map(Into::into)
             .map_err(|e| ExceptionResponse {
@@ -157,7 +164,7 @@ where
             })
             .into()
         else {
-            log::trace!("Sending no response for request {hdr:?}");
+            log::trace!("No response for request {hdr:?} (function = {fc})");
             continue;
         };
 
@@ -166,7 +173,10 @@ where
                 hdr,
                 pdu: response_pdu,
             })
-            .await?;
+            .await
+            .inspect_err(|err| {
+                log::debug!("Failed to send response for request {hdr:?} (function = {fc}): {err}");
+            })?;
     }
 
     Ok(())
