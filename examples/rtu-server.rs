@@ -32,10 +32,14 @@ impl tokio_modbus::server::Service for Service {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let builder = tokio_serial::new("/dev/ttyUSB0", 19200);
-    let server_serial = tokio_serial::SerialStream::open(&builder).unwrap();
+    println!("Run the following command and then copy&paste the /dev/pts/? device addresses into the code in this example:");
+    println!("socat -dd pty,raw,echo=0 pty,raw,echo=0");
 
-    println!("Starting up server...");
+    println!("Connecting server");
+    let server_builder = tokio_serial::new("/dev/pts/6", 19200);
+    let server_serial = tokio_serial::SerialStream::open(&server_builder).unwrap();
+
+    println!("Starting up server");
     let _server = thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let server = Server::new(server_serial);
@@ -50,10 +54,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Give the server some time for stating up
     thread::sleep(Duration::from_secs(1));
 
-    println!("CLIENT: Connecting client...");
-    let client_serial = tokio_serial::SerialStream::open(&builder).unwrap();
+    println!("Connecting client");
+    let client_builder = tokio_serial::new("/dev/pts/7", 19200);
+    let client_serial = tokio_serial::SerialStream::open(&client_builder).unwrap();
     let mut ctx = rtu::attach(client_serial);
-    println!("CLIENT: Reading input registers...");
+
+    println!("CLIENT: Reading input registers");
     let rsp = ctx.read_input_registers(0x00, 7).await?;
     println!("CLIENT: The result is '{rsp:#x?}'");
     assert_eq!(rsp.unwrap(), vec![0x0, 0x0, 0x77, 0x0, 0x0, 0x0, 0x0]);
@@ -67,5 +73,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(matches!(response, Err(ExceptionCode::IllegalDataAddress)));
 
     println!("CLIENT: Done.");
+
     Ok(())
 }
