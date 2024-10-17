@@ -7,11 +7,11 @@
 
 - Encoding of requests: Less allocations
 - Decoding of requests/responses: More strict validation
-- Limit request/response PDU size to 253 bytes (encoding/decoding)
 
 ### Breaking Changes
 
 - Increased MSRV from 1.65 to 1.76
+- Limit request/response PDU size to 253 bytes (encoding/decoding)
 
 ## v0.15.0 (2024-10-10)
 
