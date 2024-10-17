@@ -487,7 +487,7 @@ fn decode_packed_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
 }
 
 #[cfg(any(feature = "rtu", feature = "tcp"))]
-fn request_pdu_size(req: &Request<'_>) -> io::Result<usize> {
+fn request_pdu_size(request: &Request<'_>) -> io::Result<usize> {
     use crate::frame::Request::*;
     let size = match req {
         ReadCoils(_, _)
