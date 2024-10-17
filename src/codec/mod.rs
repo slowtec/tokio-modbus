@@ -513,7 +513,7 @@ fn request_pdu_size(req: &Request<'_>) -> io::Result<usize> {
 }
 
 #[cfg(feature = "server")]
-fn response_pdu_size(rsp: &Response) -> io::Result<usize> {
+fn response_pdu_size(response: &Response) -> io::Result<usize> {
     use crate::frame::Response::*;
     let size = match rsp {
         ReadCoils(coils) | ReadDiscreteInputs(coils) => 2 + packed_coils_size(coils),
