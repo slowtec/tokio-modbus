@@ -39,12 +39,6 @@ pub mod client;
 pub mod slave;
 pub use self::slave::{Slave, SlaveId};
 
-#[cfg(feature = "rtu")]
-pub mod rtu;
-
-#[cfg(feature = "tcp")]
-pub mod tcp;
-
 mod codec;
 
 mod error;
