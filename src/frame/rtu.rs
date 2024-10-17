@@ -3,20 +3,7 @@
 
 use super::*;
 
-use crate::{ProtocolError, Result, Slave};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RequestContext {
-    function_code: FunctionCode,
-    header: Header,
-}
-
-impl RequestContext {
-    #[must_use]
-    pub const fn function_code(&self) -> FunctionCode {
-        self.function_code
-    }
-}
+use crate::{rtu::RequestContext, ProtocolError, Result, Slave};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Header {

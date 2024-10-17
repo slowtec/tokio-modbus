@@ -8,13 +8,24 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
 
 use crate::{
-    codec,
+    codec::{self, disconnect},
     frame::{rtu::*, *},
     slave::*,
     Result,
 };
 
-use super::disconnect;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RequestContext {
+    pub(crate) function_code: FunctionCode,
+    pub(crate) header: Header,
+}
+
+impl RequestContext {
+    #[must_use]
+    pub const fn function_code(&self) -> FunctionCode {
+        self.function_code
+    }
+}
 
 /// _Modbus_ RTU client.
 #[derive(Debug)]

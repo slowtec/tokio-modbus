@@ -39,6 +39,12 @@ pub mod client;
 pub mod slave;
 pub use self::slave::{Slave, SlaveId};
 
+#[cfg(feature = "rtu")]
+pub mod rtu;
+
+#[cfg(feature = "tcp")]
+pub mod tcp;
+
 mod codec;
 
 mod error;
@@ -60,8 +66,6 @@ pub use self::frame::{
 /// 1. [`Error`]: An unexpected protocol or network error that occurred during client/server communication.
 /// 2. [`ExceptionCode`]: An error occurred on the _Modbus_ server.
 pub type Result<T> = std::result::Result<std::result::Result<T, ExceptionCode>, Error>;
-
-mod service;
 
 #[cfg(feature = "server")]
 pub mod server;
