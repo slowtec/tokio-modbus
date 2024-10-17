@@ -3,7 +3,7 @@
 
 use super::*;
 
-use crate::{rtu::RequestContext, ProtocolError, Result, Slave};
+use crate::{client::rtu::RequestContext, ProtocolError, Result, Slave};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Header {
