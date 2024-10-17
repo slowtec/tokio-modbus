@@ -25,6 +25,7 @@ pub(crate) mod tcp;
 /// As defined by the spec for both RTU and TCP.
 const MAX_PDU_SIZE: usize = 253;
 
+#[cfg(any(test, feature = "rtu", feature = "tcp"))]
 #[allow(clippy::cast_possible_truncation)]
 fn u16_len(len: usize) -> u16 {
     // This type conversion should always be safe, because either
