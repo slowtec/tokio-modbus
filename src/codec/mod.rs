@@ -104,7 +104,7 @@ fn encode_request_pdu(buf: &mut crate::bytes::BytesMut, request: &Request<'_>) {
 }
 
 #[cfg(any(test, feature = "server"))]
-fn encode_response_pdu(buf: &mut crate::bytes::BytesMut, rsp: &Response) {
+fn encode_response_pdu(buf: &mut crate::bytes::BytesMut, response: &Response) {
     use crate::{bytes::BufMut as _, frame::Response::*};
     buf.put_u8(rsp.function_code().value());
     match rsp {
