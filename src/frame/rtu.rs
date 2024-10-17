@@ -3,7 +3,7 @@
 
 use super::*;
 
-use crate::{ProtocolError, Result, SlaveId};
+use crate::{ProtocolError, Result, Slave};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RequestContext {
@@ -20,7 +20,7 @@ impl RequestContext {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Header {
-    pub(crate) slave_id: SlaveId,
+    pub(crate) slave: Slave,
 }
 
 #[derive(Debug, Clone)]
@@ -92,9 +92,10 @@ impl<'a> From<RequestAdu<'a>> for Request<'a> {
 #[cfg(feature = "server")]
 impl<'a> From<RequestAdu<'a>> for SlaveRequest<'a> {
     fn from(from: RequestAdu<'a>) -> Self {
+        let RequestAdu { hdr, pdu } = from;
         Self {
-            slave: from.hdr.slave_id,
-            request: from.pdu.into(),
+            slave: hdr.slave.into(),
+            request: pdu.into(),
         }
     }
 }
@@ -106,8 +107,8 @@ mod tests {
     #[test]
     fn validate_same_headers() {
         // Given
-        let req_hdr = Header { slave_id: 0 };
-        let rsp_hdr = Header { slave_id: 0 };
+        let req_hdr = Header { slave: Slave(0) };
+        let rsp_hdr = Header { slave: Slave(0) };
 
         // When
         let result = verify_response_header(&req_hdr, &rsp_hdr);
@@ -119,8 +120,8 @@ mod tests {
     #[test]
     fn invalid_validate_not_same_slave_id() {
         // Given
-        let req_hdr = Header { slave_id: 0 };
-        let rsp_hdr = Header { slave_id: 5 };
+        let req_hdr = Header { slave: Slave(0) };
+        let rsp_hdr = Header { slave: Slave(5) };
 
         // When
         let result = verify_response_header(&req_hdr, &rsp_hdr);
