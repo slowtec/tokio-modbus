@@ -5,7 +5,7 @@
 
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::service::rtu::{Client, ClientContext};
+use crate::rtu::{Client, ClientContext};
 
 use super::*;
 
