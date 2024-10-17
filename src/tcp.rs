@@ -8,7 +8,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
 
 use crate::{
-    codec,
+    codec::{self, disconnect},
     frame::{
         tcp::{Header, RequestAdu, ResponseAdu, TransactionId, UnitId},
         verify_response_header, RequestPdu, ResponsePdu,
@@ -16,8 +16,6 @@ use crate::{
     slave::*,
     ExceptionResponse, ProtocolError, Request, Response, Result,
 };
-
-use super::disconnect;
 
 const INITIAL_TRANSACTION_ID: TransactionId = 0;
 
