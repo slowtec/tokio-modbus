@@ -127,14 +127,18 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> Result<()> {
-        let RequestAdu { hdr, pdu } = adu;
-        let pdu_data: Bytes = pdu.try_into()?;
-        buf.reserve(pdu_data.len() + 7);
+        let RequestAdu {
+            hdr,
+            pdu: RequestPdu(request),
+        } = adu;
+        let buf_offset = buf.len();
+        let request_pdu_size = request_pdu_size(&request)?;
+        buf.reserve((buf.capacity() - buf_offset) + request_pdu_size + 7);
         buf.put_u16(hdr.transaction_id);
         buf.put_u16(PROTOCOL_ID);
-        buf.put_u16(u16_len(pdu_data.len() + 1));
+        buf.put_u16(u16_len(request_pdu_size + 1));
         buf.put_u8(hdr.unit_id);
-        buf.put_slice(&pdu_data);
+        encode_request_pdu(buf, &request);
         Ok(())
     }
 }
@@ -144,14 +148,17 @@ impl Encoder<ResponseAdu> for ServerCodec {
     type Error = Error;
 
     fn encode(&mut self, adu: ResponseAdu, buf: &mut BytesMut) -> Result<()> {
-        let ResponseAdu { hdr, pdu } = adu;
-        let pdu_data: Bytes = pdu.into();
-        buf.reserve(pdu_data.len() + 7);
+        let ResponseAdu {
+            hdr,
+            pdu: ResponsePdu(pdu_result),
+        } = adu;
+        let response_result_pdu_size = super::response_result_pdu_size(&pdu_result)?;
+        buf.reserve(response_result_pdu_size + 7);
         buf.put_u16(hdr.transaction_id);
         buf.put_u16(PROTOCOL_ID);
-        buf.put_u16(u16_len(pdu_data.len() + 1));
+        buf.put_u16(u16_len(response_result_pdu_size + 1));
         buf.put_u8(hdr.unit_id);
-        buf.put_slice(&pdu_data);
+        super::encode_response_result_pdu(buf, &pdu_result);
         Ok(())
     }
 }
@@ -159,7 +166,6 @@ impl Encoder<ResponseAdu> for ServerCodec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bytes::Bytes;
 
     mod client {
 
@@ -274,7 +280,8 @@ mod tests {
             assert_eq!(buf[6], UNIT_ID);
 
             drop(buf.split_to(7));
-            let pdu: Bytes = req.try_into().unwrap();
+            let mut pdu = BytesMut::new();
+            encode_request_pdu(&mut pdu, &req);
             assert_eq!(buf, pdu);
         }
 
