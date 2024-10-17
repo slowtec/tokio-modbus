@@ -294,7 +294,7 @@ impl Request<'_> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlaveRequest<'a> {
     /// Slave Id from the request
-    pub slave: crate::slave::SlaveId,
+    pub slave: crate::SlaveId,
     /// A `Request` enum
     pub request: Request<'a>,
 }
