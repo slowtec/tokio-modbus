@@ -150,7 +150,7 @@ fn encode_response_pdu(buf: &mut crate::bytes::BytesMut, response: &Response) {
 }
 
 #[cfg(any(test, feature = "server"))]
-fn encode_exception_response_pdu(buf: &mut crate::bytes::BytesMut, rsp: ExceptionResponse) {
+fn encode_exception_response_pdu(buf: &mut crate::bytes::BytesMut, response: ExceptionResponse) {
     use crate::bytes::BufMut as _;
     debug_assert!(rsp.function.value() < 0x80);
     buf.put_u8(rsp.function.value() + 0x80);
