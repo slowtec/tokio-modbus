@@ -106,8 +106,8 @@ fn encode_request_pdu(buf: &mut crate::bytes::BytesMut, request: &Request<'_>) {
 #[cfg(any(test, feature = "server"))]
 fn encode_response_pdu(buf: &mut crate::bytes::BytesMut, response: &Response) {
     use crate::{bytes::BufMut as _, frame::Response::*};
-    buf.put_u8(rsp.function_code().value());
-    match rsp {
+    buf.put_u8(response.function_code().value());
+    match response {
         ReadCoils(coils) | ReadDiscreteInputs(coils) => {
             buf.put_u8(u8_len(packed_coils_size(coils)));
             encode_packed_coils(buf, coils);
@@ -152,9 +152,9 @@ fn encode_response_pdu(buf: &mut crate::bytes::BytesMut, response: &Response) {
 #[cfg(any(test, feature = "server"))]
 fn encode_exception_response_pdu(buf: &mut crate::bytes::BytesMut, response: ExceptionResponse) {
     use crate::bytes::BufMut as _;
-    debug_assert!(rsp.function.value() < 0x80);
-    buf.put_u8(rsp.function.value() + 0x80);
-    buf.put_u8(rsp.exception.into());
+    debug_assert!(response.function.value() < 0x80);
+    buf.put_u8(response.function.value() + 0x80);
+    buf.put_u8(response.exception.into());
 }
 
 #[cfg(feature = "server")]
@@ -163,8 +163,8 @@ fn encode_response_result_pdu(
     res: &Result<Response, ExceptionResponse>,
 ) {
     match res {
-        Ok(rsp) => encode_response_pdu(buf, rsp),
-        Err(rsp) => encode_exception_response_pdu(buf, *rsp),
+        Ok(response) => encode_response_pdu(buf, response),
+        Err(response) => encode_exception_response_pdu(buf, *response),
     }
 }
 
@@ -287,7 +287,7 @@ impl TryFrom<Bytes> for Response {
         }
         let rdr = &mut Cursor::new(&bytes);
         let fn_code = rdr.read_u8()?;
-        let rsp = match fn_code {
+        let response = match fn_code {
             0x01 => {
                 let byte_count = rdr.read_u8()?;
                 if bytes.len() < 2 + usize::from(byte_count) {
@@ -404,7 +404,7 @@ impl TryFrom<Bytes> for Response {
                 "undecoded response data",
             ));
         }
-        Ok(rsp)
+        Ok(response)
     }
 }
 
@@ -489,7 +489,7 @@ fn decode_packed_coils(bytes: &[u8], count: u16) -> Vec<Coil> {
 #[cfg(any(feature = "rtu", feature = "tcp"))]
 fn request_pdu_size(request: &Request<'_>) -> io::Result<usize> {
     use crate::frame::Request::*;
-    let size = match req {
+    let size = match request {
         ReadCoils(_, _)
         | ReadDiscreteInputs(_, _)
         | ReadInputRegisters(_, _)
@@ -515,7 +515,7 @@ fn request_pdu_size(request: &Request<'_>) -> io::Result<usize> {
 #[cfg(feature = "server")]
 fn response_pdu_size(response: &Response) -> io::Result<usize> {
     use crate::frame::Response::*;
-    let size = match rsp {
+    let size = match response {
         ReadCoils(coils) | ReadDiscreteInputs(coils) => 2 + packed_coils_size(coils),
         WriteSingleCoil(_, _)
         | WriteMultipleCoils(_, _)
@@ -540,7 +540,7 @@ fn response_pdu_size(response: &Response) -> io::Result<usize> {
 #[cfg(feature = "server")]
 fn response_result_pdu_size(res: &Result<Response, ExceptionResponse>) -> io::Result<usize> {
     match res {
-        Ok(rsp) => response_pdu_size(rsp),
+        Ok(response) => response_pdu_size(response),
         Err(_) => Ok(2),
     }
 }
@@ -633,9 +633,9 @@ mod tests {
         assert!(ExceptionResponse::try_from(Bytes::from(vec![0x79, 0x02])).is_err());
 
         let bytes = Bytes::from(vec![0x83, 0x02]);
-        let rsp = ExceptionResponse::try_from(bytes).unwrap();
+        let response = ExceptionResponse::try_from(bytes).unwrap();
         assert_eq!(
-            rsp,
+            response,
             ExceptionResponse {
                 function: FunctionCode::ReadHoldingRegisters,
                 exception: ExceptionCode::IllegalDataAddress,
@@ -646,7 +646,7 @@ mod tests {
     #[test]
     fn pdu_into_bytes() {
         let req_pdu = encode_request_pdu_to_bytes(&Request::ReadCoils(0x01, 5));
-        let rsp_pdu = encode_response_pdu_to_bytes(&Response::ReadCoils(vec![]));
+        let response_pdu = encode_response_pdu_to_bytes(&Response::ReadCoils(vec![]));
         let ex_pdu = encode_exception_response_pdu_to_bytes(ExceptionResponse {
             function: FunctionCode::ReadHoldingRegisters,
             exception: ExceptionCode::ServerDeviceFailure,
@@ -658,8 +658,8 @@ mod tests {
         assert_eq!(req_pdu[3], 0x00);
         assert_eq!(req_pdu[4], 0x05);
 
-        assert_eq!(rsp_pdu[0], 0x01);
-        assert_eq!(rsp_pdu[1], 0x00);
+        assert_eq!(response_pdu[0], 0x01);
+        assert_eq!(response_pdu[1], 0x00);
 
         assert_eq!(ex_pdu[0], 0x83);
         assert_eq!(ex_pdu[1], 0x04);
@@ -679,7 +679,8 @@ mod tests {
             0x01,
             Cow::Borrowed(&[0; 80]),
         ));
-        let _rsp_pdu = encode_response_pdu_to_bytes(&Response::ReadInputRegisters(vec![0; 80]));
+        let _response_pdu =
+            encode_response_pdu_to_bytes(&Response::ReadInputRegisters(vec![0; 80]));
     }
 
     mod serialize_requests {
@@ -1154,9 +1155,9 @@ mod tests {
         #[test]
         fn read_coils() {
             let bytes = Bytes::from(vec![1, 1, 0b_0000_1001]);
-            let rsp = Response::try_from(bytes).unwrap();
+            let response = Response::try_from(bytes).unwrap();
             assert_eq!(
-                rsp,
+                response,
                 Response::ReadCoils(vec![true, false, false, true, false, false, false, false])
             );
         }
@@ -1169,16 +1170,16 @@ mod tests {
             let mut values: Vec<u8> = (0..byte_count).map(|_| 0b_1111_1111).collect();
             raw.append(&mut values);
             let bytes = Bytes::from(raw);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::ReadCoils(vec![true; quantity]));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::ReadCoils(vec![true; quantity]));
         }
 
         #[test]
         fn read_discrete_inputs() {
             let bytes = Bytes::from(vec![2, 1, 0b_0000_1001]);
-            let rsp = Response::try_from(bytes).unwrap();
+            let response = Response::try_from(bytes).unwrap();
             assert_eq!(
-                rsp,
+                response,
                 Response::ReadDiscreteInputs(vec![
                     true, false, false, true, false, false, false, false,
                 ],)
@@ -1193,30 +1194,30 @@ mod tests {
             let mut values: Vec<u8> = (0..byte_count).map(|_| 0b_1111_1111).collect();
             raw.append(&mut values);
             let bytes = Bytes::from(raw);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::ReadDiscreteInputs(vec![true; quantity]));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::ReadDiscreteInputs(vec![true; quantity]));
         }
 
         #[test]
         fn write_single_coil() {
             let bytes = Bytes::from(vec![5, 0x00, 0x33, 0xFF, 0x00]);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::WriteSingleCoil(0x33, true));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::WriteSingleCoil(0x33, true));
         }
 
         #[test]
         fn write_multiple_coils() {
             let bytes = Bytes::from(vec![0x0F, 0x33, 0x11, 0x00, 0x05]);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::WriteMultipleCoils(0x3311, 5));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::WriteMultipleCoils(0x3311, 5));
         }
 
         #[test]
         fn read_input_registers() {
             let bytes = Bytes::from(vec![4, 0x06, 0xAA, 0x00, 0xCC, 0xBB, 0xEE, 0xDD]);
-            let rsp = Response::try_from(bytes).unwrap();
+            let response = Response::try_from(bytes).unwrap();
             assert_eq!(
-                rsp,
+                response,
                 Response::ReadInputRegisters(vec![0xAA00, 0xCCBB, 0xEEDD])
             );
         }
@@ -1224,51 +1225,57 @@ mod tests {
         #[test]
         fn read_holding_registers() {
             let bytes = Bytes::from(vec![3, 0x04, 0xAA, 0x00, 0x11, 0x11]);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::ReadHoldingRegisters(vec![0xAA00, 0x1111]));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(
+                response,
+                Response::ReadHoldingRegisters(vec![0xAA00, 0x1111])
+            );
         }
 
         #[test]
         fn write_single_register() {
             let bytes = Bytes::from(vec![6, 0x00, 0x07, 0xAB, 0xCD]);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::WriteSingleRegister(0x07, 0xABCD));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::WriteSingleRegister(0x07, 0xABCD));
         }
 
         #[test]
         fn write_multiple_registers() {
             let bytes = Bytes::from(vec![0x10, 0x00, 0x06, 0x00, 0x02]);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::WriteMultipleRegisters(0x06, 2));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::WriteMultipleRegisters(0x06, 2));
         }
 
         #[test]
         fn report_server_id() {
             let bytes = Bytes::from(vec![0x11, 0x04, 0x042, 0xFF, 0x10, 0x20]);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::ReportServerId(0x42, true, vec![0x10, 0x20]));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(
+                response,
+                Response::ReportServerId(0x42, true, vec![0x10, 0x20])
+            );
         }
 
         #[test]
         fn masked_write_register() {
             let bytes = Bytes::from(vec![0x16, 0x00, 0x06, 0x80, 0x01, 0x40, 0x02]);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::MaskWriteRegister(6, 0x8001, 0x4002));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::MaskWriteRegister(6, 0x8001, 0x4002));
         }
 
         #[test]
         fn read_write_multiple_registers() {
             let bytes = Bytes::from(vec![0x17, 0x02, 0x12, 0x34]);
-            let rsp = Response::try_from(bytes).unwrap();
-            assert_eq!(rsp, Response::ReadWriteMultipleRegisters(vec![0x1234]));
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::ReadWriteMultipleRegisters(vec![0x1234]));
         }
 
         #[test]
         fn custom() {
             let bytes = Bytes::from(vec![0x55, 0xCC, 0x88, 0xAA, 0xFF]);
-            let rsp = Response::try_from(bytes).unwrap();
+            let response = Response::try_from(bytes).unwrap();
             assert_eq!(
-                rsp,
+                response,
                 Response::Custom(0x55, Bytes::from_static(&[0xCC, 0x88, 0xAA, 0xFF]))
             );
         }
