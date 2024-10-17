@@ -180,9 +180,7 @@ fn request_adu<'a, R>(server: Slave, request_pdu: R) -> RequestAdu<'a>
 where
     R: Into<RequestPdu<'a>>,
 {
-    let hdr = Header {
-        slave_id: server.into(),
-    };
+    let hdr = Header { slave: server };
     let pdu = request_pdu.into();
     RequestAdu { hdr, pdu }
 }
