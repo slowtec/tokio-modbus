@@ -55,6 +55,11 @@ repos:
         types_or:
           - yaml
           - markdown
+  - repo: https://github.com/ComPWA/taplo-pre-commit
+    rev: v0.9.3
+    hooks:
+      - id: taplo-format
+      - id: taplo-lint
   # https://reuse.software
   - repo: https://github.com/fsfe/reuse-tool
     rev: v4.0.3

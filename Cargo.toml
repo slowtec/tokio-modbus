@@ -5,10 +5,7 @@
 name = "tokio-modbus"
 description = "Tokio-based Modbus library"
 version = "0.15.0"
-authors = [
-    "slowtec GmbH <post@slowtec.de>",
-    "Markus Kohlhase <markus.kohlhase@slowtec.de>",
-]
+authors = ["slowtec GmbH <post@slowtec.de>", "Markus Kohlhase <markus.kohlhase@slowtec.de>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["fieldbus", "modbus", "hardware", "automation"]
@@ -37,18 +34,16 @@ thiserror = "1.0.58"
 tokio = { version = "1.35.1", default-features = false, features = ["io-util"] }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4.4", optional = true, default-features = false }
-tokio-util = { version = "0.7.10", optional = true, default-features = false, features = [
-    "codec",
-] }
+tokio-util = { version = "0.7.10", optional = true, default-features = false, features = ["codec"] }
 
 [dev-dependencies]
 anyhow = "1.0.86"
 env_logger = "0.11.5"
 futures = "0.3.30"
 tokio = { version = "1.35.1", default-features = false, features = [
-    "macros",
-    "rt-multi-thread",
-    "time",
+  "macros",
+  "rt-multi-thread",
+  "time",
 ] }
 tokio-serial = { version = "5.4.4", default-features = false }
 rustls-pemfile = "2.1.2"
@@ -60,23 +55,12 @@ rustls = { version = "0.23.12", default-features = false, features = ["std"] }
 
 [features]
 default = ["rtu", "tcp"]
-rtu = [
-    "dep:futures-core",
-    "futures-util/sink",
-    "dep:smallvec",
-    "dep:tokio-util",
-]
+rtu = ["dep:futures-core", "futures-util/sink", "dep:smallvec", "dep:tokio-util"]
 tcp = ["dep:futures-core", "futures-util/sink", "tokio/net", "dep:tokio-util"]
 rtu-sync = ["rtu", "sync", "dep:tokio-serial"]
 tcp-sync = ["tcp", "sync"]
 rtu-server = ["rtu", "server", "tokio/macros", "dep:tokio-serial"]
-tcp-server = [
-    "tcp",
-    "server",
-    "socket2/all",
-    "tokio/macros",
-    "tokio/rt-multi-thread",
-]
+tcp-server = ["tcp", "server", "socket2/all", "tokio/macros", "tokio/rt-multi-thread"]
 rtu-over-tcp-server = ["rtu", "tcp-server"]
 # The following features are internal and must not be used in dependencies.
 sync = ["dep:futures-core", "futures-util/sink", "tokio/time", "tokio/rt"]

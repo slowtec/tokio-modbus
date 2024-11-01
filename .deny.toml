@@ -10,13 +10,7 @@ db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "deny"
 
 [licenses]
-allow = [
-    "Apache-2.0",
-    "BSD-2-Clause",
-    "MIT",
-    "MPL-2.0",
-    "Unicode-DFS-2016",
-]
+allow = ["Apache-2.0", "BSD-2-Clause", "MIT", "MPL-2.0", "Unicode-DFS-2016"]
 
 [bans]
 # Multiple versions of dependencies are inevitable and cannot be avoided.
