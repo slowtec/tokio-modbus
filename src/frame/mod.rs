@@ -230,7 +230,7 @@ pub enum Request<'a> {
     Custom(u8, Cow<'a, [u8]>),
 }
 
-impl<'a> Request<'a> {
+impl Request<'_> {
     /// Converts the request into an owned instance with `'static'` lifetime.
     #[must_use]
     pub fn into_owned(self) -> Request<'static> {
@@ -300,7 +300,7 @@ pub struct SlaveRequest<'a> {
 }
 
 #[cfg(feature = "server")]
-impl<'a> SlaveRequest<'a> {
+impl SlaveRequest<'_> {
     /// Converts the request into an owned instance with `'static'` lifetime.
     #[must_use]
     pub fn into_owned(self) -> SlaveRequest<'static> {
