@@ -131,9 +131,8 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
             hdr,
             pdu: RequestPdu(request),
         } = adu;
-        let buf_offset = buf.len();
         let request_pdu_size = request_pdu_size(&request)?;
-        buf.reserve((buf.capacity() - buf_offset) + request_pdu_size + 7);
+        buf.reserve(request_pdu_size + 7);
         buf.put_u16(hdr.transaction_id);
         buf.put_u16(PROTOCOL_ID);
         buf.put_u16(u16_len(request_pdu_size + 1));
