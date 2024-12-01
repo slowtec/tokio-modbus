@@ -334,7 +334,7 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
         } = adu;
         let buf_offset = buf.len();
         let request_pdu_size = request_pdu_size(&request)?;
-        buf.reserve((buf.capacity() - buf_offset) + request_pdu_size + 3);
+        buf.reserve(request_pdu_size + 3);
         buf.put_u8(hdr.slave_id);
         encode_request_pdu(buf, &request);
         let crc = calc_crc(&buf[buf_offset..]);
