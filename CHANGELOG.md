@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.16.0 (Unreleased)
+## v0.16.0 (2024-12-04)
 
 - Encoding of requests: Less allocations
 - Decoding of requests/responses: More strict validation
