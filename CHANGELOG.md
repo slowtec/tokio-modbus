@@ -3,6 +3,10 @@
 
 # Changelog
 
+## v0.16.1 (Unreleased)
+
+- Decoding of requests/responses: Disable max. PDU size checks for custom functions
+
 ## v0.16.0 (2024-12-04)
 
 - Encoding of requests: Less allocations

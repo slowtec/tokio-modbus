@@ -172,95 +172,108 @@ fn read_u16_be(reader: &mut impl io::Read) -> io::Result<u16> {
     reader.read_u16::<BigEndian>()
 }
 
+// Only needed for requests with a dynamic payload size.
+fn check_request_pdu_size(pdu_size: usize) -> io::Result<()> {
+    if pdu_size > MAX_PDU_SIZE {
+        return Err(io::Error::new(
+            ErrorKind::InvalidData,
+            "request PDU size exceeded",
+        ));
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_lines)] // TODO
+fn decode_request_pdu_bytes(bytes: &Bytes) -> io::Result<Request<'static>> {
+    use crate::frame::Request::*;
+    let pdu_size = bytes.len();
+    let rdr = &mut Cursor::new(&bytes);
+    let fn_code = rdr.read_u8()?;
+    let req = match fn_code {
+        0x01 => ReadCoils(read_u16_be(rdr)?, read_u16_be(rdr)?),
+        0x02 => ReadDiscreteInputs(read_u16_be(rdr)?, read_u16_be(rdr)?),
+        0x05 => WriteSingleCoil(read_u16_be(rdr)?, coil_to_bool(read_u16_be(rdr)?)?),
+        0x0F => {
+            check_request_pdu_size(pdu_size)?;
+            let address = read_u16_be(rdr)?;
+            let quantity = read_u16_be(rdr)?;
+            let byte_count = usize::from(rdr.read_u8()?);
+            if bytes.len() < 6 + byte_count {
+                return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
+            }
+            rdr.consume(byte_count);
+            let packed_coils = &bytes[6..6 + byte_count];
+            WriteMultipleCoils(address, decode_packed_coils(packed_coils, quantity).into())
+        }
+        0x04 => ReadInputRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
+        0x03 => ReadHoldingRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
+        0x06 => WriteSingleRegister(read_u16_be(rdr)?, read_u16_be(rdr)?),
+        0x10 => {
+            check_request_pdu_size(pdu_size)?;
+            let address = read_u16_be(rdr)?;
+            let quantity = read_u16_be(rdr)?;
+            let byte_count = rdr.read_u8()?;
+            if u16::from(byte_count) != quantity * 2 {
+                return Err(io::Error::new(ErrorKind::InvalidData, "invalid quantity"));
+            }
+            let mut data = Vec::with_capacity(quantity.into());
+            for _ in 0..quantity {
+                data.push(read_u16_be(rdr)?);
+            }
+            WriteMultipleRegisters(address, data.into())
+        }
+        0x11 => ReportServerId,
+        0x16 => {
+            let address = read_u16_be(rdr)?;
+            let and_mask = read_u16_be(rdr)?;
+            let or_mask = read_u16_be(rdr)?;
+            MaskWriteRegister(address, and_mask, or_mask)
+        }
+        0x17 => {
+            check_request_pdu_size(pdu_size)?;
+            let read_address = read_u16_be(rdr)?;
+            let read_quantity = read_u16_be(rdr)?;
+            let write_address = read_u16_be(rdr)?;
+            let write_quantity = read_u16_be(rdr)?;
+            let write_count = rdr.read_u8()?;
+            if u16::from(write_count) != write_quantity * 2 {
+                return Err(io::Error::new(
+                    ErrorKind::InvalidData,
+                    "invalid write quantity",
+                ));
+            }
+            let mut data = Vec::with_capacity(write_quantity.into());
+            for _ in 0..write_quantity {
+                data.push(read_u16_be(rdr)?);
+            }
+            ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
+        }
+        fn_code if fn_code < 0x80 => {
+            // Consume all remaining bytes as custom data.
+            return Ok(Custom(fn_code, bytes[1..].to_vec().into()));
+        }
+        fn_code => {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("invalid function code: 0x{fn_code:02X}"),
+            ));
+        }
+    };
+    // Verify that all data has been consumed and decoded.
+    if rdr.has_remaining() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "undecoded request data",
+        ));
+    }
+    Ok(req)
+}
+
 impl TryFrom<Bytes> for Request<'static> {
     type Error = Error;
 
-    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        use crate::frame::Request::*;
-        if bytes.len() > MAX_PDU_SIZE {
-            return Err(io::Error::new(
-                ErrorKind::InvalidData,
-                "request PDU size exceeded",
-            ));
-        }
-        let rdr = &mut Cursor::new(&bytes);
-        let fn_code = rdr.read_u8()?;
-        let req = match fn_code {
-            0x01 => ReadCoils(read_u16_be(rdr)?, read_u16_be(rdr)?),
-            0x02 => ReadDiscreteInputs(read_u16_be(rdr)?, read_u16_be(rdr)?),
-            0x05 => WriteSingleCoil(read_u16_be(rdr)?, coil_to_bool(read_u16_be(rdr)?)?),
-            0x0F => {
-                let address = read_u16_be(rdr)?;
-                let quantity = read_u16_be(rdr)?;
-                let byte_count = usize::from(rdr.read_u8()?);
-                if bytes.len() < 6 + byte_count {
-                    return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
-                }
-                rdr.consume(byte_count);
-                let packed_coils = &bytes[6..6 + byte_count];
-                WriteMultipleCoils(address, decode_packed_coils(packed_coils, quantity).into())
-            }
-            0x04 => ReadInputRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
-            0x03 => ReadHoldingRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
-            0x06 => WriteSingleRegister(read_u16_be(rdr)?, read_u16_be(rdr)?),
-
-            0x10 => {
-                let address = read_u16_be(rdr)?;
-                let quantity = read_u16_be(rdr)?;
-                let byte_count = rdr.read_u8()?;
-                if u16::from(byte_count) != quantity * 2 {
-                    return Err(io::Error::new(ErrorKind::InvalidData, "invalid quantity"));
-                }
-                let mut data = Vec::with_capacity(quantity.into());
-                for _ in 0..quantity {
-                    data.push(read_u16_be(rdr)?);
-                }
-                WriteMultipleRegisters(address, data.into())
-            }
-            0x11 => ReportServerId,
-            0x16 => {
-                let address = read_u16_be(rdr)?;
-                let and_mask = read_u16_be(rdr)?;
-                let or_mask = read_u16_be(rdr)?;
-                MaskWriteRegister(address, and_mask, or_mask)
-            }
-            0x17 => {
-                let read_address = read_u16_be(rdr)?;
-                let read_quantity = read_u16_be(rdr)?;
-                let write_address = read_u16_be(rdr)?;
-                let write_quantity = read_u16_be(rdr)?;
-                let write_count = rdr.read_u8()?;
-                if u16::from(write_count) != write_quantity * 2 {
-                    return Err(io::Error::new(
-                        ErrorKind::InvalidData,
-                        "invalid write quantity",
-                    ));
-                }
-                let mut data = Vec::with_capacity(write_quantity.into());
-                for _ in 0..write_quantity {
-                    data.push(read_u16_be(rdr)?);
-                }
-                ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
-            }
-            fn_code if fn_code < 0x80 => {
-                // Consume all remaining bytes as custom data.
-                return Ok(Custom(fn_code, bytes[1..].to_vec().into()));
-            }
-            fn_code => {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
-                    format!("invalid function code: 0x{fn_code:02X}"),
-                ));
-            }
-        };
-        // Verify that all data has been consumed and decoded.
-        if rdr.has_remaining() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "undecoded request data",
-            ));
-        }
-        Ok(req)
+    fn try_from(pdu_bytes: Bytes) -> Result<Self, Self::Error> {
+        decode_request_pdu_bytes(&pdu_bytes)
     }
 }
 
@@ -273,138 +286,153 @@ impl TryFrom<Bytes> for RequestPdu<'static> {
     }
 }
 
+// Only needed for responses with a dynamic payload size.
+fn check_response_pdu_size(pdu_size: usize) -> io::Result<()> {
+    if pdu_size > MAX_PDU_SIZE {
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "response PDU size exceeded",
+        ));
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_lines)] // TODO
+fn decode_response_pdu_bytes(bytes: Bytes) -> io::Result<Response> {
+    use crate::frame::Response::*;
+    let pdu_size = bytes.len();
+    let rdr = &mut Cursor::new(&bytes);
+    let fn_code = rdr.read_u8()?;
+    let response = match fn_code {
+        0x01 => {
+            check_response_pdu_size(pdu_size)?;
+            let byte_count = rdr.read_u8()?;
+            if bytes.len() < 2 + usize::from(byte_count) {
+                return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
+            }
+            let packed_coils = &bytes[2..2 + usize::from(byte_count)];
+            rdr.consume(byte_count.into());
+            // Here we have not information about the exact requested quantity so we just
+            // unpack the whole byte.
+            let quantity = u16::from(byte_count) * 8;
+            ReadCoils(decode_packed_coils(packed_coils, quantity))
+        }
+        0x02 => {
+            check_response_pdu_size(pdu_size)?;
+            let byte_count = rdr.read_u8()?;
+            if bytes.len() < 2 + usize::from(byte_count) {
+                return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
+            }
+            let packed_coils = &bytes[2..2 + usize::from(byte_count)];
+            rdr.consume(byte_count.into());
+            // Here we have no information about the exact requested quantity so we just
+            // unpack the whole byte.
+            let quantity = u16::from(byte_count) * 8;
+            ReadDiscreteInputs(decode_packed_coils(packed_coils, quantity))
+        }
+        0x05 => WriteSingleCoil(read_u16_be(rdr)?, coil_to_bool(read_u16_be(rdr)?)?),
+        0x0F => WriteMultipleCoils(read_u16_be(rdr)?, read_u16_be(rdr)?),
+        0x04 => {
+            check_response_pdu_size(pdu_size)?;
+            let byte_count = rdr.read_u8()?;
+            if byte_count % 2 != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid quantity",
+                ));
+            }
+            let quantity = byte_count / 2;
+            let mut data = Vec::with_capacity(quantity.into());
+            for _ in 0..quantity {
+                data.push(read_u16_be(rdr)?);
+            }
+            ReadInputRegisters(data)
+        }
+        0x03 => {
+            check_response_pdu_size(pdu_size)?;
+            let byte_count = rdr.read_u8()?;
+            if byte_count % 2 != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid quantity",
+                ));
+            }
+            let quantity = byte_count / 2;
+            let mut data = Vec::with_capacity(quantity.into());
+            for _ in 0..quantity {
+                data.push(read_u16_be(rdr)?);
+            }
+            ReadHoldingRegisters(data)
+        }
+        0x06 => WriteSingleRegister(read_u16_be(rdr)?, read_u16_be(rdr)?),
+        0x10 => WriteMultipleRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
+        0x11 => {
+            check_response_pdu_size(pdu_size)?;
+            let byte_count = rdr.read_u8()?;
+            if byte_count < 2 {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "too short"));
+            }
+            let data_len = (byte_count - 2).into();
+            let server_id = rdr.read_u8()?;
+            let run_indication_status = match rdr.read_u8()? {
+                0x00 => false,
+                0xFF => true,
+                status => {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        format!("invalid run indication status: 0x{status:02X}"),
+                    ));
+                }
+            };
+            let mut data = Vec::with_capacity(data_len);
+            for _ in 0..data_len {
+                data.push(rdr.read_u8()?);
+            }
+            ReportServerId(server_id, run_indication_status, data)
+        }
+        0x16 => {
+            let address = read_u16_be(rdr)?;
+            let and_mask = read_u16_be(rdr)?;
+            let or_mask = read_u16_be(rdr)?;
+            MaskWriteRegister(address, and_mask, or_mask)
+        }
+        0x17 => {
+            check_response_pdu_size(pdu_size)?;
+            let byte_count = rdr.read_u8()?;
+            if byte_count % 2 != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid quantity",
+                ));
+            }
+            let quantity = byte_count / 2;
+            let mut data = Vec::with_capacity(quantity.into());
+            for _ in 0..quantity {
+                data.push(read_u16_be(rdr)?);
+            }
+            ReadWriteMultipleRegisters(data)
+        }
+        _ => {
+            // Consume all remaining bytes as custom data.
+            let mut bytes = bytes;
+            return Ok(Custom(fn_code, bytes.split_off(1)));
+        }
+    };
+    // Verify that all data has been consumed and decoded.
+    if rdr.has_remaining() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "undecoded response data",
+        ));
+    }
+    Ok(response)
+}
+
 impl TryFrom<Bytes> for Response {
     type Error = Error;
 
-    #[allow(clippy::too_many_lines)] // TODO
-    fn try_from(bytes: Bytes) -> Result<Self, Self::Error> {
-        use crate::frame::Response::*;
-        if bytes.len() > MAX_PDU_SIZE {
-            return Err(io::Error::new(
-                ErrorKind::InvalidInput,
-                "response PDU size exceeded",
-            ));
-        }
-        let rdr = &mut Cursor::new(&bytes);
-        let fn_code = rdr.read_u8()?;
-        let response = match fn_code {
-            0x01 => {
-                let byte_count = rdr.read_u8()?;
-                if bytes.len() < 2 + usize::from(byte_count) {
-                    return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
-                }
-                let packed_coils = &bytes[2..2 + usize::from(byte_count)];
-                rdr.consume(byte_count.into());
-                // Here we have not information about the exact requested quantity so we just
-                // unpack the whole byte.
-                let quantity = u16::from(byte_count) * 8;
-                ReadCoils(decode_packed_coils(packed_coils, quantity))
-            }
-            0x02 => {
-                let byte_count = rdr.read_u8()?;
-                if bytes.len() < 2 + usize::from(byte_count) {
-                    return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
-                }
-                let packed_coils = &bytes[2..2 + usize::from(byte_count)];
-                rdr.consume(byte_count.into());
-                // Here we have no information about the exact requested quantity so we just
-                // unpack the whole byte.
-                let quantity = u16::from(byte_count) * 8;
-                ReadDiscreteInputs(decode_packed_coils(packed_coils, quantity))
-            }
-            0x05 => WriteSingleCoil(read_u16_be(rdr)?, coil_to_bool(read_u16_be(rdr)?)?),
-            0x0F => WriteMultipleCoils(read_u16_be(rdr)?, read_u16_be(rdr)?),
-            0x04 => {
-                let byte_count = rdr.read_u8()?;
-                if byte_count % 2 != 0 {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid quantity",
-                    ));
-                }
-                let quantity = byte_count / 2;
-                let mut data = Vec::with_capacity(quantity.into());
-                for _ in 0..quantity {
-                    data.push(read_u16_be(rdr)?);
-                }
-                ReadInputRegisters(data)
-            }
-            0x03 => {
-                let byte_count = rdr.read_u8()?;
-                if byte_count % 2 != 0 {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid quantity",
-                    ));
-                }
-                let quantity = byte_count / 2;
-                let mut data = Vec::with_capacity(quantity.into());
-                for _ in 0..quantity {
-                    data.push(read_u16_be(rdr)?);
-                }
-                ReadHoldingRegisters(data)
-            }
-            0x06 => WriteSingleRegister(read_u16_be(rdr)?, read_u16_be(rdr)?),
-
-            0x10 => WriteMultipleRegisters(read_u16_be(rdr)?, read_u16_be(rdr)?),
-            0x11 => {
-                let byte_count = rdr.read_u8()?;
-                if byte_count < 2 {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "too short"));
-                }
-                let data_len = (byte_count - 2).into();
-                let server_id = rdr.read_u8()?;
-                let run_indication_status = match rdr.read_u8()? {
-                    0x00 => false,
-                    0xFF => true,
-                    status => {
-                        return Err(Error::new(
-                            ErrorKind::InvalidData,
-                            format!("invalid run indication status: 0x{status:02X}"),
-                        ));
-                    }
-                };
-                let mut data = Vec::with_capacity(data_len);
-                for _ in 0..data_len {
-                    data.push(rdr.read_u8()?);
-                }
-                ReportServerId(server_id, run_indication_status, data)
-            }
-            0x16 => {
-                let address = read_u16_be(rdr)?;
-                let and_mask = read_u16_be(rdr)?;
-                let or_mask = read_u16_be(rdr)?;
-                MaskWriteRegister(address, and_mask, or_mask)
-            }
-            0x17 => {
-                let byte_count = rdr.read_u8()?;
-                if byte_count % 2 != 0 {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid quantity",
-                    ));
-                }
-                let quantity = byte_count / 2;
-                let mut data = Vec::with_capacity(quantity.into());
-                for _ in 0..quantity {
-                    data.push(read_u16_be(rdr)?);
-                }
-                ReadWriteMultipleRegisters(data)
-            }
-            _ => {
-                // Consume all remaining bytes as custom data.
-                let mut bytes = bytes;
-                return Ok(Custom(fn_code, bytes.split_off(1)));
-            }
-        };
-        // Verify that all data has been consumed and decoded.
-        if rdr.has_remaining() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "undecoded response data",
-            ));
-        }
-        Ok(response)
+    fn try_from(pdu_bytes: Bytes) -> Result<Self, Self::Error> {
+        decode_response_pdu_bytes(pdu_bytes)
     }
 }
 
