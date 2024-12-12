@@ -3,7 +3,7 @@
 
 # Changelog
 
-## v0.16.1 (Unreleased)
+## v0.16.1 (2024-12-12)
 
 - Decoding of requests/responses: Disable max. PDU size checks for custom
   functions
