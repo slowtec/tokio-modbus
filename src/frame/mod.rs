@@ -533,6 +533,12 @@ impl From<ExceptionResponse> for ResponsePdu {
     }
 }
 
+/// Permits different protocols to verify that response headers are
+/// valid, according to their respective spec's
+pub(crate) trait VerifiableHeader {
+    fn verify_against(&self, rsp: &Self) -> Result<(), String>;
+}
+
 #[cfg(any(
     feature = "rtu-over-tcp-server",
     feature = "rtu-server",

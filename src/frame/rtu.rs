@@ -10,6 +10,18 @@ pub(crate) struct Header {
     pub(crate) slave_id: SlaveId,
 }
 
+impl VerifiableHeader for Header {
+    /// Verify that the responder is the correct device
+    fn verify_against(&self, rsp: &Self) -> Result<(), String> {
+        if self != rsp {
+            return Err(format!(
+                "expected/request = {self:?}, actual/response = {rsp:?}"
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RequestAdu<'a> {
     pub(crate) hdr: Header,

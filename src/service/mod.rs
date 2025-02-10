@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use crate::frame::VerifiableHeader;
+
 #[cfg(feature = "rtu")]
 pub(crate) mod rtu;
 
@@ -27,17 +29,13 @@ where
         })
 }
 
-/// Check that `req_hdr` is the same `Header` as `rsp_hdr`.
+/// Check that `rsp_hdr` is valid for a given `req_hdr`, according to the
+/// specific protocol's specification
 ///
 /// # Errors
 ///
-/// If the 2 headers are different, an error message with the details will be returned.
+/// If the response header is not valid, returns an error message with the details.
 #[cfg(any(feature = "rtu", feature = "tcp"))]
-fn verify_response_header<H: Eq + std::fmt::Debug>(req_hdr: &H, rsp_hdr: &H) -> Result<(), String> {
-    if req_hdr != rsp_hdr {
-        return Err(format!(
-            "expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
-        ));
-    }
-    Ok(())
+fn verify_response_header<H: VerifiableHeader>(req_hdr: &H, rsp_hdr: &H) -> Result<(), String> {
+    req_hdr.verify_against(rsp_hdr)
 }
