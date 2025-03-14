@@ -130,7 +130,7 @@ impl Reader for Context {
             .call(Request::ReadCoils(addr, cnt))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::ReadCoils(mut coils) => {
                         debug_assert!(coils.len() >= cnt.into());
                         coils.truncate(cnt.into());
@@ -150,7 +150,7 @@ impl Reader for Context {
             .call(Request::ReadDiscreteInputs(addr, cnt))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::ReadDiscreteInputs(mut coils) => {
                         debug_assert!(coils.len() >= cnt.into());
                         coils.truncate(cnt.into());
@@ -170,7 +170,7 @@ impl Reader for Context {
             .call(Request::ReadInputRegisters(addr, cnt))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::ReadInputRegisters(words) => {
                         debug_assert_eq!(words.len(), cnt.into());
                         words
@@ -189,7 +189,7 @@ impl Reader for Context {
             .call(Request::ReadHoldingRegisters(addr, cnt))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::ReadHoldingRegisters(words) => {
                         debug_assert_eq!(words.len(), cnt.into());
                         words
@@ -215,7 +215,7 @@ impl Reader for Context {
             ))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::ReadWriteMultipleRegisters(words) => {
                         debug_assert_eq!(words.len(), read_count.into());
                         words
@@ -233,7 +233,7 @@ impl Writer for Context {
             .call(Request::WriteSingleCoil(addr, coil))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::WriteSingleCoil(rsp_addr, rsp_coil) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(coil, rsp_coil);
@@ -249,7 +249,7 @@ impl Writer for Context {
             .call(Request::WriteMultipleCoils(addr, Cow::Borrowed(coils)))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::WriteMultipleCoils(rsp_addr, rsp_cnt) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(cnt, rsp_cnt.into());
@@ -264,7 +264,7 @@ impl Writer for Context {
             .call(Request::WriteSingleRegister(addr, word))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::WriteSingleRegister(rsp_addr, rsp_word) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(word, rsp_word);
@@ -284,7 +284,7 @@ impl Writer for Context {
             .call(Request::WriteMultipleRegisters(addr, Cow::Borrowed(data)))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(cnt, rsp_cnt.into());
@@ -304,7 +304,7 @@ impl Writer for Context {
             .call(Request::MaskWriteRegister(addr, and_mask, or_mask))
             .await
             .map(|result| {
-                result.map_err(Into::into).map(|response| match response {
+                result.map(|response| match response {
                     Response::MaskWriteRegister(rsp_addr, rsp_and_mask, rsp_or_mask) => {
                         debug_assert_eq!(addr, rsp_addr);
                         debug_assert_eq!(and_mask, rsp_and_mask);
