@@ -11,7 +11,7 @@ use super::*;
 /// broadcast messages.
 pub fn attach<T>(transport: T) -> Context
 where
-    T: AsyncRead + AsyncWrite + Debug + Unpin + Send + 'static,
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     attach_slave(transport, Slave::broadcast())
 }
@@ -19,7 +19,7 @@ where
 /// Connect to any kind of Modbus slave device.
 pub fn attach_slave<T>(transport: T, slave: Slave) -> Context
 where
-    T: AsyncRead + AsyncWrite + Debug + Unpin + Send + 'static,
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let client = crate::service::rtu::Client::new(transport, slave);
     Context {
