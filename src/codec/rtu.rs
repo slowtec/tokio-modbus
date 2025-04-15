@@ -88,7 +88,7 @@ impl FrameDecoder {
         // Skip and record the first byte of the buffer
         {
             let first = buf.first().unwrap();
-            log::debug!("Dropped first byte: {:X?}", first);
+            log::debug!("Dropped first byte: {first:X?}");
             if self.dropped_bytes.len() >= MAX_FRAME_LEN {
                 log::error!(
                     "Giving up to decode frame after dropping {} byte(s): {:X?}",
@@ -293,7 +293,7 @@ impl Decoder for ClientCodec {
             .map(|pdu| Some(ResponseAdu { hdr, pdu }))
             .map_err(|err| {
                 // Unrecoverable error
-                log::error!("Failed to decode response PDU: {}", err);
+                log::error!("Failed to decode response PDU: {err}");
                 err
             })
     }
@@ -318,7 +318,7 @@ impl Decoder for ServerCodec {
             .map(|pdu| Some(RequestAdu { hdr, pdu }))
             .map_err(|err| {
                 // Unrecoverable error
-                log::error!("Failed to decode request PDU: {}", err);
+                log::error!("Failed to decode request PDU: {err}");
                 err
             })
     }
