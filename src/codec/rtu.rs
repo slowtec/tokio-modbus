@@ -202,6 +202,10 @@ fn calc_crc(data: &[u8]) -> u16 {
             }
         }
     }
+    // In contrast to all other 16-bit data data the CRC is stored in
+    // little-endian instead of big-endian byte order. We account for
+    // this oddity right here in the calculation and read/write all
+    // 16-bit values consistently in big-endian byte order.
     crc.rotate_right(8)
 }
 
