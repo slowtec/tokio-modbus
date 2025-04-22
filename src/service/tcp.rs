@@ -90,7 +90,7 @@ where
     }
 
     pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response> {
-        log::debug!("Call {:?}", req);
+        log::debug!("Call {req:?}");
 
         let req_function_code = req.function_code();
         let req_adu = self.next_request_adu(req);
