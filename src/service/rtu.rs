@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::{fmt, io};
+use std::io;
 
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -119,7 +119,7 @@ impl<T> SlaveContext for Client<T> {
 #[async_trait::async_trait]
 impl<T> crate::client::Client for Client<T>
 where
-    T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
+    T: AsyncRead + AsyncWrite + Send + Unpin,
 {
     async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         self.call(req).await

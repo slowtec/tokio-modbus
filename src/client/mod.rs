@@ -3,7 +3,7 @@
 
 //! Modbus clients
 
-use std::{borrow::Cow, fmt::Debug, io};
+use std::{borrow::Cow, io};
 
 use async_trait::async_trait;
 
@@ -20,7 +20,7 @@ pub mod sync;
 
 /// Transport independent asynchronous client trait
 #[async_trait]
-pub trait Client: SlaveContext + Send + Debug {
+pub trait Client: SlaveContext + Send {
     /// Invokes a _Modbus_ function.
     async fn call(&mut self, request: Request<'_>) -> Result<Response>;
 
@@ -89,7 +89,7 @@ pub trait Writer: Client {
 }
 
 /// Asynchronous Modbus client context
-#[derive(Debug)]
+#[allow(missing_debug_implementations)]
 pub struct Context {
     client: Box<dyn Client>,
 }
