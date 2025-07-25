@@ -490,7 +490,7 @@ fn coil_to_bool(coil: u16) -> io::Result<bool> {
 
 #[cfg(any(test, feature = "rtu", feature = "tcp"))]
 fn packed_coils_size(coils: &[Coil]) -> usize {
-    (coils.len() + 7) / 8
+    coils.len().div_ceil(8)
 }
 
 #[cfg(any(test, feature = "rtu", feature = "tcp"))]
@@ -552,9 +552,9 @@ fn response_pdu_size(response: &Response) -> io::Result<usize> {
         ReadInputRegisters(data)
         | ReadHoldingRegisters(data)
         | ReadWriteMultipleRegisters(data) => 2 + data.len() * 2,
-        ReportServerId(_, _, ref data) => 3 + data.len(),
+        ReportServerId(_, _, data) => 3 + data.len(),
         MaskWriteRegister(_, _, _) => 7,
-        Custom(_, ref data) => 1 + data.len(),
+        Custom(_, data) => 1 + data.len(),
     };
     if size > MAX_PDU_SIZE {
         return Err(io::Error::new(
