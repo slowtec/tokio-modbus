@@ -59,7 +59,7 @@ async fn client_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
     let max_iterations = 1000;
     let mut iterations = 1;
     loop {
-        println!("iteration {}", iterations);
+        println!("iteration {iterations}");
         // In this case, the TestService always returns an exception, we'll ignore that.
         // We are only interested here in the TCP client side constructing the request.
         _ = ctx.write_multiple_registers(0x1000, &[1]).await?;
