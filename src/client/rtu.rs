@@ -75,23 +75,23 @@ where
         disconnect_framed(framed).await
     }
 
-    pub async fn call<'a>(&mut self, server: Slave, request: Request<'a>) -> Result<Response> {
+    pub async fn call(&mut self, server: Slave, request: Request<'_>) -> Result<Response> {
         let request_context = self.send_request(server, request).await?;
         self.recv_response(request_context).await
     }
 
-    pub async fn send_request<'a>(
+    pub async fn send_request(
         &mut self,
         server: Slave,
-        request: Request<'a>,
+        request: Request<'_>,
     ) -> io::Result<RequestContext> {
         let request_adu = request_adu(server, request);
         self.send_request_adu(request_adu).await
     }
 
-    async fn send_request_adu<'a>(
+    async fn send_request_adu(
         &mut self,
-        request_adu: RequestAdu<'a>,
+        request_adu: RequestAdu<'_>,
     ) -> io::Result<RequestContext> {
         let request_context = request_adu.context();
 
@@ -164,7 +164,7 @@ where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     pub async fn call(&mut self, request: Request<'_>) -> Result<Response> {
-        log::debug!("Call {:?}", request);
+        log::debug!("Call {request:?}");
 
         let Some(client) = &mut self.client else {
             return Err(io::Error::new(io::ErrorKind::NotConnected, "disconnected").into());
