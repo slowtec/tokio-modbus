@@ -31,7 +31,7 @@ repos:
         stages:
           - commit-msg
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.17.2
+    rev: v0.18.1
     hooks:
       - id: markdownlint-cli2
   - repo: https://github.com/shellcheck-py/shellcheck-py
@@ -44,7 +44,7 @@ repos:
       - id: codespell
         args: [--ignore-words=.codespellignore]
   - repo: https://github.com/sirosen/check-jsonschema
-    rev: 0.31.3
+    rev: 0.33.2
     hooks:
       - id: check-github-actions
       - id: check-github-workflows
