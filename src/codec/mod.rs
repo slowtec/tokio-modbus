@@ -10,7 +10,10 @@ use byteorder::{BigEndian, ReadBytesExt as _};
 
 use crate::{
     bytes::{Buf as _, Bytes},
-    frame::{Coil, RequestPdu, ResponsePdu, MEI_TYPE_READ_DEVICE_IDENTIFICATION},
+    frame::{
+        Coil, ConformityLevel, DeviceIdObject, ReadCode, RequestPdu, ResponsePdu,
+        MEI_TYPE_READ_DEVICE_IDENTIFICATION,
+    },
     ExceptionCode, ExceptionResponse, FunctionCode, Request, Response,
 };
 
@@ -272,6 +275,25 @@ fn decode_request_pdu_bytes(bytes: &Bytes) -> io::Result<Request<'static>> {
             }
             ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
         }
+        0x2b => {
+            let mei_type = rdr.read_u8()?;
+            if mei_type != MEI_TYPE_READ_DEVICE_IDENTIFICATION {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("unsupported MEI type: {mei_type:#04X}"),
+                ));
+            }
+
+            check_request_pdu_size(pdu_size)?;
+            let Some(read_device_id_code) = ReadCode::try_from_value(rdr.read_u8()?) else {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid Read device ID code",
+                ));
+            };
+            let object_id = rdr.read_u8()?;
+            ReadDeviceIdentification(read_device_id_code, object_id)
+        }
         fn_code if fn_code < 0x80 => {
             // Consume all remaining bytes as custom data.
             return Ok(Custom(fn_code, bytes[1..].to_vec().into()));
@@ -435,6 +457,61 @@ fn decode_response_pdu_bytes(bytes: Bytes) -> io::Result<Response> {
                 data.push(read_u16_be(rdr)?);
             }
             ReadWriteMultipleRegisters(data)
+        }
+        0x2b => {
+            let mei_type = rdr.read_u8()?;
+            if mei_type != MEI_TYPE_READ_DEVICE_IDENTIFICATION {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("unsupported MEI type: {mei_type:#04X}"),
+                ));
+            }
+
+            check_response_pdu_size(pdu_size)?;
+            let Some(read_device_id_code) = ReadCode::try_from_value(rdr.read_u8()?) else {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid Read device ID code",
+                ));
+            };
+            let Some(conformity_level) = ConformityLevel::try_from_value(rdr.read_u8()?) else {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid conformity level",
+                ));
+            };
+            let more_follows = rdr.read_u8()? == 0xff;
+            let next_object_id = rdr.read_u8()?;
+            let count = rdr.read_u8()?;
+            let mut objects = Vec::with_capacity(count.into());
+            for _ in 0..count {
+                let id = rdr.read_u8()?;
+                let len: usize = rdr.read_u8()?.into();
+
+                let position = usize::try_from(rdr.position()).map_err(|_| {
+                    Error::new(
+                        ErrorKind::Unsupported,
+                        "Position exceeds usize limits on this platform",
+                    )
+                })?;
+                let bytes = rdr.get_ref();
+
+                if position + len > bytes.len() {
+                    return Err(Error::new(ErrorKind::InvalidData, "Invalid object length"));
+                }
+
+                let value = bytes.slice(position..position + len);
+                rdr.set_position((position + len) as u64);
+
+                objects.push(DeviceIdObject { id, value });
+            }
+            ReadDeviceIdentification(
+                read_device_id_code,
+                conformity_level,
+                more_follows,
+                next_object_id,
+                objects,
+            )
         }
         _ => {
             // Consume all remaining bytes as custom data.
