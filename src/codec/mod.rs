@@ -10,7 +10,7 @@ use byteorder::{BigEndian, ReadBytesExt as _};
 
 use crate::{
     bytes::{Buf as _, Bytes},
-    frame::{Coil, RequestPdu, ResponsePdu},
+    frame::{Coil, RequestPdu, ResponsePdu, MEI_TYPE_READ_DEVICE_IDENTIFICATION},
     ExceptionCode, ExceptionResponse, FunctionCode, Request, Response,
 };
 
@@ -97,6 +97,11 @@ fn encode_request_pdu(buf: &mut crate::bytes::BytesMut, request: &Request<'_>) {
                 buf.put_u16(*w);
             }
         }
+        ReadDeviceIdentification(read_code, object_id) => {
+            buf.put_u8(MEI_TYPE_READ_DEVICE_IDENTIFICATION);
+            buf.put_u8(read_code.value());
+            buf.put_u8(*object_id);
+        }
         Custom(_, custom_data) => {
             buf.put_slice(custom_data.as_ref());
         }
@@ -142,6 +147,25 @@ fn encode_response_pdu(buf: &mut crate::bytes::BytesMut, response: &Response) {
             buf.put_u16(*address);
             buf.put_u16(*and_mask);
             buf.put_u16(*or_mask);
+        }
+        ReadDeviceIdentification(
+            read_code,
+            conformity_level,
+            more_follows,
+            next_object_id,
+            device_id_objects,
+        ) => {
+            buf.put_u8(MEI_TYPE_READ_DEVICE_IDENTIFICATION);
+            buf.put_u8(read_code.value());
+            buf.put_u8(conformity_level.value());
+            buf.put_u8(if *more_follows { 0xff } else { 0x00 });
+            buf.put_u8(*next_object_id);
+            buf.put_u8(device_id_objects.len() as u8); // response_pdu_size validates the length
+            for dio in device_id_objects {
+                buf.put_u8(dio.id);
+                buf.put_u8(dio.value.len() as u8); // response_pdu_size validates the length
+                buf.put_slice(&dio.value);
+            }
         }
         Custom(_, custom_data) => {
             buf.put_slice(custom_data);
@@ -529,6 +553,7 @@ fn request_pdu_size(request: &Request<'_>) -> io::Result<usize> {
         ReportServerId => 1,
         MaskWriteRegister(_, _, _) => 7,
         ReadWriteMultipleRegisters(_, _, _, data) => 10 + data.len() * 2,
+        ReadDeviceIdentification(_, _) => 4,
         Custom(_, data) => 1 + data.len(),
     };
     if size > MAX_PDU_SIZE {
@@ -554,6 +579,20 @@ fn response_pdu_size(response: &Response) -> io::Result<usize> {
         | ReadWriteMultipleRegisters(data) => 2 + data.len() * 2,
         ReportServerId(_, _, data) => 3 + data.len(),
         MaskWriteRegister(_, _, _) => 7,
+        ReadDeviceIdentification(_, _, _, _, device_id_objects) => {
+            // 7-byte fixed header: function code, MEI type, device ID code,
+            // conformity level, more follows flag, next object ID, and object count.
+            //
+            // Each object adds 2 bytes overhead (object ID + length) plus its value length.
+            //
+            // This calculation and the subsequent size check ensure the total length
+            // fits within the maximum PDU size, implicitly limiting the number of objects
+            // so it always fits in a u8.
+            7 + device_id_objects
+                .iter()
+                .map(|o| 2 + o.value.len())
+                .sum::<usize>()
+        }
         Custom(_, data) => 1 + data.len(),
     };
     if size > MAX_PDU_SIZE {
