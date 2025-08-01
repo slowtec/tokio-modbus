@@ -1139,6 +1139,13 @@ mod tests {
         }
 
         #[test]
+        fn read_device_identification() {
+            let bytes = Bytes::from(vec![0x2B, 0x0E, 0x01, 0x01]);
+            let req = Request::try_from(bytes).unwrap();
+            assert_eq!(req, Request::ReadDeviceIdentification(ReadCode::Basic, 1));
+        }
+
+        #[test]
         fn custom() {
             let bytes = Bytes::from(vec![0x55, 0xCC, 0x88, 0xAA, 0xFF]);
             let req = Request::try_from(bytes).unwrap();
@@ -1218,6 +1225,39 @@ mod tests {
             assert_eq!(bytes[3], 0x00);
             assert_eq!(bytes[4], 0x11);
             assert_eq!(bytes[5], 0x11);
+        }
+
+        #[test]
+        fn read_device_identification() {
+            let bytes = encode_response_pdu_to_bytes(&Response::ReadDeviceIdentification(
+                ReadCode::Basic,
+                ConformityLevel::RegularIdentificationStreamOnly,
+                false,
+                0,
+                vec![
+                    DeviceIdObject {
+                        id: 1,
+                        value: Bytes::from("ProductCode"),
+                    },
+                    DeviceIdObject {
+                        id: 2,
+                        value: Bytes::from("2.1.3"),
+                    },
+                ],
+            ));
+            assert_eq!(bytes[0], 0x2B);
+            assert_eq!(bytes[1], 0x0E);
+            assert_eq!(bytes[2], 0x01);
+            assert_eq!(bytes[3], 0x02);
+            assert_eq!(bytes[4], 0x00);
+            assert_eq!(bytes[5], 0x00);
+            assert_eq!(bytes[6], 0x02);
+            assert_eq!(bytes[7], 0x01);
+            assert_eq!(bytes[8], 11);
+            assert_eq!(std::str::from_utf8(&bytes[9..20]).unwrap(), "ProductCode");
+            assert_eq!(bytes[20], 0x02);
+            assert_eq!(bytes[21], 5);
+            assert_eq!(std::str::from_utf8(&bytes[22..27]).unwrap(), "2.1.3");
         }
 
         #[test]
@@ -1340,6 +1380,34 @@ mod tests {
             let bytes = Bytes::from(raw);
             let response = Response::try_from(bytes).unwrap();
             assert_eq!(response, Response::ReadDiscreteInputs(vec![true; quantity]));
+        }
+
+        #[test]
+        fn read_device_identification() {
+            let bytes = Bytes::from(vec![
+                0x2B, 0x0E, 0x01, 0x02, 0x00, 0x00, 0x02, 0x01, 11, b'P', b'r', b'o', b'd', b'u',
+                b'c', b't', b'C', b'o', b'd', b'e', 0x02, 5, b'2', b'.', b'1', b'.', b'3',
+            ]);
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(
+                response,
+                Response::ReadDeviceIdentification(
+                    ReadCode::Basic,
+                    ConformityLevel::RegularIdentificationStreamOnly,
+                    false,
+                    0,
+                    vec![
+                        DeviceIdObject {
+                            id: 1,
+                            value: Bytes::from("ProductCode"),
+                        },
+                        DeviceIdObject {
+                            id: 2,
+                            value: Bytes::from("2.1.3"),
+                        },
+                    ],
+                )
+            );
         }
 
         #[test]
