@@ -10,7 +10,10 @@ use byteorder::{BigEndian, ReadBytesExt as _};
 
 use crate::{
     bytes::{Buf as _, Bytes},
-    frame::{Coil, RequestPdu, ResponsePdu},
+    frame::{
+        Coil, ConformityLevel, DeviceIdObject, ReadCode, RequestPdu, ResponsePdu,
+        MEI_TYPE_READ_DEVICE_IDENTIFICATION,
+    },
     ExceptionCode, ExceptionResponse, FunctionCode, Request, Response,
 };
 
@@ -97,6 +100,11 @@ fn encode_request_pdu(buf: &mut crate::bytes::BytesMut, request: &Request<'_>) {
                 buf.put_u16(*w);
             }
         }
+        ReadDeviceIdentification(read_code, object_id) => {
+            buf.put_u8(MEI_TYPE_READ_DEVICE_IDENTIFICATION);
+            buf.put_u8(read_code.value());
+            buf.put_u8(*object_id);
+        }
         Custom(_, custom_data) => {
             buf.put_slice(custom_data.as_ref());
         }
@@ -142,6 +150,25 @@ fn encode_response_pdu(buf: &mut crate::bytes::BytesMut, response: &Response) {
             buf.put_u16(*address);
             buf.put_u16(*and_mask);
             buf.put_u16(*or_mask);
+        }
+        ReadDeviceIdentification(
+            read_code,
+            conformity_level,
+            more_follows,
+            next_object_id,
+            device_id_objects,
+        ) => {
+            buf.put_u8(MEI_TYPE_READ_DEVICE_IDENTIFICATION);
+            buf.put_u8(read_code.value());
+            buf.put_u8(conformity_level.value());
+            buf.put_u8(if *more_follows { 0xff } else { 0x00 });
+            buf.put_u8(*next_object_id);
+            buf.put_u8(device_id_objects.len() as u8); // response_pdu_size validates the length
+            for dio in device_id_objects {
+                buf.put_u8(dio.id);
+                buf.put_u8(dio.value.len() as u8); // response_pdu_size validates the length
+                buf.put_slice(&dio.value);
+            }
         }
         Custom(_, custom_data) => {
             buf.put_slice(custom_data);
@@ -247,6 +274,17 @@ fn decode_request_pdu_bytes(bytes: &Bytes) -> io::Result<Request<'static>> {
                 data.push(read_u16_be(rdr)?);
             }
             ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
+        }
+        0x2b if rdr.read_u8()? == MEI_TYPE_READ_DEVICE_IDENTIFICATION => {
+            check_request_pdu_size(pdu_size)?;
+            let Some(read_device_id_code) = ReadCode::try_from_value(rdr.read_u8()?) else {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid Read device ID code",
+                ));
+            };
+            let object_id = rdr.read_u8()?;
+            ReadDeviceIdentification(read_device_id_code, object_id)
         }
         fn_code if fn_code < 0x80 => {
             // Consume all remaining bytes as custom data.
@@ -412,6 +450,48 @@ fn decode_response_pdu_bytes(bytes: Bytes) -> io::Result<Response> {
             }
             ReadWriteMultipleRegisters(data)
         }
+        0x2b if rdr.read_u8()? == MEI_TYPE_READ_DEVICE_IDENTIFICATION => {
+            check_response_pdu_size(pdu_size)?;
+            let Some(read_device_id_code) = ReadCode::try_from_value(rdr.read_u8()?) else {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid Read device ID code",
+                ));
+            };
+            let Some(conformity_level) = ConformityLevel::try_from_value(rdr.read_u8()?) else {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Invalid conformity level",
+                ));
+            };
+            let more_follows = rdr.read_u8()? == 0xff;
+            let next_object_id = rdr.read_u8()?;
+            let count = rdr.read_u8()?;
+            let mut objects = Vec::with_capacity(count.into());
+            for _ in 0..count {
+                let id = rdr.read_u8()?;
+                let len: usize = rdr.read_u8()?.into();
+
+                let position = rdr.position() as usize;
+                let bytes = rdr.get_ref();
+
+                if position + len > bytes.len() {
+                    return Err(Error::new(ErrorKind::InvalidData, "Invalid object length"));
+                }
+
+                let value = bytes.slice(position..position + len);
+                rdr.set_position((position + len) as u64);
+
+                objects.push(DeviceIdObject { id, value });
+            }
+            ReadDeviceIdentification(
+                read_device_id_code,
+                conformity_level,
+                more_follows,
+                next_object_id,
+                objects,
+            )
+        }
         _ => {
             // Consume all remaining bytes as custom data.
             let mut bytes = bytes;
@@ -529,6 +609,7 @@ fn request_pdu_size(request: &Request<'_>) -> io::Result<usize> {
         ReportServerId => 1,
         MaskWriteRegister(_, _, _) => 7,
         ReadWriteMultipleRegisters(_, _, _, data) => 10 + data.len() * 2,
+        ReadDeviceIdentification(_, _) => 4,
         Custom(_, data) => 1 + data.len(),
     };
     if size > MAX_PDU_SIZE {
@@ -554,6 +635,20 @@ fn response_pdu_size(response: &Response) -> io::Result<usize> {
         | ReadWriteMultipleRegisters(data) => 2 + data.len() * 2,
         ReportServerId(_, _, data) => 3 + data.len(),
         MaskWriteRegister(_, _, _) => 7,
+        ReadDeviceIdentification(_, _, _, _, device_id_objects) => {
+            // 7-byte fixed header: function code, MEI type, device ID code,
+            // conformity level, more follows flag, next object ID, and object count.
+            //
+            // Each object adds 2 bytes overhead (object ID + length) plus its value length.
+            //
+            // This calculation and the subsequent size check ensure the total length
+            // fits within the maximum PDU size, implicitly limiting the number of objects
+            // so it always fits in a u8.
+            7 + device_id_objects
+                .iter()
+                .map(|o| 2 + o.value.len())
+                .sum::<usize>()
+        }
         Custom(_, data) => 1 + data.len(),
     };
     if size > MAX_PDU_SIZE {
@@ -1023,6 +1118,13 @@ mod tests {
         }
 
         #[test]
+        fn read_device_identification() {
+            let bytes = Bytes::from(vec![0x2B, 0x0E, 0x01, 0x01]);
+            let req = Request::try_from(bytes).unwrap();
+            assert_eq!(req, Request::ReadDeviceIdentification(ReadCode::Basic, 1));
+        }
+
+        #[test]
         fn custom() {
             let bytes = Bytes::from(vec![0x55, 0xCC, 0x88, 0xAA, 0xFF]);
             let req = Request::try_from(bytes).unwrap();
@@ -1102,6 +1204,39 @@ mod tests {
             assert_eq!(bytes[3], 0x00);
             assert_eq!(bytes[4], 0x11);
             assert_eq!(bytes[5], 0x11);
+        }
+
+        #[test]
+        fn read_device_identification() {
+            let bytes = encode_response_pdu_to_bytes(&&Response::ReadDeviceIdentification(
+                ReadCode::Basic,
+                ConformityLevel::RegularIdentificationStreamOnly,
+                false,
+                0,
+                vec![
+                    DeviceIdObject {
+                        id: 1,
+                        value: Bytes::from("ProductCode"),
+                    },
+                    DeviceIdObject {
+                        id: 2,
+                        value: Bytes::from("2.1.3"),
+                    },
+                ],
+            ));
+            assert_eq!(bytes[0], 0x2B);
+            assert_eq!(bytes[1], 0x0E);
+            assert_eq!(bytes[2], 0x01);
+            assert_eq!(bytes[3], 0x02);
+            assert_eq!(bytes[4], 0x00);
+            assert_eq!(bytes[5], 0x00);
+            assert_eq!(bytes[6], 0x02);
+            assert_eq!(bytes[7], 0x01);
+            assert_eq!(bytes[8], 11);
+            assert_eq!(std::str::from_utf8(&bytes[9..20]).unwrap(), "ProductCode");
+            assert_eq!(bytes[20], 0x02);
+            assert_eq!(bytes[21], 5);
+            assert_eq!(std::str::from_utf8(&bytes[22..27]).unwrap(), "2.1.3");
         }
 
         #[test]
@@ -1224,6 +1359,34 @@ mod tests {
             let bytes = Bytes::from(raw);
             let response = Response::try_from(bytes).unwrap();
             assert_eq!(response, Response::ReadDiscreteInputs(vec![true; quantity]));
+        }
+
+        #[test]
+        fn read_device_identification() {
+            let bytes = Bytes::from(vec![
+                0x2B, 0x0E, 0x01, 0x02, 0x00, 0x00, 0x02, 0x01, 11, b'P', b'r', b'o', b'd', b'u',
+                b'c', b't', b'C', b'o', b'd', b'e', 0x02, 5, b'2', b'.', b'1', b'.', b'3',
+            ]);
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(
+                response,
+                Response::ReadDeviceIdentification(
+                    ReadCode::Basic,
+                    ConformityLevel::RegularIdentificationStreamOnly,
+                    false,
+                    0,
+                    vec![
+                        DeviceIdObject {
+                            id: 1,
+                            value: Bytes::from("ProductCode"),
+                        },
+                        DeviceIdObject {
+                            id: 2,
+                            value: Bytes::from("2.1.3"),
+                        },
+                    ],
+                )
+            );
         }
 
         #[test]

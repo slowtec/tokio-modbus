@@ -15,6 +15,9 @@ use std::{
 
 use crate::bytes::Bytes;
 
+/// MEI type code (`0x0E`) for Modbus "Read Device Identification" (function 0x2B).
+pub(crate) const MEI_TYPE_READ_DEVICE_IDENTIFICATION: u8 = 0x0E;
+
 /// A Modbus function code.
 ///
 /// All function codes as defined by the protocol specification V1.1b3.
@@ -224,6 +227,12 @@ pub enum Request<'a> {
     /// The fourth parameter is the vector of values to write to the registers.
     ReadWriteMultipleRegisters(Address, Quantity, Address, Cow<'a, [Word]>),
 
+    /// A request to read device identification.
+    /// The first parameter is the [`ReadCode`].
+    /// The second parameter is the object ID: the first object to return (stream access)
+    /// or the specific object to read (individual access).
+    ReadDeviceIdentification(ReadCode, ObjectId),
+
     /// A raw Modbus request.
     /// The first parameter is the Modbus function code.
     /// The second parameter is the raw bytes of the request.
@@ -256,6 +265,10 @@ impl Request<'_> {
             ReadWriteMultipleRegisters(addr, qty, write_addr, words) => {
                 ReadWriteMultipleRegisters(addr, qty, write_addr, Cow::Owned(words.into_owned()))
             }
+            ReadDeviceIdentification(read_code, object_id) => {
+                ReadDeviceIdentification(read_code, object_id)
+            }
+
             Custom(func, bytes) => Custom(func, Cow::Owned(bytes.into_owned())),
         }
     }
@@ -283,6 +296,8 @@ impl Request<'_> {
             MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
 
             ReadWriteMultipleRegisters(_, _, _, _) => FunctionCode::ReadWriteMultipleRegisters,
+
+            ReadDeviceIdentification(_, _) => FunctionCode::EncapsulatedInterfaceTransport,
 
             Custom(code, _) => FunctionCode::Custom(*code),
         }
@@ -374,6 +389,20 @@ pub enum Response {
     /// The parameter contains the register values that have been read as part of the read instruction
     ReadWriteMultipleRegisters(Vec<Word>),
 
+    /// Response to a `ReadDeviceIdentification` request
+    /// The first parameter is the [`ReadCode`] used in the request
+    /// The second parameter is the device's [`ConformityLevel`]
+    /// The third parameter indicates whether more objects follow in a subsequent response ([`MoreFollows`])
+    /// The fourth parameter is the ID of the next object ([`NextObjectId`]) to request, if any
+    /// The fifth parameter contains the list of identification objects returned ([`DeviceIdObjects`])
+    ReadDeviceIdentification(
+        ReadCode,
+        ConformityLevel,
+        MoreFollows,
+        NextObjectId,
+        DeviceIdObjects,
+    ),
+
     /// Response to a raw Modbus request
     /// The first parameter contains the returned Modbus function code
     /// The second parameter contains the bytes read following the function code
@@ -404,6 +433,8 @@ impl Response {
             MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
 
             ReadWriteMultipleRegisters(_) => FunctionCode::ReadWriteMultipleRegisters,
+
+            ReadDeviceIdentification(_, _, _, _, _) => FunctionCode::EncapsulatedInterfaceTransport,
 
             Custom(code, _) => FunctionCode::Custom(*code),
         }
@@ -491,6 +522,184 @@ impl ExceptionCode {
             GatewayTargetDevice => "Gateway target device failed to respond",
             Custom(_) => "Custom",
         }
+    }
+}
+
+/// Represents the Modbus read device identification access type.
+///
+/// Used to specify the type of information to retrieve from a device during a
+/// "Read Device Identification" Modbus function (0x2B / 0x0E).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadCode {
+    /// Basic identification (stream access).
+    /// Corresponds to value `0x01`. Returns a minimal set of identification data.
+    Basic,
+    /// Regular identification (stream access).
+    /// Corresponds to value `0x02`. Returns additional identification beyond basic.
+    Regular,
+    /// Extended identification (stream access).
+    /// Corresponds to value `0x03`. Returns the most comprehensive set of device info.
+    Extended,
+    /// Specific identification (individual access).
+    /// Corresponds to value `0x04`. Used to retrieve a specific object by ID.
+    Specific,
+}
+
+impl ReadCode {
+    /// Attempts to convert a raw [`u8`] value to a [`ReadCode`].
+    ///
+    /// # Parameters
+    /// - `value`: The raw byte representing the read code.
+    ///
+    /// # Returns
+    /// - `Some(ReadCode)` if the value is valid.
+    /// - `None` otherwise.
+    pub const fn try_from_value(value: u8) -> Option<Self> {
+        Some(match value {
+            0x01 => ReadCode::Basic,
+            0x02 => ReadCode::Regular,
+            0x03 => ReadCode::Extended,
+            0x04 => ReadCode::Specific,
+            _ => return None,
+        })
+    }
+
+    /// Returns the [`u8`] representation of the current [`ReadCode`] variant.
+    ///
+    /// # Returns
+    /// A byte corresponding to the Modbus function read code.
+    pub const fn value(self) -> u8 {
+        match self {
+            ReadCode::Basic => 0x01,
+            ReadCode::Regular => 0x02,
+            ReadCode::Extended => 0x03,
+            ReadCode::Specific => 0x04,
+        }
+    }
+}
+/// Represents the conformity level of a Modbus device's identification support.
+///
+/// Indicates what types of identification objects a device supports,
+/// and whether access is limited to stream access or includes individual access.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConformityLevel {
+    /// Only basic identification objects via stream access (`0x01`).
+    BasicIdentificationStreamOnly,
+
+    /// Only regular identification objects via stream access (`0x02`).
+    RegularIdentificationStreamOnly,
+
+    /// Only extended identification objects via stream access (`0x03`).
+    ExtendedIdentificationStreamOnly,
+
+    /// Basic identification objects, with individual access supported (`0x81`).
+    BasicIdentification,
+
+    /// Regular identification objects, with individual access supported (`0x82`).
+    RegularIdentification,
+
+    /// Extended identification objects, with individual access supported (`0x83`).
+    ExtendedIdentification,
+}
+
+impl ConformityLevel {
+    /// Attempts to convert a raw [`u8`] to a [`ConformityLevel`].
+    ///
+    /// # Parameters
+    /// - `value`: The raw byte representing the device's conformity level.
+    ///
+    /// # Returns
+    /// - `Some(ConformityLevel)` if the value matches a known level.
+    /// - `None` for unrecognized values.
+    pub const fn try_from_value(value: u8) -> Option<Self> {
+        Some(match value {
+            0x01 => ConformityLevel::BasicIdentificationStreamOnly,
+            0x02 => ConformityLevel::RegularIdentificationStreamOnly,
+            0x03 => ConformityLevel::ExtendedIdentificationStreamOnly,
+            0x81 => ConformityLevel::BasicIdentification,
+            0x82 => ConformityLevel::RegularIdentification,
+            0x83 => ConformityLevel::ExtendedIdentification,
+            _ => return None,
+        })
+    }
+
+    /// Returns the [`u8`] representation of the current [`ConformityLevel`] variant.
+    ///
+    /// # Returns
+    /// A byte that can be used in Modbus device identification responses.
+    pub const fn value(self) -> u8 {
+        match self {
+            ConformityLevel::BasicIdentificationStreamOnly => 0x01,
+            ConformityLevel::RegularIdentificationStreamOnly => 0x02,
+            ConformityLevel::ExtendedIdentificationStreamOnly => 0x03,
+            ConformityLevel::BasicIdentification => 0x81,
+            ConformityLevel::RegularIdentification => 0x82,
+            ConformityLevel::ExtendedIdentification => 0x83,
+        }
+    }
+}
+
+/// Identifier of a single device ID object.
+///
+/// Each object represents a specific type of information (e.g., vendor name, product code).
+pub type ObjectId = u8;
+
+/// Indicates whether more identification objects follow in the response.
+///
+/// `true` means more data is available; `false` means this is the final part.
+pub type MoreFollows = bool;
+
+/// Specifies the ID of the next object to be requested in case of partial data.
+///
+/// Used when `MoreFollows` is `true`, should be 0 otherwise.
+pub type NextObjectId = u8;
+
+/// A vector of device identification objects ([`DeviceIdObject`]).
+///
+/// Each [`DeviceIdObject`] in the list represents a specific piece of identification
+/// information such as the vendor name, product code, or firmware version.
+///
+/// The object values are returned as raw bytes and can optionally be interpreted
+/// as UTF-8 strings using [`DeviceIdObject::value_as_str`].
+///
+/// This list is typically received in response to a Modbus "Read Device Identification"
+/// ([`Request::ReadDeviceIdentification`]) request.
+pub type DeviceIdObjects = Vec<DeviceIdObject>;
+
+/// Represents a single Modbus device identification object.
+///
+/// Each object consists of an ID and an associated binary value,
+/// typically representing device metadata such as vendor name,
+/// product code, or software version.
+///
+/// The value is stored as raw bytes and may be interpreted as a UTF-8 string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeviceIdObject {
+    /// Object identifier (0x00 to 0xFF), as defined by the Modbus specification.
+    ///
+    /// Common IDs include:
+    /// - 0x00: VendorName
+    /// - 0x01: ProductCode
+    /// - 0x02: MajorMinorRevision
+    pub id: u8,
+
+    /// Raw byte value associated with this object.
+    ///
+    /// May contain UTF-8-encoded strings or other binary data.
+    pub value: Bytes,
+}
+
+impl DeviceIdObject {
+    /// Attempts to interpret the object's value as a UTF-8 string.
+    ///
+    /// This is useful when the identification object contains human-readable
+    /// data, such as a vendor name or software version.
+    ///
+    /// # Returns
+    /// - `Some(&str)` if the value is valid UTF-8.
+    /// - `None` if the value contains invalid UTF-8 bytes.
+    pub fn value_as_str(&self) -> Option<&str> {
+        std::str::from_utf8(&self.value).ok()
     }
 }
 
