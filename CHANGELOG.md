@@ -5,6 +5,8 @@
 
 ## Unreleased
 
+- Decoding of responses: Guess response length for custom function codes.
+
 ## v0.16.5 (2025-10-05)
 
 - Fix: Encoding of RTU CRC on Big Endian platforms.
