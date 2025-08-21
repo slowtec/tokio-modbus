@@ -170,7 +170,7 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
             0x16 => 7,
             0x18 => {
                 if adu_buf.len() > 3 {
-                    3 + usize::from(Cursor::new(&adu_buf[2..=3]).read_u16::<BigEndian>()?)
+                    3 + usize::from(u16::from_be_bytes([adu_buf[2], adu_buf[3]]))
                 } else {
                     // incomplete frame
                     return Ok(None);
