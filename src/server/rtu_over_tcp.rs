@@ -11,6 +11,7 @@ use socket2::{Domain, Socket, Type};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::{TcpListener, TcpStream},
+    task::JoinSet,
 };
 use tokio_util::codec::Framed;
 
@@ -79,25 +80,36 @@ impl Server {
         F: Future<Output = io::Result<Option<(S, T)>>>,
         OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
     {
+        let mut join_set = JoinSet::new();
         loop {
-            let (stream, socket_addr) = self.listener.accept().await?;
-            log::debug!("Accepted connection from {socket_addr}");
+            tokio::select! {
+                // Accept new connections
+                result = self.listener.accept() => {
+                    let (stream, socket_addr) = result?;
+                    log::debug!("Accepted connection from {socket_addr}");
 
-            let Some((service, transport)) = on_connected(stream, socket_addr).await? else {
-                log::debug!("No service for connection from {socket_addr}");
-                continue;
-            };
-            let on_process_error = on_process_error.clone();
+                    let Some((service, transport)) = on_connected(stream, socket_addr).await? else {
+                        log::debug!("No service for connection from {socket_addr}");
+                        continue;
+                    };
+                    let on_process_error = on_process_error.clone();
 
-            // use RTU codec
-            let framed = Framed::new(transport, ServerCodec::default());
+                    // use RTU codec
+                    let framed = Framed::new(transport, ServerCodec::default());
 
-            tokio::spawn(async move {
-                log::debug!("Processing requests from {socket_addr}");
-                if let Err(err) = process(framed, service).await {
-                    on_process_error(err);
+                    join_set.spawn(async move {
+                        log::debug!("Processing requests from {socket_addr}");
+                        if let Err(err) = process(framed, service).await {
+                            on_process_error(err);
+                        }
+                        log::debug!("Connection from {socket_addr} closed");
+                    });
                 }
-            });
+                // Clean up completed tasks to prevent memory leak
+                _ = join_set.join_next(), if !join_set.is_empty() => {
+                    // Task completed, it's automatically removed from the JoinSet
+                }
+            }
         }
     }
 
@@ -120,14 +132,64 @@ impl Server {
         F: Future<Output = io::Result<Option<(S, T)>>>,
         OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
     {
+        let mut join_set = JoinSet::new();
         let abort_signal = abort_signal.fuse();
-        tokio::select! {
-            res = self.serve(on_connected, on_process_error) => {
+
+        let serve_result = tokio::select! {
+            res = self.serve_with_joinset(&mut join_set, on_connected, on_process_error) => {
+                // Server finished naturally (should never happen in practice)
                 res.map(|()| Terminated::Finished)
             },
             () = abort_signal => {
+                log::debug!("Abort signal received, shutting down server and active connections");
+                // Abort all connection tasks
+                join_set.abort_all();
+                // Wait for all tasks to be aborted
+                while join_set.join_next().await.is_some() {
+                    // Join all tasks (they should complete quickly due to abort)
+                }
                 Ok(Terminated::Aborted)
             }
+        };
+
+        serve_result
+    }
+
+    /// Internal serve method that accepts a `JoinSet` for connection tracking
+    async fn serve_with_joinset<S, T, F, OnConnected, OnProcessError>(
+        &self,
+        join_set: &mut JoinSet<()>,
+        on_connected: &OnConnected,
+        on_process_error: OnProcessError,
+    ) -> io::Result<()>
+    where
+        S: Service + Send + Sync + 'static,
+        S::Request: From<RequestAdu<'static>> + Send,
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        OnConnected: Fn(TcpStream, SocketAddr) -> F,
+        F: Future<Output = io::Result<Option<(S, T)>>>,
+        OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
+    {
+        loop {
+            let (stream, socket_addr) = self.listener.accept().await?;
+            log::debug!("Accepted connection from {socket_addr}");
+
+            let Some((service, transport)) = on_connected(stream, socket_addr).await? else {
+                log::debug!("No service for connection from {socket_addr}");
+                continue;
+            };
+            let on_process_error = on_process_error.clone();
+
+            // use RTU codec
+            let framed = Framed::new(transport, ServerCodec::default());
+
+            join_set.spawn(async move {
+                log::debug!("Processing requests from {socket_addr}");
+                if let Err(err) = process(framed, service).await {
+                    on_process_error(err);
+                }
+                log::debug!("Connection from {socket_addr} closed");
+            });
         }
     }
 }
