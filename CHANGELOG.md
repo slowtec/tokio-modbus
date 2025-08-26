@@ -2,6 +2,9 @@
 <!-- SPDX-License-Identifier: MIT OR Apache-2.0 -->
 
 # Changelog
+## Unreleased
+
+- Fix: TCP server and RTU over TCP server now properly disconnect clients when cancelled or shut down
 
 ## v0.16.1 (2024-12-12)
 
