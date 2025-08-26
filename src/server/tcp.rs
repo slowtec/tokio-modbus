@@ -82,23 +82,33 @@ impl Server {
     {
         let mut join_set = JoinSet::new();
         loop {
-            let (stream, socket_addr) = self.listener.accept().await?;
-            log::debug!("Accepted connection from {socket_addr}");
+            tokio::select! {
+                // Accept new connections
+                result = self.listener.accept() => {
+                    let (stream, socket_addr) = result?;
+                    log::debug!("Accepted connection from {socket_addr}");
 
-            let Some((service, transport)) = on_connected(stream, socket_addr).await? else {
-                log::debug!("No service for connection from {socket_addr}");
-                continue;
-            };
-            let on_process_error = on_process_error.clone();
+                    let Some((service, transport)) = on_connected(stream, socket_addr).await? else {
+                        log::debug!("No service for connection from {socket_addr}");
+                        continue;
+                    };
+                    let on_process_error = on_process_error.clone();
 
-            let framed = Framed::new(transport, ServerCodec::default());
+                    let framed = Framed::new(transport, ServerCodec::default());
 
-            join_set.spawn(async move {
-                log::debug!("Processing requests from {socket_addr}");
-                if let Err(err) = process(framed, service).await {
-                    on_process_error(err);
+                    join_set.spawn(async move {
+                        log::debug!("Processing requests from {socket_addr}");
+                        if let Err(err) = process(framed, service).await {
+                            on_process_error(err);
+                        }
+                        log::debug!("Connection from {socket_addr} closed");
+                    });
                 }
-            });
+                // Clean up completed tasks to prevent memory leak
+                _ = join_set.join_next(), if !join_set.is_empty() => {
+                    // Task completed, it's automatically removed from the JoinSet
+                }
+            }
         }
     }
 
