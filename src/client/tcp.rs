@@ -3,7 +3,7 @@
 
 //! TCP client connections
 
-use std::{fmt, io, net::SocketAddr};
+use std::{io, net::SocketAddr};
 
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::{
@@ -43,7 +43,7 @@ pub async fn connect_slave(socket_addr: SocketAddr, slave: Slave) -> io::Result<
 /// The connection could either be an ordinary [`TcpStream`] or a TLS connection.
 pub fn attach<T>(transport: T) -> Context
 where
-    T: AsyncRead + AsyncWrite + Send + Unpin + fmt::Debug + 'static,
+    T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     attach_slave(transport, Slave::tcp_device())
 }
@@ -53,7 +53,7 @@ where
 /// The connection could either be an ordinary [`TcpStream`] or a TLS connection.
 pub fn attach_slave<T>(transport: T, slave: Slave) -> Context
 where
-    T: AsyncRead + AsyncWrite + Send + Unpin + fmt::Debug + 'static,
+    T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     let client = Client::new(transport, slave);
     Context {
@@ -193,7 +193,7 @@ impl<T> SlaveContext for Client<T> {
 #[async_trait::async_trait]
 impl<T> crate::client::Client for Client<T>
 where
-    T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
+    T: AsyncRead + AsyncWrite + Send + Unpin,
 {
     async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         self.call(req).await

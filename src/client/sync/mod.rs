@@ -76,7 +76,7 @@ pub trait Writer: Client {
 }
 
 /// A synchronous Modbus client context.
-#[derive(Debug)]
+#[allow(missing_debug_implementations)]
 pub struct Context {
     runtime: tokio::runtime::Runtime,
     async_ctx: AsyncContext,

@@ -3,7 +3,7 @@
 
 //! RTU client connections
 
-use std::{fmt, io};
+use std::io;
 
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -25,7 +25,7 @@ use super::{disconnect_framed, Context};
 /// broadcast messages.
 pub fn attach<T>(transport: T) -> Context
 where
-    T: AsyncRead + AsyncWrite + fmt::Debug + Unpin + Send + 'static,
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     attach_slave(transport, Slave::broadcast())
 }
@@ -33,7 +33,7 @@ where
 /// Connect to any kind of _Modbus_ slave device.
 pub fn attach_slave<T>(transport: T, slave: Slave) -> Context
 where
-    T: AsyncRead + AsyncWrite + fmt::Debug + Unpin + Send + 'static,
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let client = Client::new(transport);
     let context = ClientContext::new(client, slave);
@@ -176,7 +176,7 @@ where
 
 impl<T> ClientContext<T>
 where
-    T: AsyncRead + AsyncWrite + Unpin + fmt::Debug + Send + 'static,
+    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     #[must_use]
     pub fn boxed(self) -> Box<dyn crate::client::Client> {
@@ -193,7 +193,7 @@ impl<T> SlaveContext for ClientContext<T> {
 #[async_trait::async_trait]
 impl<T> crate::client::Client for ClientContext<T>
 where
-    T: fmt::Debug + AsyncRead + AsyncWrite + Send + Unpin,
+    T: AsyncRead + AsyncWrite + Send + Unpin,
 {
     async fn call(&mut self, req: Request<'_>) -> Result<Response> {
         self.call(req).await
