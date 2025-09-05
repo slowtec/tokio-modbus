@@ -74,7 +74,7 @@ pub enum FunctionCode {
     /// 24 (0x18) Read FIFO Queue
     ReadFifoQueue,
 
-    /// 43 ( 0x2B) Encapsulated Interface Transport
+    /// 43 (0x2B) Encapsulated Interface Transport
     EncapsulatedInterfaceTransport,
 
     /// Custom Modbus Function Code.
@@ -293,7 +293,7 @@ impl Request<'_> {
 #[cfg(feature = "server")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlaveRequest<'a> {
-    /// Slave Id from the request
+    /// Slave id from the request
     pub slave: crate::slave::SlaveId,
     /// A `Request` enum
     pub request: Request<'a>,
@@ -317,7 +317,7 @@ impl SlaveRequest<'_> {
 /// ReadCoils/ReadDiscreteInputs: The length of the result Vec is always a
 /// multiple of 8. Only the values of the first bits/coils that have actually
 /// been requested are defined. The value of the remaining bits depend on the
-/// server implementation and those coils should be should be ignored.
+/// server implementation and those coils should be ignored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Response {
     /// Response to a `ReadCoils` request
@@ -607,11 +607,11 @@ mod tests {
             FunctionCode::new(0x10)
         );
 
-        assert_eq!(FunctionCode::MaskWriteRegister, FunctionCode::new(0x016));
+        assert_eq!(FunctionCode::MaskWriteRegister, FunctionCode::new(0x16));
 
         assert_eq!(
             FunctionCode::ReadWriteMultipleRegisters,
-            FunctionCode::new(0x017)
+            FunctionCode::new(0x17)
         );
 
         assert_eq!(FunctionCode::Custom(70), FunctionCode::new(70));
@@ -631,9 +631,9 @@ mod tests {
         assert_eq!(FunctionCode::WriteMultipleCoils.value(), 0x0F);
         assert_eq!(FunctionCode::WriteMultipleRegisters.value(), 0x10);
 
-        assert_eq!(FunctionCode::MaskWriteRegister.value(), 0x016);
+        assert_eq!(FunctionCode::MaskWriteRegister.value(), 0x16);
 
-        assert_eq!(FunctionCode::ReadWriteMultipleRegisters.value(), 0x017);
+        assert_eq!(FunctionCode::ReadWriteMultipleRegisters.value(), 0x17);
 
         assert_eq!(FunctionCode::Custom(70).value(), 70);
     }
