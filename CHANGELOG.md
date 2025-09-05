@@ -3,6 +3,10 @@
 
 # Changelog
 
+## Unreleased
+
+- Fix: TCP and RTU over TCP servers now disconnect client sockets when serve exits
+
 ## v0.16.1 (2024-12-12)
 
 - Decoding of requests/responses: Disable max. PDU size checks for custom

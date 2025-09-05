@@ -12,7 +12,7 @@ use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::{TcpListener, TcpStream},
 };
-use tokio_util::codec::Framed;
+use tokio_util::{codec::Framed, sync::CancellationToken};
 
 use crate::{
     codec::rtu::ServerCodec,
@@ -79,6 +79,9 @@ impl Server {
         F: Future<Output = io::Result<Option<(S, T)>>>,
         OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
     {
+        let cancel = CancellationToken::new();
+        let _guard = cancel.drop_guard_ref();
+
         loop {
             let (stream, socket_addr) = self.listener.accept().await?;
             log::debug!("Accepted connection from {socket_addr}");
@@ -91,10 +94,11 @@ impl Server {
 
             // use RTU codec
             let framed = Framed::new(transport, ServerCodec::default());
+            let cancel = cancel.clone();
 
             tokio::spawn(async move {
                 log::debug!("Processing requests from {socket_addr}");
-                if let Err(err) = process(framed, service).await {
+                if let Some(Err(err)) = cancel.run_until_cancelled(process(framed, service)).await {
                     on_process_error(err);
                 }
             });
