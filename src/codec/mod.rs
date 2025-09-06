@@ -312,7 +312,7 @@ fn decode_response_pdu_bytes(bytes: Bytes) -> io::Result<Response> {
             }
             let packed_coils = &bytes[2..2 + usize::from(byte_count)];
             rdr.consume(byte_count.into());
-            // Here we have not information about the exact requested quantity so we just
+            // Here we have no information about the exact requested quantity so we just
             // unpack the whole byte.
             let quantity = u16::from(byte_count) * 8;
             ReadCoils(decode_packed_coils(packed_coils, quantity))
