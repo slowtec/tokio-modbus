@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-// load_certs() and particially load_keys() functions were copied from an example of the tokio tls library, available at:
+// load_certs() and partially load_keys() functions were copied from an example of the tokio tls library, available at:
 // https://github.com/tokio-rs/tls/blob/master/tokio-rustls/examples/server/src/main.rs
 
 //! Asynchronous TLS client example
