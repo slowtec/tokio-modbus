@@ -5,6 +5,8 @@
 
 ## Unreleased
 
+## v0.16.2 (2025-09-09)
+
 - Fix: TCP and RTU over TCP servers now disconnect client sockets when serve
   exits
 
