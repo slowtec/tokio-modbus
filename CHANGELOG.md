@@ -5,10 +5,12 @@
 
 ## Unreleased
 
+## v0.16.3 (2025-09-10)
+
 - Fix: Previous fix uses a feature from a newer version of tokio-util than the
   version specified in Cargo.toml
 
-## v0.16.2 (2025-09-09)
+## v0.16.2 (2025-09-09, yanked)
 
 - Fix: TCP and RTU over TCP servers now disconnect client sockets when serve
   exits
