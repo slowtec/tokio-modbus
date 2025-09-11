@@ -62,6 +62,13 @@ pub trait Reader: Client {
         write_addr: Address,
         write_data: &[Word],
     ) -> Result<Vec<Word>>;
+
+    /// Read device identification (0x2B / 0x0E)
+    async fn read_device_identification(
+        &mut self,
+        read_code: ReadCode,
+        object_id: ObjectId,
+    ) -> Result<(ConformityLevel, MoreFollows, NextObjectId, DeviceIdObjects)>;
 }
 
 /// Asynchronous Modbus writer
@@ -220,6 +227,33 @@ impl Reader for Context {
                         debug_assert_eq!(words.len(), read_count.into());
                         words
                     }
+                    _ => unreachable!("call() should reject mismatching responses"),
+                })
+            })
+    }
+
+    async fn read_device_identification(
+        &mut self,
+        read_code: ReadCode,
+        object_id: ObjectId,
+    ) -> Result<(ConformityLevel, MoreFollows, NextObjectId, DeviceIdObjects)> {
+        self.client
+            .call(Request::ReadDeviceIdentification(read_code, object_id))
+            .await
+            .map(|result| {
+                result.map(|response| match response {
+                    Response::ReadDeviceIdentification(
+                        _read_code,
+                        conformity_level,
+                        more_follows,
+                        next_object_id,
+                        device_id_objects,
+                    ) => (
+                        conformity_level,
+                        more_follows,
+                        next_object_id,
+                        device_id_objects,
+                    ),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })

@@ -9,7 +9,7 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use crate::{
     bytes::{Buf, BufMut, Bytes, BytesMut},
-    frame::rtu::*,
+    frame::{rtu::*, MEI_TYPE_READ_DEVICE_IDENTIFICATION},
     slave::SlaveId,
 };
 
@@ -143,6 +143,12 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
                     .get(10)
                     .map(|&byte_count| 10 + usize::from(byte_count)));
             }
+            0x2b if adu_buf
+                .get(2)
+                .is_some_and(|mei| *mei == MEI_TYPE_READ_DEVICE_IDENTIFICATION) =>
+            {
+                4
+            }
             _ => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
@@ -177,6 +183,37 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
                 }
             }
             0x81..=0xAB => 2,
+            0x2b if adu_buf
+                .get(2)
+                .is_some_and(|mei| *mei == MEI_TYPE_READ_DEVICE_IDENTIFICATION) =>
+            {
+                // 7-byte fixed header: function code, MEI type, device ID code,
+                // conformity level, more follows flag, next object ID, and object count.
+                if adu_buf.len() < 8 {
+                    return Ok(None);
+                }
+
+                let object_count = adu_buf[7] as usize;
+                let mut offset = 8;
+
+                for _ in 0..object_count {
+                    // Need at least 2 bytes: object ID and length
+                    if offset + 2 > adu_buf.len() {
+                        return Ok(None);
+                    }
+
+                    let object_len = adu_buf[offset + 1] as usize;
+                    offset += 2;
+
+                    // Check if full object value is present
+                    if offset + object_len > adu_buf.len() {
+                        return Ok(None);
+                    }
+
+                    offset += object_len;
+                }
+                offset - 1 // remove slave address byte
+            }
             _ => {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
@@ -443,7 +480,11 @@ mod tests {
         buf[1] = 0x18;
         assert_eq!(get_request_pdu_len(&buf).unwrap(), Some(3));
 
-        // TODO: 0x2B
+        buf[1] = 0x2B;
+        buf[2] = MEI_TYPE_READ_DEVICE_IDENTIFICATION;
+        buf[3] = 0x01;
+        buf[4] = 0x00;
+        assert_eq!(get_request_pdu_len(&buf).unwrap(), Some(4));
     }
 
     #[test]
@@ -508,7 +549,38 @@ mod tests {
         buf[3] = 0x00; // byte count Lo
         assert_eq!(get_response_pdu_len(&buf).unwrap(), Some(259));
 
-        // TODO: 0x2B
+        // 0x2B - Read Device Identification response (MEI type 0x0E)
+        buf.clear();
+        buf.extend_from_slice(&[
+            0x42, // Slave address
+            0x2B, // Function code
+            MEI_TYPE_READ_DEVICE_IDENTIFICATION,
+            0x01, // Read Device ID code
+            0x01, // Conformity level
+            0x00, // More follows
+            0x00, // Next object ID
+            0x00, // Number of objects
+        ]);
+        assert_eq!(get_response_pdu_len(&buf).unwrap(), Some(7)); // 7 header
+
+        // With 1 object: ID = 0x01, len = 3, value = "ABC"
+        buf.clear();
+        buf.extend_from_slice(&[
+            0x42, // Slave address
+            0x2B, // Function code
+            MEI_TYPE_READ_DEVICE_IDENTIFICATION,
+            0x01, // Read Device ID code
+            0x01, // Conformity level
+            0x00, // More follows
+            0x00, // Next object ID
+            0x01, // Number of objects
+            0x01, // Object ID
+            0x03, // Object length
+            b'A',
+            b'B',
+            b'C',
+        ]);
+        assert_eq!(get_response_pdu_len(&buf).unwrap(), Some(12)); //  7 + 1 + 1 + 3
 
         for i in 0x81..0xAB {
             buf[1] = i;
