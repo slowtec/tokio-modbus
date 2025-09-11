@@ -5,6 +5,8 @@
 
 ## Unreleased
 
+- Added `ReadDeviceIdentification`
+
 ## v0.16.3 (2025-09-10)
 
 - Fix: Previous fix uses a feature from a newer version of tokio-util than the
