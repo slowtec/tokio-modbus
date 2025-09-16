@@ -390,18 +390,7 @@ pub enum Response {
     ReadWriteMultipleRegisters(Vec<Word>),
 
     /// Response to a `ReadDeviceIdentification` request
-    /// The first parameter is the [`ReadCode`] used in the request
-    /// The second parameter is the device's [`ConformityLevel`]
-    /// The third parameter indicates whether more objects follow in a subsequent response ([`MoreFollows`])
-    /// The fourth parameter is the ID of the next object ([`NextObjectId`]) to request, if any
-    /// The fifth parameter contains the list of identification objects returned ([`DeviceIdObjects`])
-    ReadDeviceIdentification(
-        ReadCode,
-        ConformityLevel,
-        MoreFollows,
-        NextObjectId,
-        DeviceIdObjects,
-    ),
+    ReadDeviceIdentification(ReadDeviceIdentificationResponse),
 
     /// Response to a raw Modbus request
     /// The first parameter contains the returned Modbus function code
@@ -434,7 +423,7 @@ impl Response {
 
             ReadWriteMultipleRegisters(_) => FunctionCode::ReadWriteMultipleRegisters,
 
-            ReadDeviceIdentification(_, _, _, _, _) => FunctionCode::EncapsulatedInterfaceTransport,
+            ReadDeviceIdentification(_) => FunctionCode::EncapsulatedInterfaceTransport,
 
             Custom(code, _) => FunctionCode::Custom(*code),
         }
@@ -579,6 +568,7 @@ impl ReadCode {
         }
     }
 }
+
 /// Represents the conformity level of a Modbus device's identification support.
 ///
 /// Indicates what types of identification objects a device supports,
@@ -705,6 +695,21 @@ impl DeviceIdObject {
     pub fn value_as_str(&self) -> Option<&str> {
         std::str::from_utf8(&self.value).ok()
     }
+}
+
+/// Response data returned from a Modbus "Read Device Identification" request (0x2B/0x0E).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadDeviceIdentificationResponse {
+    /// Indicates the type of Read Device Identification request that was performed.
+    pub read_code: ReadCode,
+    /// Indicates the level of conformity supported by the device for identification.
+    pub conformity_level: ConformityLevel,
+    /// Signals whether additional identification objects are available.
+    pub more_follows: MoreFollows,
+    /// Specifies the next object ID to request if `more_follows` is true.
+    pub next_object_id: NextObjectId,
+    /// The list of device ID objects returned in this response.
+    pub device_id_objects: DeviceIdObjects,
 }
 
 /// A server (slave) exception response.

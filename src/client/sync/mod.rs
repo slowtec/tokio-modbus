@@ -65,7 +65,7 @@ pub trait Reader: Client {
         &mut self,
         read_code: ReadCode,
         object_id: ObjectId,
-    ) -> Result<(ConformityLevel, MoreFollows, NextObjectId, DeviceIdObjects)>;
+    ) -> Result<ReadDeviceIdentificationResponse>;
 }
 
 /// A transport independent synchronous writer trait.
@@ -171,7 +171,7 @@ impl Reader for Context {
         &mut self,
         read_code: ReadCode,
         object_id: ObjectId,
-    ) -> Result<(ConformityLevel, MoreFollows, NextObjectId, DeviceIdObjects)> {
+    ) -> Result<ReadDeviceIdentificationResponse> {
         block_on_with_timeout(
             &self.runtime,
             self.timeout,

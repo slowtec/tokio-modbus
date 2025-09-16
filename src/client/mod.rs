@@ -68,7 +68,7 @@ pub trait Reader: Client {
         &mut self,
         read_code: ReadCode,
         object_id: ObjectId,
-    ) -> Result<(ConformityLevel, MoreFollows, NextObjectId, DeviceIdObjects)>;
+    ) -> Result<ReadDeviceIdentificationResponse>;
 }
 
 /// Asynchronous Modbus writer
@@ -236,24 +236,13 @@ impl Reader for Context {
         &mut self,
         read_code: ReadCode,
         object_id: ObjectId,
-    ) -> Result<(ConformityLevel, MoreFollows, NextObjectId, DeviceIdObjects)> {
+    ) -> Result<ReadDeviceIdentificationResponse> {
         self.client
             .call(Request::ReadDeviceIdentification(read_code, object_id))
             .await
             .map(|result| {
                 result.map(|response| match response {
-                    Response::ReadDeviceIdentification(
-                        _read_code,
-                        conformity_level,
-                        more_follows,
-                        next_object_id,
-                        device_id_objects,
-                    ) => (
-                        conformity_level,
-                        more_follows,
-                        next_object_id,
-                        device_id_objects,
-                    ),
+                    Response::ReadDeviceIdentification(response) => response,
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })

@@ -32,7 +32,7 @@ pub mod sync {
 pub use crate::{
     frame::{
         ConformityLevel, DeviceIdObject, DeviceIdObjects, MoreFollows, NextObjectId, ObjectId,
-        ReadCode,
+        ReadCode, ReadDeviceIdentificationResponse,
     },
     ExceptionCode, ProtocolError, Request, Response, Slave, SlaveId,
 };
