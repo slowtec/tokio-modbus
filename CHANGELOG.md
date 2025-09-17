@@ -5,6 +5,8 @@
 
 ## Unreleased
 
+## v0.16.4 (2025-09-17)
+
 - Added `ReadDeviceIdentification`
 
 ## v0.16.3 (2025-09-10)
