@@ -4,6 +4,7 @@
 use std::io::{Cursor, Error, ErrorKind, Result};
 
 use byteorder::{BigEndian, ReadBytesExt as _};
+use crc;
 use smallvec::SmallVec;
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -14,6 +15,8 @@ use crate::{
 };
 
 use super::{encode_request_pdu, request_pdu_size, RequestPdu};
+
+const MODBUS_CRC: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_MODBUS);
 
 // [Modbus over Serial Line Specification and Implementation Guide V1.02](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf), page 13
 // "The maximum size of a Modbus RTU frame is 256 bytes."
@@ -228,22 +231,7 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
 }
 
 fn calc_crc(data: &[u8]) -> u16 {
-    let mut crc = 0xFFFF;
-    for x in data {
-        crc ^= u16::from(*x);
-        for _ in 0..8 {
-            let crc_odd = (crc & 0x0001) != 0;
-            crc >>= 1;
-            if crc_odd {
-                crc ^= 0xA001;
-            }
-        }
-    }
-    // In contrast to all other 16-bit data the CRC is stored in
-    // little-endian instead of big-endian byte order. We account for
-    // this oddity right here in the calculation and read/write all
-    // 16-bit values consistently in big-endian byte order.
-    crc.rotate_right(8)
+    return MODBUS_CRC.checksum(data);
 }
 
 fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
