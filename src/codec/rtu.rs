@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::io::{self, Cursor, Error, ErrorKind, Result};
+use std::io;
 
 use byteorder::{LittleEndian, ReadBytesExt as _};
 use smallvec::SmallVec;
@@ -41,7 +41,7 @@ impl FrameDecoder {
         &mut self,
         buf: &mut BytesMut,
         pdu_len: usize,
-    ) -> Result<Option<(SlaveId, Bytes)>> {
+    ) -> io::Result<Option<(SlaveId, Bytes)>> {
         const CRC_BYTE_COUNT: usize = 2;
 
         let adu_len = 1 + pdu_len;
@@ -56,7 +56,7 @@ impl FrameDecoder {
 
         // Read trailing CRC and verify ADU
         let crc_result =
-            read_crc(&mut Cursor::new(&crc_buf)).and_then(|crc| check_crc(&adu_buf, crc));
+            read_crc(&mut io::Cursor::new(&crc_buf)).and_then(|crc| check_crc(&adu_buf, crc));
 
         if let Err(err) = crc_result {
             // CRC is invalid - restore the input buffer
@@ -127,7 +127,7 @@ pub(crate) struct ServerCodec {
 }
 
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
-fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
+fn get_request_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         let len = match fn_code {
             0x01..=0x06 => 5,
@@ -151,8 +151,8 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
                 4
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
                     format!("Invalid function code: 0x{fn_code:0>2X}"),
                 ));
             }
@@ -163,7 +163,7 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
     }
 }
 
-fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
+fn get_response_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         #[allow(clippy::match_same_arms)]
         let len = match fn_code {
@@ -216,8 +216,8 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
                 offset - 1 // remove slave address byte
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
                     format!("Invalid function code: 0x{fn_code:0>2X}"),
                 ));
             }
@@ -232,11 +232,11 @@ fn calc_crc(data: &[u8]) -> u16 {
     MODBUS_CRC.checksum(data)
 }
 
-fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
+fn check_crc(adu_data: &[u8], expected_crc: u16) -> io::Result<()> {
     let actual_crc = calc_crc(adu_data);
     if expected_crc != actual_crc {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
             format!("Invalid CRC: expected = 0x{expected_crc:0>4X}, actual = 0x{actual_crc:0>4X}"),
         ));
     }
@@ -256,18 +256,18 @@ fn read_crc(read: &mut impl io::Read) -> io::Result<u16> {
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 impl Decoder for RequestDecoder {
     type Item = (SlaveId, Bytes);
-    type Error = Error;
+    type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<(SlaveId, Bytes)>> {
         decode("request", &mut self.frame_decoder, get_request_pdu_len, buf)
     }
 }
 
 impl Decoder for ResponseDecoder {
     type Item = (SlaveId, Bytes);
-    type Error = Error;
+    type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<(SlaveId, Bytes)>> {
         decode(
             "response",
             &mut self.frame_decoder,
@@ -282,9 +282,9 @@ fn decode<F>(
     frame_decoder: &mut FrameDecoder,
     get_pdu_len: F,
     buf: &mut BytesMut,
-) -> Result<Option<(SlaveId, Bytes)>>
+) -> io::Result<Option<(SlaveId, Bytes)>>
 where
-    F: Fn(&BytesMut) -> Result<Option<usize>>,
+    F: Fn(&BytesMut) -> io::Result<Option<usize>>,
 {
     const MAX_RETRIES: usize = 20;
 
@@ -309,14 +309,17 @@ where
 
     // Maximum number of retries exceeded.
     log::error!("Giving up to decode frame after {MAX_RETRIES} retries");
-    Err(Error::new(ErrorKind::InvalidData, "Too many retries"))
+    Err(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "Too many retries",
+    ))
 }
 
 impl Decoder for ClientCodec {
     type Item = ResponseAdu;
-    type Error = Error;
+    type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<ResponseAdu>> {
         let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
             return Ok(None);
         };
@@ -339,9 +342,9 @@ impl Decoder for ClientCodec {
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 impl Decoder for ServerCodec {
     type Item = RequestAdu<'static>;
-    type Error = Error;
+    type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu<'static>>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<RequestAdu<'static>>> {
         let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
             return Ok(None);
         };
@@ -362,9 +365,9 @@ impl Decoder for ServerCodec {
 }
 
 impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
-    type Error = Error;
+    type Error = io::Error;
 
-    fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> Result<()> {
+    fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> io::Result<()> {
         let RequestAdu {
             hdr,
             pdu: RequestPdu(request),
@@ -382,9 +385,9 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
 
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 impl Encoder<ResponseAdu> for ServerCodec {
-    type Error = Error;
+    type Error = io::Error;
 
-    fn encode(&mut self, adu: ResponseAdu, buf: &mut BytesMut) -> Result<()> {
+    fn encode(&mut self, adu: ResponseAdu, buf: &mut BytesMut) -> io::Result<()> {
         let ResponseAdu {
             hdr,
             pdu: super::ResponsePdu(pdu_res),
