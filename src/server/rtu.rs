@@ -56,7 +56,7 @@ impl Server {
     where
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
-        X: Future<Output = ()> + Sync + Send + Unpin + 'static,
+        X: Future<Output = ()> + Sync + Send + 'static,
     {
         let framed = Framed::new(self.serial, ServerCodec::default());
         let abort_signal = abort_signal.fuse();
