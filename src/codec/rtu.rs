@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::io::{Cursor, Error, ErrorKind, Result};
+use std::io::{self, Cursor, Error, ErrorKind, Result};
 
-use byteorder::{BigEndian, ReadBytesExt as _};
-use crc;
+use byteorder::{LittleEndian, ReadBytesExt as _};
 use smallvec::SmallVec;
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -56,9 +55,8 @@ impl FrameDecoder {
         let crc_buf = buf.split_to(CRC_BYTE_COUNT);
 
         // Read trailing CRC and verify ADU
-        let crc_result = Cursor::new(&crc_buf)
-            .read_u16::<BigEndian>()
-            .and_then(|crc| check_crc(&adu_buf, crc));
+        let crc_result =
+            read_crc(&mut Cursor::new(&crc_buf)).and_then(|crc| check_crc(&adu_buf, crc));
 
         if let Err(err) = crc_result {
             // CRC is invalid - restore the input buffer
@@ -231,7 +229,7 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
 }
 
 fn calc_crc(data: &[u8]) -> u16 {
-    return MODBUS_CRC.checksum(data);
+    MODBUS_CRC.checksum(data)
 }
 
 fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
@@ -243,6 +241,16 @@ fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+fn write_crc(buf: &mut BytesMut, crc: u16) {
+    // The CRC is encoded with Little Endian byte order.
+    buf.put_u16_le(crc);
+}
+
+fn read_crc(read: &mut impl io::Read) -> io::Result<u16> {
+    // The CRC is encoded with Little Endian byte order.
+    read.read_u16::<LittleEndian>()
 }
 
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
@@ -367,7 +375,7 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
         buf.put_u8(hdr.slave_id);
         encode_request_pdu(buf, &request);
         let crc = calc_crc(&buf[buf_offset..]);
-        buf.put_u16(crc);
+        write_crc(buf, crc);
         Ok(())
     }
 }
@@ -387,7 +395,7 @@ impl Encoder<ResponseAdu> for ServerCodec {
         buf.put_u8(hdr.slave_id);
         super::encode_response_result_pdu(buf, &pdu_res);
         let crc = calc_crc(&buf[buf_offset..]);
-        buf.put_u16(crc);
+        write_crc(buf, crc);
         Ok(())
     }
 }
@@ -399,11 +407,13 @@ mod tests {
 
     #[test]
     fn test_calc_crc() {
+        // See also: <https://crccalc.com/>
+
         let msg = [0x01, 0x03, 0x08, 0x2B, 0x00, 0x02];
-        assert_eq!(calc_crc(&msg), 0xB663);
+        assert_eq!(calc_crc(&msg), 0x63B6);
 
         let msg = [0x01, 0x03, 0x04, 0x00, 0x20, 0x00, 0x00];
-        assert_eq!(calc_crc(&msg), 0xFBF9);
+        assert_eq!(calc_crc(&msg), 0xF9FB);
     }
 
     #[test]

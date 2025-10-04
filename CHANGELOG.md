@@ -5,6 +5,8 @@
 
 ## Unreleased
 
+- Fix: Encoding of RTU CRC on Big Endian platforms.
+
 ## v0.16.4 (2025-09-17)
 
 - Added `ReadDeviceIdentification`
