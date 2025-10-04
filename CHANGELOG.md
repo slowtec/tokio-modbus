@@ -5,6 +5,8 @@
 
 ## Unreleased
 
+- Server: Remove unneeded `Unpin` trait bounds for abort signal.
+
 ## v0.16.4 (2025-09-17)
 
 - Added `ReadDeviceIdentification`
