@@ -6,6 +6,7 @@
 ## Unreleased
 
 - Fix: Encoding of RTU CRC on Big Endian platforms.
+- Server: Remove unneeded `Unpin` trait bounds for abort signal.
 
 ## v0.16.4 (2025-09-17)
 
