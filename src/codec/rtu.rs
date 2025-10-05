@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::io::{Cursor, Error, ErrorKind, Result};
+use std::io;
 
-use byteorder::{BigEndian, ReadBytesExt as _};
+use byteorder::{LittleEndian, ReadBytesExt as _};
 use smallvec::SmallVec;
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -14,6 +14,8 @@ use crate::{
 };
 
 use super::{encode_request_pdu, request_pdu_size, RequestPdu};
+
+const MODBUS_CRC: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_MODBUS);
 
 // [Modbus over Serial Line Specification and Implementation Guide V1.02](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf), page 13
 // "The maximum size of a Modbus RTU frame is 256 bytes."
@@ -39,7 +41,7 @@ impl FrameDecoder {
         &mut self,
         buf: &mut BytesMut,
         pdu_len: usize,
-    ) -> Result<Option<(SlaveId, Bytes)>> {
+    ) -> io::Result<Option<(SlaveId, Bytes)>> {
         const CRC_BYTE_COUNT: usize = 2;
 
         let adu_len = 1 + pdu_len;
@@ -53,9 +55,8 @@ impl FrameDecoder {
         let crc_buf = buf.split_to(CRC_BYTE_COUNT);
 
         // Read trailing CRC and verify ADU
-        let crc_result = Cursor::new(&crc_buf)
-            .read_u16::<BigEndian>()
-            .and_then(|crc| check_crc(&adu_buf, crc));
+        let crc_result =
+            read_crc(&mut io::Cursor::new(&crc_buf)).and_then(|crc| check_crc(&adu_buf, crc));
 
         if let Err(err) = crc_result {
             // CRC is invalid - restore the input buffer
@@ -126,7 +127,7 @@ pub(crate) struct ServerCodec {
 }
 
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
-fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
+fn get_request_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         let len = match fn_code {
             0x01..=0x06 => 5,
@@ -150,8 +151,8 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
                 4
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
                     format!("Invalid function code: 0x{fn_code:0>2X}"),
                 ));
             }
@@ -162,7 +163,7 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
     }
 }
 
-fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
+fn get_response_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         #[allow(clippy::match_same_arms)]
         let len = match fn_code {
@@ -215,8 +216,8 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
                 offset - 1 // remove slave address byte
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
                     format!("Invalid function code: 0x{fn_code:0>2X}"),
                 ));
             }
@@ -228,50 +229,45 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> Result<Option<usize>> {
 }
 
 fn calc_crc(data: &[u8]) -> u16 {
-    let mut crc = 0xFFFF;
-    for x in data {
-        crc ^= u16::from(*x);
-        for _ in 0..8 {
-            let crc_odd = (crc & 0x0001) != 0;
-            crc >>= 1;
-            if crc_odd {
-                crc ^= 0xA001;
-            }
-        }
-    }
-    // In contrast to all other 16-bit data the CRC is stored in
-    // little-endian instead of big-endian byte order. We account for
-    // this oddity right here in the calculation and read/write all
-    // 16-bit values consistently in big-endian byte order.
-    crc.rotate_right(8)
+    MODBUS_CRC.checksum(data)
 }
 
-fn check_crc(adu_data: &[u8], expected_crc: u16) -> Result<()> {
+fn check_crc(adu_data: &[u8], expected_crc: u16) -> io::Result<()> {
     let actual_crc = calc_crc(adu_data);
     if expected_crc != actual_crc {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
             format!("Invalid CRC: expected = 0x{expected_crc:0>4X}, actual = 0x{actual_crc:0>4X}"),
         ));
     }
     Ok(())
 }
 
+fn write_crc(buf: &mut BytesMut, crc: u16) {
+    // The CRC is encoded with Little Endian byte order.
+    buf.put_u16_le(crc);
+}
+
+fn read_crc(read: &mut impl io::Read) -> io::Result<u16> {
+    // The CRC is encoded with Little Endian byte order.
+    read.read_u16::<LittleEndian>()
+}
+
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 impl Decoder for RequestDecoder {
     type Item = (SlaveId, Bytes);
-    type Error = Error;
+    type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<(SlaveId, Bytes)>> {
         decode("request", &mut self.frame_decoder, get_request_pdu_len, buf)
     }
 }
 
 impl Decoder for ResponseDecoder {
     type Item = (SlaveId, Bytes);
-    type Error = Error;
+    type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<(SlaveId, Bytes)>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<(SlaveId, Bytes)>> {
         decode(
             "response",
             &mut self.frame_decoder,
@@ -286,9 +282,9 @@ fn decode<F>(
     frame_decoder: &mut FrameDecoder,
     get_pdu_len: F,
     buf: &mut BytesMut,
-) -> Result<Option<(SlaveId, Bytes)>>
+) -> io::Result<Option<(SlaveId, Bytes)>>
 where
-    F: Fn(&BytesMut) -> Result<Option<usize>>,
+    F: Fn(&BytesMut) -> io::Result<Option<usize>>,
 {
     const MAX_RETRIES: usize = 20;
 
@@ -313,14 +309,17 @@ where
 
     // Maximum number of retries exceeded.
     log::error!("Giving up to decode frame after {MAX_RETRIES} retries");
-    Err(Error::new(ErrorKind::InvalidData, "Too many retries"))
+    Err(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "Too many retries",
+    ))
 }
 
 impl Decoder for ClientCodec {
     type Item = ResponseAdu;
-    type Error = Error;
+    type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<ResponseAdu>> {
         let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
             return Ok(None);
         };
@@ -343,9 +342,9 @@ impl Decoder for ClientCodec {
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 impl Decoder for ServerCodec {
     type Item = RequestAdu<'static>;
-    type Error = Error;
+    type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<RequestAdu<'static>>> {
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<RequestAdu<'static>>> {
         let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
             return Ok(None);
         };
@@ -366,9 +365,9 @@ impl Decoder for ServerCodec {
 }
 
 impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
-    type Error = Error;
+    type Error = io::Error;
 
-    fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> Result<()> {
+    fn encode(&mut self, adu: RequestAdu<'a>, buf: &mut BytesMut) -> io::Result<()> {
         let RequestAdu {
             hdr,
             pdu: RequestPdu(request),
@@ -379,16 +378,16 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
         buf.put_u8(hdr.slave_id);
         encode_request_pdu(buf, &request);
         let crc = calc_crc(&buf[buf_offset..]);
-        buf.put_u16(crc);
+        write_crc(buf, crc);
         Ok(())
     }
 }
 
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
 impl Encoder<ResponseAdu> for ServerCodec {
-    type Error = Error;
+    type Error = io::Error;
 
-    fn encode(&mut self, adu: ResponseAdu, buf: &mut BytesMut) -> Result<()> {
+    fn encode(&mut self, adu: ResponseAdu, buf: &mut BytesMut) -> io::Result<()> {
         let ResponseAdu {
             hdr,
             pdu: super::ResponsePdu(pdu_res),
@@ -399,7 +398,7 @@ impl Encoder<ResponseAdu> for ServerCodec {
         buf.put_u8(hdr.slave_id);
         super::encode_response_result_pdu(buf, &pdu_res);
         let crc = calc_crc(&buf[buf_offset..]);
-        buf.put_u16(crc);
+        write_crc(buf, crc);
         Ok(())
     }
 }
@@ -411,11 +410,13 @@ mod tests {
 
     #[test]
     fn test_calc_crc() {
+        // See also: <https://crccalc.com/>
+
         let msg = [0x01, 0x03, 0x08, 0x2B, 0x00, 0x02];
-        assert_eq!(calc_crc(&msg), 0xB663);
+        assert_eq!(calc_crc(&msg), 0x63B6);
 
         let msg = [0x01, 0x03, 0x04, 0x00, 0x20, 0x00, 0x00];
-        assert_eq!(calc_crc(&msg), 0xFBF9);
+        assert_eq!(calc_crc(&msg), 0xF9FB);
     }
 
     #[test]
