@@ -5,6 +5,13 @@
 
 ## Unreleased
 
+## v0.16.5 (2025-10-05)
+
+- Fix: Encoding of RTU CRC on Big Endian platforms.
+- Server: Remove unneeded `Unpin` trait bounds for abort signal.
+
+## v0.16.4 (2025-09-17)
+
 - Added `ReadDeviceIdentification`
 
 ## v0.16.3 (2025-09-10)

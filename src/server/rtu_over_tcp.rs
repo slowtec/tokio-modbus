@@ -119,7 +119,7 @@ impl Server {
         S: Service + Send + Sync + 'static,
         S::Request: From<RequestAdu<'static>> + Send,
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-        X: Future<Output = ()> + Sync + Send + Unpin + 'static,
+        X: Future<Output = ()> + Sync + Send + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
         F: Future<Output = io::Result<Option<(S, T)>>>,
         OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
