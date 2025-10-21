@@ -5,8 +5,12 @@
 
 ## Unreleased
 
+## v0.17.0 (2025-10-22)
+
 - Breaking change (behavior): Guess response length for custom function codes
   instead of returning an error.
+- Yanked v0.16.4 and v0.16.5 because of potentially breaking change as reported
+  in [#350](https://github.com/slowtec/tokio-modbus/issues/350).
 
 ## v0.16.5 (2025-10-05)
 
