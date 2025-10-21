@@ -5,7 +5,8 @@
 
 ## Unreleased
 
-- Breaking change (behavior): Guess response length for custom function codes instead of returning an error.
+- Breaking change (behavior): Guess response length for custom function codes
+  instead of returning an error.
 
 ## v0.16.5 (2025-10-05)
 
