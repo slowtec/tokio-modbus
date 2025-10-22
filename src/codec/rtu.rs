@@ -216,10 +216,13 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
                 offset - 1 // remove slave address byte
             }
             _ => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("Invalid function code: 0x{fn_code:0>2X}"),
-                ));
+                if adu_buf.len() >= 3 {
+                    adu_buf.len() - 3
+                } else {
+                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
+                        format!("Incomplete ADU response {:#x?} for custom function code 0x{fn_code:0>2X}",
+                            adu_buf.to_vec())));
+                }
             }
         };
         Ok(Some(len))
@@ -499,8 +502,12 @@ mod tests {
         assert_eq!(get_response_pdu_len(&buf).unwrap(), Some(101));
 
         let mut buf = BytesMut::new();
-        buf.extend_from_slice(&[0x66, 0x00, 99, 0x00]);
+        buf.extend_from_slice(&[0x66, 0x00]);
         assert!(get_response_pdu_len(&buf).is_err());
+
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[0x66, 0x00, 99, 0x00]);
+        assert_eq!(get_response_pdu_len(&buf).unwrap(), Some(1));
 
         buf[1] = 0x01;
         assert_eq!(get_response_pdu_len(&buf).unwrap(), Some(101));
