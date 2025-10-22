@@ -9,7 +9,8 @@ use std::{fmt, num::ParseIntError, str::FromStr};
 pub type SlaveId = u8;
 
 /// A single byte for addressing Modbus slave devices.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
 pub struct Slave(pub SlaveId);
 
 impl Slave {
@@ -100,7 +101,7 @@ impl FromStr for Slave {
 
 impl fmt::Display for Slave {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} (0x{:0>2X})", self.0, self.0)
+        write!(f, "{} (0x{:02X})", self.0, self.0)
     }
 }
 
@@ -147,9 +148,9 @@ mod tests {
     }
 
     #[test]
-    fn format() {
-        assert!(format!("{}", Slave(123)).contains("123"));
-        assert!(format!("{}", Slave(0x7B)).contains("0x7B"));
-        assert!(!format!("{}", Slave(0x7B)).contains("0x7b"));
+    fn display() {
+        assert_eq!("0 (0x00)", Slave(0).to_string());
+        assert_eq!("123 (0x7B)", Slave(123).to_string());
+        assert_eq!("123 (0x7B)", Slave(0x7B).to_string());
     }
 }

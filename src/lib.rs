@@ -61,7 +61,5 @@ pub use self::frame::{
 /// 2. [`ExceptionCode`]: An error occurred on the _Modbus_ server.
 pub type Result<T> = std::result::Result<std::result::Result<T, ExceptionCode>, Error>;
 
-mod service;
-
 #[cfg(feature = "server")]
 pub mod server;

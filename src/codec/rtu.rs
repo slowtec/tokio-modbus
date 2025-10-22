@@ -10,7 +10,7 @@ use tokio_util::codec::{Decoder, Encoder};
 use crate::{
     bytes::{Buf, BufMut, Bytes, BytesMut},
     frame::{rtu::*, MEI_TYPE_READ_DEVICE_IDENTIFICATION},
-    slave::SlaveId,
+    Slave, SlaveId,
 };
 
 use super::{encode_request_pdu, request_pdu_size, RequestPdu};
@@ -327,7 +327,9 @@ impl Decoder for ClientCodec {
             return Ok(None);
         };
 
-        let hdr = Header { slave_id };
+        let hdr = Header {
+            slave: Slave(slave_id),
+        };
 
         // Decoding of the PDU is unlikely to fail due
         // to transmission errors, because the frame's bytes
@@ -352,7 +354,9 @@ impl Decoder for ServerCodec {
             return Ok(None);
         };
 
-        let hdr = Header { slave_id };
+        let hdr = Header {
+            slave: Slave(slave_id),
+        };
 
         // Decoding of the PDU is unlikely to fail due
         // to transmission errors, because the frame's bytes
@@ -378,7 +382,7 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
         let buf_offset = buf.len();
         let request_pdu_size = request_pdu_size(&request)?;
         buf.reserve(request_pdu_size + 3);
-        buf.put_u8(hdr.slave_id);
+        buf.put_u8(hdr.slave.into());
         encode_request_pdu(buf, &request);
         let crc = calc_crc(&buf[buf_offset..]);
         write_crc(buf, crc);
@@ -398,7 +402,7 @@ impl Encoder<ResponseAdu> for ServerCodec {
         let buf_offset = buf.len();
         let response_result_pdu_size = super::response_result_pdu_size(&pdu_res)?;
         buf.reserve(response_result_pdu_size + 3);
-        buf.put_u8(hdr.slave_id);
+        buf.put_u8(hdr.slave.into());
         super::encode_response_result_pdu(buf, &pdu_res);
         let crc = calc_crc(&buf[buf_offset..]);
         write_crc(buf, crc);
@@ -745,7 +749,7 @@ mod tests {
             );
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
-            assert_eq!(hdr.slave_id, 0x01);
+            assert_eq!(hdr.slave, Slave(0x01));
             if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
                 assert_eq!(data.len(), 2);
                 assert_eq!(data, vec![0x8902, 0x42C7]);
@@ -776,7 +780,7 @@ mod tests {
             );
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
-            assert_eq!(hdr.slave_id, 0x01);
+            assert_eq!(hdr.slave, Slave(0x01));
             if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
                 assert_eq!(data.len(), 2);
                 assert_eq!(data, vec![0x8902, 0x42C7]);
@@ -814,7 +818,9 @@ mod tests {
             let req = Request::ReadHoldingRegisters(0x082b, 2);
             let pdu = req.into();
             let slave_id = 0x01;
-            let hdr = Header { slave_id };
+            let hdr = Header {
+                slave: Slave(slave_id),
+            };
             let adu = RequestAdu { hdr, pdu };
             codec.encode(adu, &mut buf).unwrap();
 
@@ -830,7 +836,9 @@ mod tests {
             let req = Request::ReadHoldingRegisters(0x082b, 2);
             let pdu = req.into();
             let slave_id = 0x01;
-            let hdr = Header { slave_id };
+            let hdr = Header {
+                slave: Slave(slave_id),
+            };
             let adu = RequestAdu { hdr, pdu };
             let mut buf = BytesMut::with_capacity(40);
             #[allow(unsafe_code)]
