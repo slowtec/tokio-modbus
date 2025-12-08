@@ -21,7 +21,7 @@ pub(crate) const MEI_TYPE_READ_DEVICE_IDENTIFICATION: u8 = 0x0E;
 /// A Modbus function code.
 ///
 /// All function codes as defined by the protocol specification V1.1b3.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FunctionCode {
     /// 01 (0x01) Read Coils.
     ReadCoils,
@@ -309,7 +309,7 @@ impl Request<'_> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlaveRequest<'a> {
     /// Slave id from the request
-    pub slave: crate::slave::SlaveId,
+    pub slave: crate::SlaveId,
     /// A `Request` enum
     pub request: Request<'a>,
 }
@@ -802,6 +802,24 @@ impl error::Error for ExceptionResponse {
     fn description(&self) -> &str {
         self.exception.description()
     }
+}
+
+/// Check that `req_hdr` is the same `Header` as `rsp_hdr`.
+///
+/// # Errors
+///
+/// If the 2 headers are different, an error message with the details will be returned.
+#[cfg(any(feature = "rtu", feature = "tcp"))]
+pub(crate) fn verify_response_header<H: Eq + std::fmt::Debug>(
+    req_hdr: &H,
+    rsp_hdr: &H,
+) -> Result<(), String> {
+    if req_hdr != rsp_hdr {
+        return Err(format!(
+            "expected/request = {req_hdr:?}, actual/response = {rsp_hdr:?}"
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
