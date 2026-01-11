@@ -97,21 +97,39 @@ where
         let req_hdr = req_adu.hdr;
 
         let framed = self.framed()?;
-
         framed.read_buffer_mut().clear();
         framed.send(req_adu).await?;
 
-        let res_adu = framed.next().await.ok_or_else(io::Error::last_os_error)??;
-        let ResponseAdu {
-            hdr: res_hdr,
-            pdu: res_pdu,
-        } = res_adu;
-        let ResponsePdu(result) = res_pdu;
+        let mut mismatch_err: Option<ProtocolError> = None;
+        let result = loop {
+            let res_adu = match framed.next().await {
+                Some(Ok(adu)) => adu,
+                Some(Err(e)) => return Err(e.into()),
+                None => match mismatch_err {
+                    Some(mismatch_err) => return Err(mismatch_err.into()),
+                    None => return Err(io::Error::last_os_error().into()),
+                },
+            };
 
-        // Match headers of request and response.
-        if let Err(message) = verify_response_header(&req_hdr, &res_hdr) {
-            return Err(ProtocolError::HeaderMismatch { message, result }.into());
-        }
+            let ResponseAdu {
+                hdr: res_hdr,
+                pdu: res_pdu,
+            } = res_adu;
+            let ResponsePdu(response) = res_pdu;
+
+            // Match headers of request and response.
+            if let Err(message) = verify_response_header(&req_hdr, &res_hdr) {
+                log::debug!(
+                    "Header mismatch expected {message}, detected {response:?}, retrying..."
+                );
+                mismatch_err = Some(ProtocolError::HeaderMismatch {
+                    message,
+                    result: response,
+                });
+            } else {
+                break response;
+            }
+        };
 
         // Match function codes of request and response.
         let rsp_function_code = match &result {
