@@ -101,7 +101,12 @@ where
         framed.read_buffer_mut().clear();
         framed.send(req_adu).await?;
 
-        let res_adu = framed.next().await.ok_or_else(io::Error::last_os_error)??;
+        let res_adu = framed
+            .next()
+            .await
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::UnexpectedEof, "connection closed by remote")
+            })??;
         let ResponseAdu {
             hdr: res_hdr,
             pdu: res_pdu,
