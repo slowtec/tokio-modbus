@@ -18,6 +18,9 @@ use crate::bytes::Bytes;
 /// MEI type code (`0x0E`) for Modbus "Read Device Identification" (function 0x2B).
 pub(crate) const MEI_TYPE_READ_DEVICE_IDENTIFICATION: u8 = 0x0E;
 
+/// Reference type for file record sub-requests/responses (always `0x06`).
+pub(crate) const FILE_RECORD_REFERENCE_TYPE: u8 = 0x06;
+
 /// A Modbus function code.
 ///
 /// All function codes as defined by the protocol specification V1.1b3.
@@ -168,6 +171,45 @@ pub(crate) type Word = u16;
 /// Number of items to process.
 pub type Quantity = u16;
 
+/// A sub-request for Read File Record (FC 20 / 0x14).
+///
+/// Each sub-request identifies a file, a starting record number, and
+/// the number of registers to read from that record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReadFileRecordSubRequest {
+    /// File number (1 to 0xFFFF).
+    pub file_number: u16,
+    /// Record number within the file.
+    pub record_number: u16,
+    /// Number of registers to read.
+    pub record_length: Quantity,
+}
+
+/// A sub-response for Read File Record (FC 20 / 0x14).
+///
+/// Each sub-response contains the register values read from a single
+/// file record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadFileRecordSubResponse {
+    /// Register values read from the file record.
+    pub data: Vec<Word>,
+}
+
+/// A sub-request for Write File Record (FC 21 / 0x15).
+///
+/// Each sub-request identifies a file, a starting record number, and
+/// the register values to write. Also used in the response (which echoes
+/// the request).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WriteFileRecordSubRequest {
+    /// File number (1 to 0xFFFF).
+    pub file_number: u16,
+    /// Record number within the file.
+    pub record_number: u16,
+    /// Register values to write.
+    pub data: Vec<Word>,
+}
+
 /// A request represents a message from the client (master) to the server (slave).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request<'a> {
@@ -227,6 +269,18 @@ pub enum Request<'a> {
     /// The fourth parameter is the vector of values to write to the registers.
     ReadWriteMultipleRegisters(Address, Quantity, Address, Cow<'a, [Word]>),
 
+    /// A request to read file records (0x14).
+    /// The parameter is a list of sub-requests, each identifying a file and record to read.
+    ReadFileRecord(Cow<'a, [ReadFileRecordSubRequest]>),
+
+    /// A request to write file records (0x15).
+    /// The parameter is a list of sub-requests, each containing file/record data to write.
+    WriteFileRecord(Cow<'a, [WriteFileRecordSubRequest]>),
+
+    /// A request to read a FIFO queue (0x18).
+    /// The parameter is the pointer address of the FIFO queue.
+    ReadFifoQueue(Address),
+
     /// A request to read device identification.
     /// The first parameter is the [`ReadCode`].
     /// The second parameter is the object ID: the first object to return (stream access)
@@ -265,6 +319,9 @@ impl Request<'_> {
             ReadWriteMultipleRegisters(addr, qty, write_addr, words) => {
                 ReadWriteMultipleRegisters(addr, qty, write_addr, Cow::Owned(words.into_owned()))
             }
+            ReadFileRecord(sub_reqs) => ReadFileRecord(Cow::Owned(sub_reqs.into_owned())),
+            WriteFileRecord(sub_reqs) => WriteFileRecord(Cow::Owned(sub_reqs.into_owned())),
+            ReadFifoQueue(addr) => ReadFifoQueue(addr),
             ReadDeviceIdentification(read_code, object_id) => {
                 ReadDeviceIdentification(read_code, object_id)
             }
@@ -296,6 +353,12 @@ impl Request<'_> {
             MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
 
             ReadWriteMultipleRegisters(_, _, _, _) => FunctionCode::ReadWriteMultipleRegisters,
+
+            ReadFileRecord(_) => FunctionCode::ReadFileRecord,
+
+            WriteFileRecord(_) => FunctionCode::WriteFileRecord,
+
+            ReadFifoQueue(_) => FunctionCode::ReadFifoQueue,
 
             ReadDeviceIdentification(_, _) => FunctionCode::EncapsulatedInterfaceTransport,
 
@@ -389,6 +452,18 @@ pub enum Response {
     /// The parameter contains the register values that have been read as part of the read instruction
     ReadWriteMultipleRegisters(Vec<Word>),
 
+    /// Response to a `ReadFileRecord` request.
+    /// Contains one sub-response per sub-request, each with the register values read.
+    ReadFileRecord(Vec<ReadFileRecordSubResponse>),
+
+    /// Response to a `WriteFileRecord` request.
+    /// Echoes back the sub-requests that were written.
+    WriteFileRecord(Vec<WriteFileRecordSubRequest>),
+
+    /// Response to a `ReadFifoQueue` request.
+    /// Contains the register values from the FIFO queue.
+    ReadFifoQueue(Vec<Word>),
+
     /// Response to a `ReadDeviceIdentification` request
     ReadDeviceIdentification(ReadDeviceIdentificationResponse),
 
@@ -422,6 +497,12 @@ impl Response {
             MaskWriteRegister(_, _, _) => FunctionCode::MaskWriteRegister,
 
             ReadWriteMultipleRegisters(_) => FunctionCode::ReadWriteMultipleRegisters,
+
+            ReadFileRecord(_) => FunctionCode::ReadFileRecord,
+
+            WriteFileRecord(_) => FunctionCode::WriteFileRecord,
+
+            ReadFifoQueue(_) => FunctionCode::ReadFifoQueue,
 
             ReadDeviceIdentification(_) => FunctionCode::EncapsulatedInterfaceTransport,
 
@@ -825,12 +906,15 @@ mod tests {
             FunctionCode::new(0x10)
         );
 
+        assert_eq!(FunctionCode::ReadFileRecord, FunctionCode::new(0x14));
+        assert_eq!(FunctionCode::WriteFileRecord, FunctionCode::new(0x15));
         assert_eq!(FunctionCode::MaskWriteRegister, FunctionCode::new(0x16));
 
         assert_eq!(
             FunctionCode::ReadWriteMultipleRegisters,
             FunctionCode::new(0x17)
         );
+        assert_eq!(FunctionCode::ReadFifoQueue, FunctionCode::new(0x18));
 
         assert_eq!(FunctionCode::Custom(70), FunctionCode::new(70));
     }
@@ -849,9 +933,12 @@ mod tests {
         assert_eq!(FunctionCode::WriteMultipleCoils.value(), 0x0F);
         assert_eq!(FunctionCode::WriteMultipleRegisters.value(), 0x10);
 
+        assert_eq!(FunctionCode::ReadFileRecord.value(), 0x14);
+        assert_eq!(FunctionCode::WriteFileRecord.value(), 0x15);
         assert_eq!(FunctionCode::MaskWriteRegister.value(), 0x16);
 
         assert_eq!(FunctionCode::ReadWriteMultipleRegisters.value(), 0x17);
+        assert_eq!(FunctionCode::ReadFifoQueue.value(), 0x18);
 
         assert_eq!(FunctionCode::Custom(70).value(), 70);
     }
@@ -903,6 +990,19 @@ mod tests {
             FunctionCode::ReadWriteMultipleRegisters
         );
 
+        assert_eq!(
+            ReadFileRecord(Cow::Borrowed(&[])).function_code(),
+            FunctionCode::ReadFileRecord
+        );
+        assert_eq!(
+            WriteFileRecord(Cow::Borrowed(&[])).function_code(),
+            FunctionCode::WriteFileRecord
+        );
+        assert_eq!(
+            ReadFifoQueue(0).function_code(),
+            FunctionCode::ReadFifoQueue
+        );
+
         assert_eq!(Custom(88, Cow::Borrowed(&[])).function_code().value(), 88);
     }
 
@@ -951,6 +1051,19 @@ mod tests {
         assert_eq!(
             ReadWriteMultipleRegisters(vec![]).function_code(),
             FunctionCode::ReadWriteMultipleRegisters
+        );
+
+        assert_eq!(
+            ReadFileRecord(vec![]).function_code(),
+            FunctionCode::ReadFileRecord
+        );
+        assert_eq!(
+            WriteFileRecord(vec![]).function_code(),
+            FunctionCode::WriteFileRecord
+        );
+        assert_eq!(
+            ReadFifoQueue(vec![]).function_code(),
+            FunctionCode::ReadFifoQueue
         );
 
         assert_eq!(

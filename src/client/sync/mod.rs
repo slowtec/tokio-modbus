@@ -61,6 +61,11 @@ pub trait Reader: Client {
         write_addr: Address,
         write_data: &[Word],
     ) -> Result<Vec<Word>>;
+    fn read_file_record(
+        &mut self,
+        sub_requests: &[ReadFileRecordSubRequest],
+    ) -> Result<Vec<ReadFileRecordSubResponse>>;
+    fn read_fifo_queue(&mut self, addr: Address) -> Result<Vec<Word>>;
     fn read_device_identification(
         &mut self,
         read_code: ReadCode,
@@ -78,6 +83,10 @@ pub trait Writer: Client {
     fn write_multiple_registers(&mut self, addr: Address, words: &[Word]) -> Result<()>;
     fn masked_write_register(&mut self, addr: Address, and_mask: Word, or_mask: Word)
         -> Result<()>;
+    fn write_file_record(
+        &mut self,
+        sub_requests: &[WriteFileRecordSubRequest],
+    ) -> Result<Vec<WriteFileRecordSubRequest>>;
 }
 
 /// A synchronous Modbus client context.
@@ -167,6 +176,25 @@ impl Reader for Context {
         )
     }
 
+    fn read_file_record(
+        &mut self,
+        sub_requests: &[ReadFileRecordSubRequest],
+    ) -> Result<Vec<ReadFileRecordSubResponse>> {
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.read_file_record(sub_requests),
+        )
+    }
+
+    fn read_fifo_queue(&mut self, addr: Address) -> Result<Vec<Word>> {
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.read_fifo_queue(addr),
+        )
+    }
+
     fn read_device_identification(
         &mut self,
         read_code: ReadCode,
@@ -225,6 +253,17 @@ impl Writer for Context {
             self.timeout,
             self.async_ctx
                 .masked_write_register(addr, and_mask, or_mask),
+        )
+    }
+
+    fn write_file_record(
+        &mut self,
+        sub_requests: &[WriteFileRecordSubRequest],
+    ) -> Result<Vec<WriteFileRecordSubRequest>> {
+        block_on_with_timeout(
+            &self.runtime,
+            self.timeout,
+            self.async_ctx.write_file_record(sub_requests),
         )
     }
 }

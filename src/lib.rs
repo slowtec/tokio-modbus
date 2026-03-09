@@ -48,7 +48,8 @@ mod frame;
 #[cfg(feature = "server")]
 pub use self::frame::SlaveRequest;
 pub use self::frame::{
-    Address, ExceptionCode, ExceptionResponse, FunctionCode, Quantity, Request, Response,
+    Address, ExceptionCode, ExceptionResponse, FunctionCode, Quantity, ReadFileRecordSubRequest,
+    ReadFileRecordSubResponse, Request, Response, WriteFileRecordSubRequest,
 };
 
 /// Specialized [`std::result::Result`] type for type-checked responses of the _Modbus_ client API.

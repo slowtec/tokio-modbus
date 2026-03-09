@@ -63,6 +63,15 @@ pub trait Reader: Client {
         write_data: &[Word],
     ) -> Result<Vec<Word>>;
 
+    /// Read file records (0x14)
+    async fn read_file_record(
+        &mut self,
+        sub_requests: &[ReadFileRecordSubRequest],
+    ) -> Result<Vec<ReadFileRecordSubResponse>>;
+
+    /// Read FIFO queue (0x18)
+    async fn read_fifo_queue(&mut self, addr: Address) -> Result<Vec<Word>>;
+
     /// Read device identification (0x2B / 0x0E)
     async fn read_device_identification(
         &mut self,
@@ -93,6 +102,12 @@ pub trait Writer: Client {
         and_mask: Word,
         or_mask: Word,
     ) -> Result<()>;
+
+    /// Write file records (0x15)
+    async fn write_file_record(
+        &mut self,
+        sub_requests: &[WriteFileRecordSubRequest],
+    ) -> Result<Vec<WriteFileRecordSubRequest>>;
 }
 
 /// Asynchronous Modbus client context
@@ -232,6 +247,33 @@ impl Reader for Context {
             })
     }
 
+    async fn read_file_record(
+        &mut self,
+        sub_requests: &[ReadFileRecordSubRequest],
+    ) -> Result<Vec<ReadFileRecordSubResponse>> {
+        self.client
+            .call(Request::ReadFileRecord(Cow::Borrowed(sub_requests)))
+            .await
+            .map(|result| {
+                result.map(|response| match response {
+                    Response::ReadFileRecord(sub_responses) => sub_responses,
+                    _ => unreachable!("call() should reject mismatching responses"),
+                })
+            })
+    }
+
+    async fn read_fifo_queue(&mut self, addr: Address) -> Result<Vec<Word>> {
+        self.client
+            .call(Request::ReadFifoQueue(addr))
+            .await
+            .map(|result| {
+                result.map(|response| match response {
+                    Response::ReadFifoQueue(data) => data,
+                    _ => unreachable!("call() should reject mismatching responses"),
+                })
+            })
+    }
+
     async fn read_device_identification(
         &mut self,
         read_code: ReadCode,
@@ -333,6 +375,21 @@ impl Writer for Context {
                         debug_assert_eq!(and_mask, rsp_and_mask);
                         debug_assert_eq!(or_mask, rsp_or_mask);
                     }
+                    _ => unreachable!("call() should reject mismatching responses"),
+                })
+            })
+    }
+
+    async fn write_file_record(
+        &mut self,
+        sub_requests: &[WriteFileRecordSubRequest],
+    ) -> Result<Vec<WriteFileRecordSubRequest>> {
+        self.client
+            .call(Request::WriteFileRecord(Cow::Borrowed(sub_requests)))
+            .await
+            .map(|result| {
+                result.map(|response| match response {
+                    Response::WriteFileRecord(sub_reqs) => sub_reqs,
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
