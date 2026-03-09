@@ -52,7 +52,7 @@ where
         RequestAdu { hdr, pdu }
     }
 
-    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Option<Response>> {
         log::debug!("Call {req:?}");
 
         let req_function_code = req.function_code();
@@ -63,6 +63,11 @@ where
 
         framed.read_buffer_mut().clear();
         framed.send(req_adu).await?;
+
+        // Broadcast requests (slave ID 0) do not receive a response.
+        if Slave::from(req_hdr.slave_id).is_broadcast() {
+            return Ok(Ok(None));
+        }
 
         let res_adu = framed
             .next()
@@ -92,7 +97,7 @@ where
             .into());
         }
 
-        Ok(result.map_err(
+        Ok(result.map(Some).map_err(
             |ExceptionResponse {
                  function: _,
                  exception,
@@ -120,7 +125,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Option<Response>> {
         self.call(req).await
     }
 
@@ -199,17 +204,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn handle_broken_pipe() {
+    async fn handle_broadcast_no_response() {
         let transport = MockTransport;
         let mut client =
             crate::service::rtu::Client::new(transport, crate::service::rtu::Slave::broadcast());
         let res = client
             .call(crate::service::rtu::Request::ReadCoils(0x00, 5))
             .await;
-        assert!(res.is_err());
-        let err = res.err().unwrap();
-        assert!(
-            matches!(err, Error::Transport(err) if err.kind() == std::io::ErrorKind::BrokenPipe)
-        );
+        // Broadcast requests should return Ok(Ok(None)) — no response expected.
+        assert!(matches!(res, Ok(Ok(None))));
     }
 }

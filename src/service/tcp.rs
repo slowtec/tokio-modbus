@@ -88,7 +88,7 @@ where
         Ok(framed)
     }
 
-    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Option<Response>> {
         log::debug!("Call {req:?}");
 
         let req_function_code = req.function_code();
@@ -99,6 +99,11 @@ where
 
         framed.read_buffer_mut().clear();
         framed.send(req_adu).await?;
+
+        // Broadcast requests (unit ID 0) do not receive a response.
+        if Slave::from(req_hdr.unit_id).is_broadcast() {
+            return Ok(Ok(None));
+        }
 
         let res_adu = framed.next().await.ok_or_else(io::Error::last_os_error)??;
         let ResponseAdu {
@@ -125,7 +130,7 @@ where
             .into());
         }
 
-        Ok(result.map_err(
+        Ok(result.map(Some).map_err(
             |ExceptionResponse {
                  function: _,
                  exception,
@@ -153,7 +158,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Option<Response>> {
         self.call(req).await
     }
 
