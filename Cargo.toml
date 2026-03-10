@@ -47,12 +47,11 @@ tokio = { version = "1.35.1", default-features = false, features = [
   "time",
 ] }
 tokio-serial = { version = "5.4.4", default-features = false }
-rustls-pemfile = "2.1.2"
 tokio-rustls = { version = "0.26.0", default-features = false }
 pkcs8 = { version = "0.10.2", features = ["encryption", "pem", "std"] }
 pem = "3.0.4"
-pki-types = { package = "rustls-pki-types", version = "1" }
 rustls = { version = "0.23.12", default-features = false, features = ["std"] }
+rustls-pki-types = { version = "1.14.0", features = ["std"] }
 
 [features]
 default = ["rtu", "tcp"]
