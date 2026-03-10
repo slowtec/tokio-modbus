@@ -69,10 +69,10 @@ pub trait Reader: Client {
         sub_requests: &[ReadFileRecordSubRequest],
     ) -> Result<Vec<ReadFileRecordSubResponse>>;
 
-    /// Read FIFO queue (0x18)
+    /// Read FIFO queue (`0x18`)
     async fn read_fifo_queue(&mut self, addr: Address) -> Result<Vec<Word>>;
 
-    /// Read device identification (0x2B / 0x0E)
+    /// Read device identification (`0x2B` / `0x0E`)
     async fn read_device_identification(
         &mut self,
         read_code: ReadCode,
@@ -103,7 +103,7 @@ pub trait Writer: Client {
         or_mask: Word,
     ) -> Result<()>;
 
-    /// Write file records (0x15)
+    /// Write file records (`0x15`)
     async fn write_file_record(
         &mut self,
         sub_requests: &[WriteFileRecordSubRequest],

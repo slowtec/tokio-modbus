@@ -171,13 +171,13 @@ pub(crate) type Word = u16;
 /// Number of items to process.
 pub type Quantity = u16;
 
-/// A sub-request for Read File Record (FC 20 / 0x14).
+/// A sub-request for Read File Record (Function Code `20` / `0x14`).
 ///
 /// Each sub-request identifies a file, a starting record number, and
 /// the number of registers to read from that record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ReadFileRecordSubRequest {
-    /// File number (1 to 0xFFFF).
+    /// File number (1 to `0xFFFF`).
     pub file_number: u16,
     /// Record number within the file.
     pub record_number: u16,
