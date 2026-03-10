@@ -100,11 +100,6 @@ where
         framed.read_buffer_mut().clear();
         framed.send(req_adu).await?;
 
-        // Broadcast requests (unit ID 0) do not receive a response.
-        if Slave::from(req_hdr.unit_id).is_broadcast() {
-            return Ok(Ok(None));
-        }
-
         let res_adu = framed.next().await.ok_or_else(io::Error::last_os_error)??;
         let ResponseAdu {
             hdr: res_hdr,
