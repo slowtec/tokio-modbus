@@ -63,7 +63,7 @@ pub trait Reader: Client {
         write_data: &[Word],
     ) -> Result<Vec<Word>>;
 
-    /// Read file records (0x14)
+    /// Read file records (`0x14`)
     async fn read_file_record(
         &mut self,
         sub_requests: &[ReadFileRecordSubRequest],

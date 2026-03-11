@@ -185,7 +185,7 @@ pub struct ReadFileRecordSubRequest {
     pub record_length: Quantity,
 }
 
-/// A sub-response for Read File Record (FC 20 / 0x14).
+/// A sub-response for Read File Record (FC 20 / `0x14`).
 ///
 /// Each sub-response contains the register values read from a single
 /// file record.
@@ -195,14 +195,14 @@ pub struct ReadFileRecordSubResponse {
     pub data: Vec<Word>,
 }
 
-/// A sub-request for Write File Record (FC 21 / 0x15).
+/// A sub-request for Write File Record (FC 21 / `0x15`).
 ///
 /// Each sub-request identifies a file, a starting record number, and
 /// the register values to write. Also used in the response (which echoes
 /// the request).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WriteFileRecordSubRequest {
-    /// File number (1 to 0xFFFF).
+    /// File number (1 to `0xFFFF`).
     pub file_number: u16,
     /// Record number within the file.
     pub record_number: u16,
@@ -269,15 +269,15 @@ pub enum Request<'a> {
     /// The fourth parameter is the vector of values to write to the registers.
     ReadWriteMultipleRegisters(Address, Quantity, Address, Cow<'a, [Word]>),
 
-    /// A request to read file records (0x14).
+    /// A request to read file records (`0x14`).
     /// The parameter is a list of sub-requests, each identifying a file and record to read.
     ReadFileRecord(Cow<'a, [ReadFileRecordSubRequest]>),
 
-    /// A request to write file records (0x15).
+    /// A request to write file records (`0x15`).
     /// The parameter is a list of sub-requests, each containing file/record data to write.
     WriteFileRecord(Cow<'a, [WriteFileRecordSubRequest]>),
 
-    /// A request to read a FIFO queue (0x18).
+    /// A request to read a FIFO queue (`0x18`).
     /// The parameter is the pointer address of the FIFO queue.
     ReadFifoQueue(Address),
 
