@@ -32,7 +32,9 @@ impl tokio_modbus::server::Service for Service {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Run the following command and then copy&paste the /dev/pts/? device addresses into the code in this example:");
+    println!(
+        "Run the following command and then copy&paste the /dev/pts/? device addresses into the code in this example:"
+    );
     println!("socat -dd pty,raw,echo=0 pty,raw,echo=0");
 
     println!("Connecting server");
@@ -67,7 +69,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Now we try to read with an invalid register address.
     // This should return a Modbus exception response with the code
     // IllegalDataAddress.
-    println!("CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)");
+    println!(
+        "CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)"
+    );
     let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
     println!("CLIENT: The result is '{response:?}'");
     assert!(matches!(response, Err(ExceptionCode::IllegalDataAddress)));

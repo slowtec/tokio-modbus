@@ -17,8 +17,8 @@ use tokio_util::{codec::Framed, sync::CancellationToken};
 use crate::{
     codec::rtu::ServerCodec,
     frame::{
-        rtu::{RequestAdu, ResponseAdu},
         ExceptionResponse, OptionalResponsePdu, RequestPdu,
+        rtu::{RequestAdu, ResponseAdu},
     },
 };
 

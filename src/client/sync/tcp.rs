@@ -5,9 +5,9 @@
 
 use std::{io, net::SocketAddr, time::Duration};
 
-use crate::{client::tcp::connect_slave as async_connect_slave, Slave};
+use crate::{Slave, client::tcp::connect_slave as async_connect_slave};
 
-use super::{block_on_with_timeout, Context};
+use super::{Context, block_on_with_timeout};
 
 /// Establish a direct connection to a _Modbus_ TCP coupler.
 pub fn connect(socket_addr: SocketAddr) -> io::Result<Context> {

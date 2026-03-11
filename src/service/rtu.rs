@@ -8,10 +8,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
 
 use crate::{
-    codec,
+    ProtocolError, Result, codec,
     frame::{rtu::*, *},
     slave::*,
-    ProtocolError, Result,
 };
 
 use super::{disconnect, verify_response_header};
@@ -140,8 +139,8 @@ mod tests {
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
     use crate::{
-        service::{rtu::Header, verify_response_header},
         Error,
+        service::{rtu::Header, verify_response_header},
     };
 
     #[test]

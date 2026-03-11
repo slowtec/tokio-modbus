@@ -19,7 +19,7 @@ use std::{
 
 use anyhow::bail;
 use pkcs8::der::Decode;
-use rustls_pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer, ServerName};
+use rustls_pki_types::{CertificateDer, PrivateKeyDer, ServerName, pem::PemObject};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_modbus::{prelude::*, server::tcp::Server};
 use tokio_rustls::{TlsAcceptor, TlsConnector};
@@ -84,7 +84,9 @@ impl tokio_modbus::server::Service for ExampleService {
             )
             .map(|_| Response::WriteSingleRegister(addr, value)),
             _ => {
-                println!("SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}");
+                println!(
+                    "SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}"
+                );
                 Err(ExceptionCode::IllegalFunction)
             }
         };
@@ -253,7 +255,9 @@ async fn client_context(socket_addr: SocketAddr) {
             // Now we try to read with an invalid register address.
             // This should return a Modbus exception response with the code
             // IllegalDataAddress.
-            println!("CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)");
+            println!(
+                "CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)"
+            );
             let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
             assert!(matches!(response, Err(ExceptionCode::IllegalDataAddress)));

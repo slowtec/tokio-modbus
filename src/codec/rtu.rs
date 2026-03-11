@@ -9,11 +9,11 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use crate::{
     bytes::{Buf, BufMut, Bytes, BytesMut},
-    frame::{rtu::*, MEI_TYPE_READ_DEVICE_IDENTIFICATION},
+    frame::{MEI_TYPE_READ_DEVICE_IDENTIFICATION, rtu::*},
     slave::SlaveId,
 };
 
-use super::{encode_request_pdu, request_pdu_size, RequestPdu};
+use super::{RequestPdu, encode_request_pdu, request_pdu_size};
 
 const MODBUS_CRC: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_MODBUS);
 
@@ -224,9 +224,13 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
                 if adu_buf.len() >= 3 {
                     adu_buf.len() - 3
                 } else {
-                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
-                        format!("Incomplete ADU response {:#x?} for custom function code 0x{fn_code:0>2X}",
-                            adu_buf.to_vec())));
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!(
+                            "Incomplete ADU response {:#x?} for custom function code 0x{fn_code:0>2X}",
+                            adu_buf.to_vec()
+                        ),
+                    ));
                 }
             }
         };
@@ -603,7 +607,7 @@ mod tests {
 
     mod client {
 
-        use crate::{codec::ResponsePdu, Request, Response};
+        use crate::{Request, Response, codec::ResponsePdu};
 
         use super::*;
 
@@ -751,11 +755,14 @@ mod tests {
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
-            if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
-                assert_eq!(data.len(), 2);
-                assert_eq!(data, vec![0x8902, 0x42C7]);
-            } else {
-                panic!("unexpected response")
+            match pdu.into() {
+                Ok(Response::ReadHoldingRegisters(data)) => {
+                    assert_eq!(data.len(), 2);
+                    assert_eq!(data, vec![0x8902, 0x42C7]);
+                }
+                _ => {
+                    panic!("unexpected response")
+                }
             }
         }
 
@@ -782,11 +789,14 @@ mod tests {
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
-            if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
-                assert_eq!(data.len(), 2);
-                assert_eq!(data, vec![0x8902, 0x42C7]);
-            } else {
-                panic!("unexpected response")
+            match pdu.into() {
+                Ok(Response::ReadHoldingRegisters(data)) => {
+                    assert_eq!(data.len(), 2);
+                    assert_eq!(data, vec![0x8902, 0x42C7]);
+                }
+                _ => {
+                    panic!("unexpected response")
+                }
             }
         }
 

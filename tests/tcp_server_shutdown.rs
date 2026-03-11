@@ -15,13 +15,13 @@ use std::{net::SocketAddr, time::Duration};
 use futures::future::FutureExt;
 use tokio::{
     net::TcpListener,
-    sync::oneshot::{channel, Receiver, Sender},
+    sync::oneshot::{Receiver, Sender, channel},
 };
 use tokio_modbus::{
     client,
     prelude::*,
-    server::tcp::{accept_tcp_connection, Server},
     server::Terminated,
+    server::tcp::{Server, accept_tcp_connection},
 };
 
 use crate::exception::TestService;

@@ -12,8 +12,8 @@ use std::{net::SocketAddr, time::Duration};
 use exception::check_client_context;
 use tokio::net::TcpListener;
 use tokio_modbus::{
-    server::rtu_over_tcp::{accept_tcp_connection, Server},
     Slave,
+    server::rtu_over_tcp::{Server, accept_tcp_connection},
 };
 
 use crate::exception::TestService;

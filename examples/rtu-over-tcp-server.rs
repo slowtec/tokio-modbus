@@ -18,7 +18,7 @@ use tokio::net::TcpListener;
 
 use tokio_modbus::{
     prelude::*,
-    server::rtu_over_tcp::{accept_tcp_connection, Server},
+    server::rtu_over_tcp::{Server, accept_tcp_connection},
 };
 
 struct ExampleService {
@@ -54,7 +54,9 @@ impl tokio_modbus::server::Service for ExampleService {
             )
             .map(|_| Response::WriteSingleRegister(addr, value)),
             _ => {
-                println!("SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}");
+                println!(
+                    "SERVER: Exception::IllegalFunction - Unimplemented function code in request: {req:?}"
+                );
                 Err(ExceptionCode::IllegalFunction)
             }
         };
@@ -177,7 +179,9 @@ async fn client_context(socket_addr: SocketAddr) {
             // Now we try to read with an invalid register address.
             // This should return a Modbus exception response with the code
             // IllegalDataAddress.
-            println!("CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)");
+            println!(
+                "CLIENT: Reading nonexistent holding register address... (should return IllegalDataAddress)"
+            );
             let response = ctx.read_holding_registers(0x100, 1).await.unwrap();
             println!("CLIENT: The result is '{response:?}'");
             assert!(matches!(response, Err(ExceptionCode::IllegalDataAddress)));

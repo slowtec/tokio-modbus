@@ -16,7 +16,7 @@ use tokio::net::TcpListener;
 use tokio_modbus::prelude::*;
 use tokio_modbus::{
     client,
-    server::tcp::{accept_tcp_connection, Server},
+    server::tcp::{Server, accept_tcp_connection},
 };
 
 use crate::exception::TestService;

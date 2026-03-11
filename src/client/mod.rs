@@ -7,7 +7,7 @@ use std::{borrow::Cow, io};
 
 use async_trait::async_trait;
 
-use crate::{frame::*, slave::*, Result};
+use crate::{Result, frame::*, slave::*};
 
 #[cfg(feature = "rtu")]
 pub mod rtu;

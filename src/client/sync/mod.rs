@@ -13,7 +13,7 @@ use std::{future::Future, io, time::Duration};
 
 use futures_util::future::Either;
 
-use crate::{frame::*, Result, Slave};
+use crate::{Result, Slave, frame::*};
 
 use super::{
     Client as AsyncClient, Context as AsyncContext, Reader as _, SlaveContext, Writer as _,
@@ -82,7 +82,7 @@ pub trait Writer: Client {
     fn write_single_register(&mut self, addr: Address, word: Word) -> Result<()>;
     fn write_multiple_registers(&mut self, addr: Address, words: &[Word]) -> Result<()>;
     fn masked_write_register(&mut self, addr: Address, and_mask: Word, or_mask: Word)
-        -> Result<()>;
+    -> Result<()>;
     fn write_file_record(
         &mut self,
         sub_requests: &[WriteFileRecordSubRequest],

@@ -9,13 +9,14 @@ use std::{
 use byteorder::{BigEndian, ReadBytesExt as _};
 
 use crate::{
+    ExceptionCode, ExceptionResponse, FunctionCode, Request, Response,
     bytes::{Buf as _, Bytes},
     frame::{
-        Coil, ConformityLevel, DeviceIdObject, ReadCode, ReadDeviceIdentificationResponse,
+        Coil, ConformityLevel, DeviceIdObject, FILE_RECORD_REFERENCE_TYPE,
+        MEI_TYPE_READ_DEVICE_IDENTIFICATION, ReadCode, ReadDeviceIdentificationResponse,
         ReadFileRecordSubRequest, ReadFileRecordSubResponse, RequestPdu, ResponsePdu,
-        WriteFileRecordSubRequest, FILE_RECORD_REFERENCE_TYPE, MEI_TYPE_READ_DEVICE_IDENTIFICATION,
+        WriteFileRecordSubRequest,
     },
-    ExceptionCode, ExceptionResponse, FunctionCode, Request, Response,
 };
 
 #[cfg(feature = "rtu")]
@@ -777,11 +778,7 @@ impl TryFrom<Bytes> for ResponsePdu {
 
 #[cfg(any(test, feature = "rtu", feature = "tcp"))]
 fn bool_to_coil(state: bool) -> u16 {
-    if state {
-        0xFF00
-    } else {
-        0x0000
-    }
+    if state { 0xFF00 } else { 0x0000 }
 }
 
 fn coil_to_bool(coil: u16) -> io::Result<bool> {
@@ -1244,7 +1241,7 @@ mod tests {
                 encode_request_pdu_to_bytes(&Request::ReadFileRecord(Cow::Borrowed(&sub_reqs)));
             assert_eq!(bytes[0], 0x14);
             assert_eq!(bytes[1], 0x0E); // byte count (2 * 7 = 14)
-                                        // sub-request 1
+            // sub-request 1
             assert_eq!(bytes[2], 0x06); // reference type
             assert_eq!(bytes[3], 0x00); // file number hi & lo
             assert_eq!(bytes[4], 0x04);
@@ -1343,16 +1340,18 @@ mod tests {
 
         #[test]
         fn write_multiple_coils() {
-            assert!(Request::try_from(Bytes::from(vec![
-                0x0F,
-                0x33,
-                0x11,
-                0x00,
-                0x04,
-                0x02,
-                0b_0000_1101,
-            ]))
-            .is_err());
+            assert!(
+                Request::try_from(Bytes::from(vec![
+                    0x0F,
+                    0x33,
+                    0x11,
+                    0x00,
+                    0x04,
+                    0x02,
+                    0b_0000_1101,
+                ]))
+                .is_err()
+            );
 
             let bytes = Bytes::from(vec![0x0F, 0x33, 0x11, 0x00, 0x04, 0x01, 0b_0000_1101]);
             let req = Request::try_from(bytes).unwrap();
@@ -1385,10 +1384,12 @@ mod tests {
 
         #[test]
         fn write_multiple_registers() {
-            assert!(Request::try_from(Bytes::from(vec![
-                0x10, 0x00, 0x06, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12,
-            ]))
-            .is_err());
+            assert!(
+                Request::try_from(Bytes::from(vec![
+                    0x10, 0x00, 0x06, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12,
+                ]))
+                .is_err()
+            );
 
             let bytes = Bytes::from(vec![
                 0x10, 0x00, 0x06, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12,
@@ -1416,10 +1417,13 @@ mod tests {
 
         #[test]
         fn read_write_multiple_registers() {
-            assert!(Request::try_from(Bytes::from(vec![
-                0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF, 0x12,
-            ]))
-            .is_err());
+            assert!(
+                Request::try_from(Bytes::from(vec![
+                    0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x05, 0xAB, 0xCD, 0xEF,
+                    0x12,
+                ]))
+                .is_err()
+            );
             let bytes = Bytes::from(vec![
                 0x17, 0x00, 0x05, 0x00, 0x33, 0x00, 0x03, 0x00, 0x02, 0x04, 0xAB, 0xCD, 0xEF, 0x12,
             ]);
@@ -1668,7 +1672,7 @@ mod tests {
             ]));
             assert_eq!(bytes[0], 0x14);
             assert_eq!(bytes[1], 0x0E); // resp data len (2+4 + 2+6 = 14)
-                                        // sub-resp 1: file_resp_len=5 (1+2*2), ref_type, 2 words
+            // sub-resp 1: file_resp_len=5 (1+2*2), ref_type, 2 words
             assert_eq!(bytes[2], 0x05); // file resp length
             assert_eq!(bytes[3], 0x06);
             assert_eq!(bytes[4], 0x0D);
