@@ -144,12 +144,16 @@ where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
-        let Some(request_adu) = framed.next().await.transpose().inspect_err(|err| {
-            log::debug!("Failed to receive and decode request ADU: {err}");
-        })?
-        else {
-            log::debug!("TCP socket has been closed");
-            break;
+        let request_adu = match framed.next().await {
+            Some(Ok(adu)) => adu,
+            Some(Err(err)) => {
+                log::debug!("Failed to receive and decode request ADU: {err}");
+                continue;
+            }
+            None => {
+                log::debug!("TCP socket has been closed");
+                break;
+            }
         };
 
         let RequestAdu {
