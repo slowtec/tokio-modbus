@@ -88,7 +88,7 @@ where
         Ok(framed)
     }
 
-    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    pub(crate) async fn call(&mut self, req: Request<'_>) -> Result<Option<Response>> {
         log::debug!("Call {req:?}");
 
         let req_function_code = req.function_code();
@@ -125,7 +125,7 @@ where
             .into());
         }
 
-        Ok(result.map_err(
+        Ok(result.map(Some).map_err(
             |ExceptionResponse {
                  function: _,
                  exception,
@@ -153,7 +153,7 @@ impl<T> crate::client::Client for Client<T>
 where
     T: AsyncRead + AsyncWrite + Send + Unpin,
 {
-    async fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    async fn call(&mut self, req: Request<'_>) -> Result<Option<Response>> {
         self.call(req).await
     }
 

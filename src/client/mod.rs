@@ -22,7 +22,10 @@ pub mod sync;
 #[async_trait]
 pub trait Client: SlaveContext + Send {
     /// Invokes a _Modbus_ function.
-    async fn call(&mut self, request: Request<'_>) -> Result<Response>;
+    ///
+    /// For broadcast requests (slave ID 0), the request is sent but
+    /// no response is awaited, and `Ok(Ok(None))` is returned.
+    async fn call(&mut self, request: Request<'_>) -> Result<Option<Response>>;
 
     /// Disconnects the client.
     ///
@@ -130,7 +133,7 @@ impl From<Context> for Box<dyn Client> {
 
 #[async_trait]
 impl Client for Context {
-    async fn call(&mut self, request: Request<'_>) -> Result<Response> {
+    async fn call(&mut self, request: Request<'_>) -> Result<Option<Response>> {
         self.client.call(request).await
     }
 
@@ -152,12 +155,13 @@ impl Reader for Context {
             .call(Request::ReadCoils(addr, cnt))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadCoils(mut coils) => {
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadCoils(mut coils)) => {
                         debug_assert!(coils.len() >= cnt.into());
                         coils.truncate(cnt.into());
                         coils
                     }
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -172,12 +176,13 @@ impl Reader for Context {
             .call(Request::ReadDiscreteInputs(addr, cnt))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadDiscreteInputs(mut coils) => {
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadDiscreteInputs(mut coils)) => {
                         debug_assert!(coils.len() >= cnt.into());
                         coils.truncate(cnt.into());
                         coils
                     }
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -192,11 +197,12 @@ impl Reader for Context {
             .call(Request::ReadInputRegisters(addr, cnt))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadInputRegisters(words) => {
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadInputRegisters(words)) => {
                         debug_assert_eq!(words.len(), cnt.into());
                         words
                     }
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -211,11 +217,12 @@ impl Reader for Context {
             .call(Request::ReadHoldingRegisters(addr, cnt))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadHoldingRegisters(words) => {
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadHoldingRegisters(words)) => {
                         debug_assert_eq!(words.len(), cnt.into());
                         words
                     }
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -237,11 +244,12 @@ impl Reader for Context {
             ))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadWriteMultipleRegisters(words) => {
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadWriteMultipleRegisters(words)) => {
                         debug_assert_eq!(words.len(), read_count.into());
                         words
                     }
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -255,8 +263,9 @@ impl Reader for Context {
             .call(Request::ReadFileRecord(Cow::Borrowed(sub_requests)))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadFileRecord(sub_responses) => sub_responses,
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadFileRecord(sub_responses)) => sub_responses,
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -267,8 +276,9 @@ impl Reader for Context {
             .call(Request::ReadFifoQueue(addr))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadFifoQueue(data) => data,
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadFifoQueue(data)) => data,
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -283,8 +293,9 @@ impl Reader for Context {
             .call(Request::ReadDeviceIdentification(read_code, object_id))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadDeviceIdentification(response) => response,
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadDeviceIdentification(response)) => response,
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -298,12 +309,16 @@ impl Writer for Context {
             .call(Request::WriteSingleCoil(addr, coil))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::WriteSingleCoil(rsp_addr, rsp_coil) => {
-                        debug_assert_eq!(addr, rsp_addr);
-                        debug_assert_eq!(coil, rsp_coil);
+                result.map(|opt_response| {
+                    if let Some(response) = opt_response {
+                        match response {
+                            Response::WriteSingleCoil(rsp_addr, rsp_coil) => {
+                                debug_assert_eq!(addr, rsp_addr);
+                                debug_assert_eq!(coil, rsp_coil);
+                            }
+                            _ => unreachable!("call() should reject mismatching responses"),
+                        }
                     }
-                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -314,12 +329,16 @@ impl Writer for Context {
             .call(Request::WriteMultipleCoils(addr, Cow::Borrowed(coils)))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::WriteMultipleCoils(rsp_addr, rsp_cnt) => {
-                        debug_assert_eq!(addr, rsp_addr);
-                        debug_assert_eq!(cnt, rsp_cnt.into());
+                result.map(|opt_response| {
+                    if let Some(response) = opt_response {
+                        match response {
+                            Response::WriteMultipleCoils(rsp_addr, rsp_cnt) => {
+                                debug_assert_eq!(addr, rsp_addr);
+                                debug_assert_eq!(cnt, rsp_cnt.into());
+                            }
+                            _ => unreachable!("call() should reject mismatching responses"),
+                        }
                     }
-                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -329,12 +348,16 @@ impl Writer for Context {
             .call(Request::WriteSingleRegister(addr, word))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::WriteSingleRegister(rsp_addr, rsp_word) => {
-                        debug_assert_eq!(addr, rsp_addr);
-                        debug_assert_eq!(word, rsp_word);
+                result.map(|opt_response| {
+                    if let Some(response) = opt_response {
+                        match response {
+                            Response::WriteSingleRegister(rsp_addr, rsp_word) => {
+                                debug_assert_eq!(addr, rsp_addr);
+                                debug_assert_eq!(word, rsp_word);
+                            }
+                            _ => unreachable!("call() should reject mismatching responses"),
+                        }
                     }
-                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -349,12 +372,16 @@ impl Writer for Context {
             .call(Request::WriteMultipleRegisters(addr, Cow::Borrowed(data)))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) => {
-                        debug_assert_eq!(addr, rsp_addr);
-                        debug_assert_eq!(cnt, rsp_cnt.into());
+                result.map(|opt_response| {
+                    if let Some(response) = opt_response {
+                        match response {
+                            Response::WriteMultipleRegisters(rsp_addr, rsp_cnt) => {
+                                debug_assert_eq!(addr, rsp_addr);
+                                debug_assert_eq!(cnt, rsp_cnt.into());
+                            }
+                            _ => unreachable!("call() should reject mismatching responses"),
+                        }
                     }
-                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -369,13 +396,17 @@ impl Writer for Context {
             .call(Request::MaskWriteRegister(addr, and_mask, or_mask))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::MaskWriteRegister(rsp_addr, rsp_and_mask, rsp_or_mask) => {
-                        debug_assert_eq!(addr, rsp_addr);
-                        debug_assert_eq!(and_mask, rsp_and_mask);
-                        debug_assert_eq!(or_mask, rsp_or_mask);
+                result.map(|opt_response| {
+                    if let Some(response) = opt_response {
+                        match response {
+                            Response::MaskWriteRegister(rsp_addr, rsp_and_mask, rsp_or_mask) => {
+                                debug_assert_eq!(addr, rsp_addr);
+                                debug_assert_eq!(and_mask, rsp_and_mask);
+                                debug_assert_eq!(or_mask, rsp_or_mask);
+                            }
+                            _ => unreachable!("call() should reject mismatching responses"),
+                        }
                     }
-                    _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
     }
@@ -388,8 +419,9 @@ impl Writer for Context {
             .call(Request::WriteFileRecord(Cow::Borrowed(sub_requests)))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::WriteFileRecord(sub_reqs) => sub_reqs,
+                result.map(|opt_response| match opt_response {
+                    Some(Response::WriteFileRecord(sub_reqs)) => sub_reqs,
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -427,10 +459,10 @@ mod tests {
 
     #[async_trait]
     impl Client for ClientMock {
-        async fn call(&mut self, request: Request<'_>) -> Result<Response> {
+        async fn call(&mut self, request: Request<'_>) -> Result<Option<Response>> {
             *self.last_request.lock().unwrap() = Some(request.into_owned());
             match self.next_response.take().unwrap() {
-                Ok(response) => Ok(response),
+                Ok(response) => Ok(response.map(Some)),
                 Err(Error::Transport(err)) => {
                     Err(io::Error::new(err.kind(), format!("{err}")).into())
                 }
