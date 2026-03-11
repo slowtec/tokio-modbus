@@ -12,7 +12,8 @@ use crate::{
     bytes::{Buf as _, Bytes},
     frame::{
         Coil, ConformityLevel, DeviceIdObject, ReadCode, ReadDeviceIdentificationResponse,
-        RequestPdu, ResponsePdu, MEI_TYPE_READ_DEVICE_IDENTIFICATION,
+        ReadFileRecordSubRequest, ReadFileRecordSubResponse, RequestPdu, ResponsePdu,
+        WriteFileRecordSubRequest, FILE_RECORD_REFERENCE_TYPE, MEI_TYPE_READ_DEVICE_IDENTIFICATION,
     },
     ExceptionCode, ExceptionResponse, FunctionCode, Request, Response,
 };
@@ -100,6 +101,31 @@ fn encode_request_pdu(buf: &mut crate::bytes::BytesMut, request: &Request<'_>) {
                 buf.put_u16(*w);
             }
         }
+        ReadFileRecord(sub_reqs) => {
+            buf.put_u8(u8_len(sub_reqs.len() * 7));
+            for sub_req in sub_reqs.as_ref() {
+                buf.put_u8(FILE_RECORD_REFERENCE_TYPE);
+                buf.put_u16(sub_req.file_number);
+                buf.put_u16(sub_req.record_number);
+                buf.put_u16(sub_req.record_length);
+            }
+        }
+        WriteFileRecord(sub_reqs) => {
+            let byte_count: usize = sub_reqs.iter().map(|sr| 7 + sr.data.len() * 2).sum();
+            buf.put_u8(u8_len(byte_count));
+            for sub_req in sub_reqs.as_ref() {
+                buf.put_u8(FILE_RECORD_REFERENCE_TYPE);
+                buf.put_u16(sub_req.file_number);
+                buf.put_u16(sub_req.record_number);
+                buf.put_u16(u16_len(sub_req.data.len()));
+                for w in &sub_req.data {
+                    buf.put_u16(*w);
+                }
+            }
+        }
+        ReadFifoQueue(address) => {
+            buf.put_u16(*address);
+        }
         ReadDeviceIdentification(read_code, object_id) => {
             buf.put_u8(MEI_TYPE_READ_DEVICE_IDENTIFICATION);
             buf.put_u8(read_code.value());
@@ -112,6 +138,7 @@ fn encode_request_pdu(buf: &mut crate::bytes::BytesMut, request: &Request<'_>) {
 }
 
 #[cfg(any(test, feature = "server"))]
+#[allow(clippy::too_many_lines)] // TODO
 fn encode_response_pdu(buf: &mut crate::bytes::BytesMut, response: &Response) {
     use crate::{
         bytes::BufMut as _,
@@ -153,6 +180,38 @@ fn encode_response_pdu(buf: &mut crate::bytes::BytesMut, response: &Response) {
             buf.put_u16(*address);
             buf.put_u16(*and_mask);
             buf.put_u16(*or_mask);
+        }
+        ReadFileRecord(sub_responses) => {
+            let data_len: usize = sub_responses.iter().map(|sr| 2 + sr.data.len() * 2).sum();
+            buf.put_u8(u8_len(data_len));
+            for sr in sub_responses {
+                buf.put_u8(u8_len(1 + sr.data.len() * 2));
+                buf.put_u8(FILE_RECORD_REFERENCE_TYPE);
+                for w in &sr.data {
+                    buf.put_u16(*w);
+                }
+            }
+        }
+        WriteFileRecord(sub_reqs) => {
+            let data_len: usize = sub_reqs.iter().map(|sr| 7 + sr.data.len() * 2).sum();
+            buf.put_u8(u8_len(data_len));
+            for sr in sub_reqs {
+                buf.put_u8(FILE_RECORD_REFERENCE_TYPE);
+                buf.put_u16(sr.file_number);
+                buf.put_u16(sr.record_number);
+                buf.put_u16(u16_len(sr.data.len()));
+                for w in &sr.data {
+                    buf.put_u16(*w);
+                }
+            }
+        }
+        ReadFifoQueue(data) => {
+            let fifo_count = u16_len(data.len());
+            buf.put_u16(2 + fifo_count * 2);
+            buf.put_u16(fifo_count);
+            for w in data {
+                buf.put_u16(*w);
+            }
         }
         ReadDeviceIdentification(ReadDeviceIdentificationResponse {
             read_code,
@@ -278,6 +337,66 @@ fn decode_request_pdu_bytes(bytes: &Bytes) -> io::Result<Request<'static>> {
             }
             ReadWriteMultipleRegisters(read_address, read_quantity, write_address, data.into())
         }
+        0x14 => {
+            check_request_pdu_size(pdu_size)?;
+            let byte_count = usize::from(rdr.read_u8()?);
+            if byte_count % 7 != 0 || byte_count == 0 {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "invalid read file record byte count",
+                ));
+            }
+            let num_sub_reqs = byte_count / 7;
+            let mut sub_reqs = Vec::with_capacity(num_sub_reqs);
+            for _ in 0..num_sub_reqs {
+                let ref_type = rdr.read_u8()?;
+                if ref_type != FILE_RECORD_REFERENCE_TYPE {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        format!("invalid file record reference type: 0x{ref_type:02X}"),
+                    ));
+                }
+                sub_reqs.push(ReadFileRecordSubRequest {
+                    file_number: read_u16_be(rdr)?,
+                    record_number: read_u16_be(rdr)?,
+                    record_length: read_u16_be(rdr)?,
+                });
+            }
+            ReadFileRecord(sub_reqs.into())
+        }
+        0x15 => {
+            check_request_pdu_size(pdu_size)?;
+            let byte_count = usize::from(rdr.read_u8()?);
+            let start_pos = usize::try_from(rdr.position()).unwrap();
+            let end_pos = start_pos + byte_count;
+            if end_pos > bytes.len() {
+                return Err(Error::new(ErrorKind::InvalidData, "too short"));
+            }
+            let mut sub_reqs = Vec::new();
+            while usize::try_from(rdr.position()).unwrap() < end_pos {
+                let ref_type = rdr.read_u8()?;
+                if ref_type != FILE_RECORD_REFERENCE_TYPE {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        format!("invalid file record reference type: 0x{ref_type:02X}"),
+                    ));
+                }
+                let file_number = read_u16_be(rdr)?;
+                let record_number = read_u16_be(rdr)?;
+                let record_length = read_u16_be(rdr)?;
+                let mut data = Vec::with_capacity(record_length.into());
+                for _ in 0..record_length {
+                    data.push(read_u16_be(rdr)?);
+                }
+                sub_reqs.push(WriteFileRecordSubRequest {
+                    file_number,
+                    record_number,
+                    data,
+                });
+            }
+            WriteFileRecord(sub_reqs.into())
+        }
+        0x18 => ReadFifoQueue(read_u16_be(rdr)?),
         0x2b => {
             let mei_type = rdr.read_u8()?;
             if mei_type != MEI_TYPE_READ_DEVICE_IDENTIFICATION {
@@ -461,6 +580,87 @@ fn decode_response_pdu_bytes(bytes: Bytes) -> io::Result<Response> {
             }
             ReadWriteMultipleRegisters(data)
         }
+        0x14 => {
+            check_response_pdu_size(pdu_size)?;
+            let resp_data_len = usize::from(rdr.read_u8()?);
+            let start_pos = usize::try_from(rdr.position()).unwrap();
+            let end_pos = start_pos + resp_data_len;
+            if end_pos > bytes.len() {
+                return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
+            }
+            let mut sub_responses = Vec::new();
+            while usize::try_from(rdr.position()).unwrap() < end_pos {
+                let file_resp_len = usize::from(rdr.read_u8()?);
+                if file_resp_len < 1 || (file_resp_len - 1) % 2 != 0 {
+                    return Err(io::Error::new(
+                        ErrorKind::InvalidData,
+                        "invalid file record sub-response length",
+                    ));
+                }
+                let ref_type = rdr.read_u8()?;
+                if ref_type != FILE_RECORD_REFERENCE_TYPE {
+                    return Err(io::Error::new(
+                        ErrorKind::InvalidData,
+                        format!("invalid file record reference type: 0x{ref_type:02X}"),
+                    ));
+                }
+                let num_registers = (file_resp_len - 1) / 2;
+                let mut data = Vec::with_capacity(num_registers);
+                for _ in 0..num_registers {
+                    data.push(read_u16_be(rdr)?);
+                }
+                sub_responses.push(ReadFileRecordSubResponse { data });
+            }
+            ReadFileRecord(sub_responses)
+        }
+        0x15 => {
+            check_response_pdu_size(pdu_size)?;
+            let resp_data_len = usize::from(rdr.read_u8()?);
+            let start_pos = usize::try_from(rdr.position()).unwrap();
+            let end_pos = start_pos + resp_data_len;
+            if end_pos > bytes.len() {
+                return Err(io::Error::new(ErrorKind::InvalidData, "too short"));
+            }
+            let mut sub_reqs = Vec::new();
+            while usize::try_from(rdr.position()).unwrap() < end_pos {
+                let ref_type = rdr.read_u8()?;
+                if ref_type != FILE_RECORD_REFERENCE_TYPE {
+                    return Err(io::Error::new(
+                        ErrorKind::InvalidData,
+                        format!("invalid file record reference type: 0x{ref_type:02X}"),
+                    ));
+                }
+                let file_number = read_u16_be(rdr)?;
+                let record_number = read_u16_be(rdr)?;
+                let record_length = read_u16_be(rdr)?;
+                let mut data = Vec::with_capacity(record_length.into());
+                for _ in 0..record_length {
+                    data.push(read_u16_be(rdr)?);
+                }
+                sub_reqs.push(WriteFileRecordSubRequest {
+                    file_number,
+                    record_number,
+                    data,
+                });
+            }
+            WriteFileRecord(sub_reqs)
+        }
+        0x18 => {
+            check_response_pdu_size(pdu_size)?;
+            let byte_count = usize::from(read_u16_be(rdr)?);
+            let fifo_count = read_u16_be(rdr)?;
+            if byte_count != 2 + usize::from(fifo_count) * 2 {
+                return Err(io::Error::new(
+                    ErrorKind::InvalidData,
+                    "invalid FIFO byte count",
+                ));
+            }
+            let mut data = Vec::with_capacity(fifo_count.into());
+            for _ in 0..fifo_count {
+                data.push(read_u16_be(rdr)?);
+            }
+            ReadFifoQueue(data)
+        }
         0x2b => {
             let mei_type = rdr.read_u8()?;
             if mei_type != MEI_TYPE_READ_DEVICE_IDENTIFICATION {
@@ -633,6 +833,14 @@ fn request_pdu_size(request: &Request<'_>) -> io::Result<usize> {
         ReportServerId => 1,
         MaskWriteRegister(_, _, _) => 7,
         ReadWriteMultipleRegisters(_, _, _, data) => 10 + data.len() * 2,
+        ReadFileRecord(sub_reqs) => 2 + sub_reqs.len() * 7,
+        WriteFileRecord(sub_reqs) => {
+            2 + sub_reqs
+                .iter()
+                .map(|sr| 7 + sr.data.len() * 2)
+                .sum::<usize>()
+        }
+        ReadFifoQueue(_) => 3,
         ReadDeviceIdentification(_, _) => 4,
         Custom(_, data) => 1 + data.len(),
     };
@@ -659,6 +867,19 @@ fn response_pdu_size(response: &Response) -> io::Result<usize> {
         | ReadWriteMultipleRegisters(data) => 2 + data.len() * 2,
         ReportServerId(_, _, data) => 3 + data.len(),
         MaskWriteRegister(_, _, _) => 7,
+        ReadFileRecord(sub_responses) => {
+            2 + sub_responses
+                .iter()
+                .map(|sr| 2 + sr.data.len() * 2)
+                .sum::<usize>()
+        }
+        WriteFileRecord(sub_reqs) => {
+            2 + sub_reqs
+                .iter()
+                .map(|sr| 7 + sr.data.len() * 2)
+                .sum::<usize>()
+        }
+        ReadFifoQueue(data) => 5 + data.len() * 2,
         ReadDeviceIdentification(response) => {
             // 7-byte fixed header: function code, MEI type, device ID code,
             // conformity level, more follows flag, next object ID, and object count.
@@ -1006,6 +1227,74 @@ mod tests {
         }
 
         #[test]
+        fn read_file_record() {
+            let sub_reqs = [
+                ReadFileRecordSubRequest {
+                    file_number: 0x0004,
+                    record_number: 0x0001,
+                    record_length: 0x0002,
+                },
+                ReadFileRecordSubRequest {
+                    file_number: 0x0003,
+                    record_number: 0x0009,
+                    record_length: 0x0002,
+                },
+            ];
+            let bytes =
+                encode_request_pdu_to_bytes(&Request::ReadFileRecord(Cow::Borrowed(&sub_reqs)));
+            assert_eq!(bytes[0], 0x14);
+            assert_eq!(bytes[1], 0x0E); // byte count (2 * 7 = 14)
+                                        // sub-request 1
+            assert_eq!(bytes[2], 0x06); // reference type
+            assert_eq!(bytes[3], 0x00); // file number hi & lo
+            assert_eq!(bytes[4], 0x04);
+            assert_eq!(bytes[5], 0x00); // record number hi & lo
+            assert_eq!(bytes[6], 0x01);
+            assert_eq!(bytes[7], 0x00); // record length hi & lo
+            assert_eq!(bytes[8], 0x02);
+            // sub-request 2
+            assert_eq!(bytes[9], 0x06);
+            assert_eq!(bytes[10], 0x00);
+            assert_eq!(bytes[11], 0x03);
+            assert_eq!(bytes[12], 0x00);
+            assert_eq!(bytes[13], 0x09);
+            assert_eq!(bytes[14], 0x00);
+            assert_eq!(bytes[15], 0x02);
+        }
+
+        #[test]
+        fn write_file_record() {
+            let sub_reqs = [WriteFileRecordSubRequest {
+                file_number: 0x0004,
+                record_number: 0x0007,
+                data: vec![0x06AF, 0x04BE],
+            }];
+            let bytes =
+                encode_request_pdu_to_bytes(&Request::WriteFileRecord(Cow::Borrowed(&sub_reqs)));
+            assert_eq!(bytes[0], 0x15);
+            assert_eq!(bytes[1], 0x0B); // byte count (7 + 2*2 = 11)
+            assert_eq!(bytes[2], 0x06); // reference type
+            assert_eq!(bytes[3], 0x00); // file number hi & lo
+            assert_eq!(bytes[4], 0x04);
+            assert_eq!(bytes[5], 0x00); // record number hi & lo
+            assert_eq!(bytes[6], 0x07);
+            assert_eq!(bytes[7], 0x00); // record length hi & lo
+            assert_eq!(bytes[8], 0x02); // record length lo
+            assert_eq!(bytes[9], 0x06); // data
+            assert_eq!(bytes[10], 0xAF);
+            assert_eq!(bytes[11], 0x04);
+            assert_eq!(bytes[12], 0xBE);
+        }
+
+        #[test]
+        fn read_fifo_queue() {
+            let bytes = encode_request_pdu_to_bytes(&Request::ReadFifoQueue(0x04DE));
+            assert_eq!(bytes[0], 0x18);
+            assert_eq!(bytes[1], 0x04); // address hi & lo
+            assert_eq!(bytes[2], 0xDE);
+        }
+
+        #[test]
         fn custom() {
             let bytes = encode_request_pdu_to_bytes(&Request::Custom(
                 0x55,
@@ -1140,6 +1429,49 @@ mod tests {
                 req,
                 Request::ReadWriteMultipleRegisters(0x05, 51, 0x03, Cow::Borrowed(&data))
             );
+        }
+
+        #[test]
+        fn read_file_record() {
+            let bytes = Bytes::from(vec![
+                0x14, 0x0E, 0x06, 0x00, 0x04, 0x00, 0x01, 0x00, 0x02, // sub-request 1
+                0x06, 0x00, 0x03, 0x00, 0x09, 0x00, 0x02, // sub-request 2
+            ]);
+            let req = Request::try_from(bytes).unwrap();
+            let expected = [
+                ReadFileRecordSubRequest {
+                    file_number: 0x0004,
+                    record_number: 0x0001,
+                    record_length: 0x0002,
+                },
+                ReadFileRecordSubRequest {
+                    file_number: 0x0003,
+                    record_number: 0x0009,
+                    record_length: 0x0002,
+                },
+            ];
+            assert_eq!(req, Request::ReadFileRecord(Cow::Borrowed(&expected)));
+        }
+
+        #[test]
+        fn write_file_record() {
+            let bytes = Bytes::from(vec![
+                0x15, 0x0B, 0x06, 0x00, 0x04, 0x00, 0x07, 0x00, 0x02, 0x06, 0xAF, 0x04, 0xBE,
+            ]);
+            let req = Request::try_from(bytes).unwrap();
+            let expected = [WriteFileRecordSubRequest {
+                file_number: 0x0004,
+                record_number: 0x0007,
+                data: vec![0x06AF, 0x04BE],
+            }];
+            assert_eq!(req, Request::WriteFileRecord(Cow::Borrowed(&expected)));
+        }
+
+        #[test]
+        fn read_fifo_queue() {
+            let bytes = Bytes::from(vec![0x18, 0x04, 0xDE]);
+            let req = Request::try_from(bytes).unwrap();
+            assert_eq!(req, Request::ReadFifoQueue(0x04DE));
         }
 
         #[test]
@@ -1325,6 +1657,75 @@ mod tests {
         }
 
         #[test]
+        fn read_file_record() {
+            let bytes = encode_response_pdu_to_bytes(&Response::ReadFileRecord(vec![
+                ReadFileRecordSubResponse {
+                    data: vec![0x0DFE, 0x0020],
+                },
+                ReadFileRecordSubResponse {
+                    data: vec![0x33CD, 0x0040, 0x0080],
+                },
+            ]));
+            assert_eq!(bytes[0], 0x14);
+            assert_eq!(bytes[1], 0x0E); // resp data len (2+4 + 2+6 = 14)
+                                        // sub-resp 1: file_resp_len=5 (1+2*2), ref_type, 2 words
+            assert_eq!(bytes[2], 0x05); // file resp length
+            assert_eq!(bytes[3], 0x06);
+            assert_eq!(bytes[4], 0x0D);
+            assert_eq!(bytes[5], 0xFE);
+            assert_eq!(bytes[6], 0x00);
+            assert_eq!(bytes[7], 0x20);
+            // sub-resp 2: file_resp_len=7 (1+2*3), ref_type, 3 words
+            assert_eq!(bytes[8], 0x07);
+            assert_eq!(bytes[9], 0x06);
+            assert_eq!(bytes[10], 0x33);
+            assert_eq!(bytes[11], 0xCD);
+            assert_eq!(bytes[12], 0x00);
+            assert_eq!(bytes[13], 0x40);
+            assert_eq!(bytes[14], 0x00);
+            assert_eq!(bytes[15], 0x80);
+        }
+
+        #[test]
+        fn write_file_record() {
+            let bytes = encode_response_pdu_to_bytes(&Response::WriteFileRecord(vec![
+                WriteFileRecordSubRequest {
+                    file_number: 0x0004,
+                    record_number: 0x0007,
+                    data: vec![0x06AF, 0x04BE],
+                },
+            ]));
+            assert_eq!(bytes[0], 0x15);
+            assert_eq!(bytes[1], 0x0B); // data length (7 + 2*2 = 11)
+            assert_eq!(bytes[2], 0x06);
+            assert_eq!(bytes[3], 0x00);
+            assert_eq!(bytes[4], 0x04);
+            assert_eq!(bytes[5], 0x00);
+            assert_eq!(bytes[6], 0x07);
+            assert_eq!(bytes[7], 0x00);
+            assert_eq!(bytes[8], 0x02);
+            assert_eq!(bytes[9], 0x06);
+            assert_eq!(bytes[10], 0xAF);
+            assert_eq!(bytes[11], 0x04);
+            assert_eq!(bytes[12], 0xBE);
+        }
+
+        #[test]
+        fn read_fifo_queue() {
+            let bytes =
+                encode_response_pdu_to_bytes(&Response::ReadFifoQueue(vec![0x01BE, 0x1284]));
+            assert_eq!(bytes[0], 0x18);
+            assert_eq!(bytes[1], 0x00); // byte count hi & lo (2 + 2*2 = 6)
+            assert_eq!(bytes[2], 0x06);
+            assert_eq!(bytes[3], 0x00); // fifo count hi & lo (2)
+            assert_eq!(bytes[4], 0x02);
+            assert_eq!(bytes[5], 0x01);
+            assert_eq!(bytes[6], 0xBE);
+            assert_eq!(bytes[7], 0x12);
+            assert_eq!(bytes[8], 0x84);
+        }
+
+        #[test]
         fn custom() {
             let bytes = encode_response_pdu_to_bytes(&Response::Custom(
                 0x55,
@@ -1486,6 +1887,64 @@ mod tests {
             let bytes = Bytes::from(vec![0x17, 0x02, 0x12, 0x34]);
             let response = Response::try_from(bytes).unwrap();
             assert_eq!(response, Response::ReadWriteMultipleRegisters(vec![0x1234]));
+        }
+
+        #[test]
+        fn read_file_record() {
+            let bytes = Bytes::from(vec![
+                0x14, 0x0E, // resp data len (6 + 8 = 14)
+                0x05, 0x06, 0x0D, 0xFE, 0x00, 0x20, // sub-response 1
+                0x07, 0x06, 0x33, 0xCD, 0x00, 0x40, 0x00, 0x80, // sub-response 2
+            ]);
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(
+                response,
+                Response::ReadFileRecord(vec![
+                    ReadFileRecordSubResponse {
+                        data: vec![0x0DFE, 0x0020],
+                    },
+                    ReadFileRecordSubResponse {
+                        data: vec![0x33CD, 0x0040, 0x0080],
+                    },
+                ])
+            );
+        }
+
+        #[test]
+        fn write_file_record() {
+            let bytes = Bytes::from(vec![
+                0x15, 0x0B, // data len
+                0x06, 0x00, 0x04, 0x00, 0x07, 0x00, 0x02, 0x06, 0xAF, 0x04, 0xBE,
+            ]);
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(
+                response,
+                Response::WriteFileRecord(vec![WriteFileRecordSubRequest {
+                    file_number: 0x0004,
+                    record_number: 0x0007,
+                    data: vec![0x06AF, 0x04BE],
+                }])
+            );
+        }
+
+        #[test]
+        fn read_fifo_queue() {
+            let bytes = Bytes::from(vec![
+                0x18, 0x00, 0x06, // byte count (6)
+                0x00, 0x02, // fifo count (2)
+                0x01, 0xBE, // values
+                0x12, 0x84,
+            ]);
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::ReadFifoQueue(vec![0x01BE, 0x1284]));
+
+            // Queue empty corner case
+            let bytes = Bytes::from(vec![
+                0x18, 0x00, 0x02, // byte count (2)
+                0x00, 0x00, // fifo count (0)
+            ]);
+            let response = Response::try_from(bytes).unwrap();
+            assert_eq!(response, Response::ReadFifoQueue(vec![]));
         }
 
         #[test]

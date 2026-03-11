@@ -137,6 +137,11 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
                     .get(6)
                     .map(|&byte_count| 6 + usize::from(byte_count)));
             }
+            0x14 | 0x15 => {
+                return Ok(adu_buf
+                    .get(2)
+                    .map(|&byte_count| 2 + usize::from(byte_count)));
+            }
             0x16 => 7,
             0x18 => 3,
             0x17 => {
@@ -167,7 +172,7 @@ fn get_response_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         #[allow(clippy::match_same_arms)]
         let len = match fn_code {
-            0x01..=0x04 | 0x0C | 0x11 | 0x17 => {
+            0x01..=0x04 | 0x0C | 0x11 | 0x14 | 0x15 | 0x17 => {
                 return Ok(adu_buf
                     .get(2)
                     .map(|&byte_count| 2 + usize::from(byte_count)));
