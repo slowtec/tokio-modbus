@@ -143,10 +143,7 @@ mod tests {
     };
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, Result};
 
-    use crate::{
-        Error,
-        service::{rtu::Header, verify_response_header},
-    };
+    use crate::service::{rtu::Header, verify_response_header};
 
     #[test]
     fn validate_same_headers() {

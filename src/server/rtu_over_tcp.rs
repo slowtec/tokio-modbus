@@ -177,7 +177,7 @@ where
         // For RTU, broadcast requests (SlaveId=0) are processed but
         // must not send back a response.
         if slave.is_broadcast() {
-            log::trace!("Not sending response for broadcast request {hdr:?} (function = {fc})");
+            log::trace!("Not sending response for broadcast request (function = {fc})");
         } else {
             framed
                 .send(ResponseAdu {
@@ -186,7 +186,9 @@ where
                 })
                 .await
                 .inspect_err(|err| {
-                    log::debug!("Failed to send response for request {hdr:?} (function = {fc}): {err}");
+                    log::debug!(
+                        "Failed to send response for request {hdr:?} (function = {fc}): {err}"
+                    );
                 })?;
         }
     }

@@ -263,8 +263,9 @@ impl Reader for Context {
             .call(Request::ReadFileRecord(Cow::Borrowed(sub_requests)))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadFileRecord(sub_responses) => sub_responses,
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadFileRecord(sub_responses)) => sub_responses,
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -275,8 +276,9 @@ impl Reader for Context {
             .call(Request::ReadFifoQueue(addr))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::ReadFifoQueue(data) => data,
+                result.map(|opt_response| match opt_response {
+                    Some(Response::ReadFifoQueue(data)) => data,
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
@@ -417,8 +419,9 @@ impl Writer for Context {
             .call(Request::WriteFileRecord(Cow::Borrowed(sub_requests)))
             .await
             .map(|result| {
-                result.map(|response| match response {
-                    Response::WriteFileRecord(sub_reqs) => sub_reqs,
+                result.map(|opt_response| match opt_response {
+                    Some(Response::WriteFileRecord(sub_reqs)) => sub_reqs,
+                    None => unreachable!("broadcast requests do not return a response"),
                     _ => unreachable!("call() should reject mismatching responses"),
                 })
             })
