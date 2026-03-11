@@ -4,9 +4,9 @@
 use std::future;
 
 use tokio_modbus::{
+    ExceptionCode, Request, Response,
     client::{Context, Reader as _, Writer as _},
     server::Service,
-    ExceptionCode, Request, Response,
 };
 
 pub struct TestService {}

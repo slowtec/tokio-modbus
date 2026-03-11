@@ -3,7 +3,7 @@
 
 use std::{io, time::Duration};
 
-use super::{block_on_with_timeout, Context};
+use super::{Context, block_on_with_timeout};
 
 use tokio_serial::{SerialPortBuilder, SerialStream};
 

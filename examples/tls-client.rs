@@ -5,13 +5,13 @@
 // https://github.com/tokio-rs/tls/blob/master/tokio-rustls/examples/server/src/main.rs
 
 //! Asynchronous TLS client example
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use tokio::net::TcpStream;
 
 use std::{fs::File, io::BufReader, net::SocketAddr, path::Path, sync::Arc};
 
 use pkcs8::der::Decode;
-use rustls_pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer, ServerName};
+use rustls_pki_types::{CertificateDer, PrivateKeyDer, ServerName, pem::PemObject};
 use tokio_rustls::TlsConnector;
 
 fn load_certs(path: &Path) -> anyhow::Result<Vec<CertificateDer<'static>>> {

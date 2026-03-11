@@ -99,11 +99,12 @@ impl Decoder for ClientCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
-        if let Some((hdr, pdu_data)) = self.decoder.decode(buf)? {
-            let pdu = ResponsePdu::try_from(pdu_data)?;
-            Ok(Some(ResponseAdu { hdr, pdu }))
-        } else {
-            Ok(None)
+        match self.decoder.decode(buf)? {
+            Some((hdr, pdu_data)) => {
+                let pdu = ResponsePdu::try_from(pdu_data)?;
+                Ok(Some(ResponseAdu { hdr, pdu }))
+            }
+            _ => Ok(None),
         }
     }
 }

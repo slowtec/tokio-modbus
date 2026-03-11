@@ -12,8 +12,8 @@ use tokio_util::codec::Framed;
 use crate::{
     codec::rtu::ServerCodec,
     frame::{
-        rtu::{RequestAdu, ResponseAdu},
         ExceptionResponse, OptionalResponsePdu, RequestPdu,
+        rtu::{RequestAdu, ResponseAdu},
     },
 };
 
