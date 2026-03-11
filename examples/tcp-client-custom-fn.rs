@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rsp = ctx
         .call(Request::Custom(0x66, Cow::Borrowed(&[0x11, 0x42])))
         .await??
-        .expect("response expected for non-broadcast request");
+        .expect("response expected");
 
     match rsp {
         Response::Custom(f, rsp) => {
