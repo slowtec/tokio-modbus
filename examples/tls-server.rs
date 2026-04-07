@@ -187,8 +187,8 @@ async fn server_context(socket_addr: SocketAddr) -> anyhow::Result<()> {
             Err(_) => Ok(None),
         }
     };
-    let on_process_error = |err| {
-        eprintln!("{err}");
+    let on_process_error = |socket_addr, err| {
+        eprintln!("{socket_addr} {err}");
     };
     server.serve(&on_connected, on_process_error).await?;
     Ok(())
