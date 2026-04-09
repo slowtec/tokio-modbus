@@ -254,7 +254,7 @@ mod tests {
 
         // passes type-check is the goal here
         // added `mem::drop` to satisfy `must_use` compiler warnings
-        std::mem::drop(server.serve(&on_connected, |_err| {}));
+        std::mem::drop(server.serve(&on_connected, |_err, _addr| {}));
     }
 
     #[tokio::test]
