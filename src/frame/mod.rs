@@ -175,7 +175,7 @@ pub type Quantity = u16;
 ///
 /// Each sub-request identifies a file, a starting record number, and
 /// the number of registers to read from that record.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ReadFileRecordSubRequest {
     /// File number (1 to `0xFFFF`).
     pub file_number: u16,
@@ -200,7 +200,7 @@ pub struct ReadFileRecordSubResponse {
 /// Each sub-request identifies a file, a starting record number, and
 /// the register values to write. Also used in the response (which echoes
 /// the request).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WriteFileRecordSubRequest {
     /// File number (1 to `0xFFFF`).
     pub file_number: u16,
@@ -211,7 +211,7 @@ pub struct WriteFileRecordSubRequest {
 }
 
 /// A request represents a message from the client (master) to the server (slave).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Request<'a> {
     /// A request to read multiple coils.
     /// The first parameter is the address of the first coil to read.
@@ -599,7 +599,7 @@ impl ExceptionCode {
 ///
 /// Used to specify the type of information to retrieve from a device during a
 /// "Read Device Identification" Modbus function (0x2B / 0x0E).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ReadCode {
     /// Basic identification (stream access).
     /// Corresponds to value `0x01`. Returns a minimal set of identification data.
