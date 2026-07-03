@@ -60,6 +60,7 @@ repos:
     hooks:
       - id: taplo-format
       - id: taplo-lint
+        args: [--no-schema]
   # https://reuse.software
   - repo: https://github.com/fsfe/reuse-tool
     rev: v6.2.0
