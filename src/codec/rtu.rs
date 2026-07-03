@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::io;
@@ -9,11 +9,11 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use crate::{
     bytes::{Buf, BufMut, Bytes, BytesMut},
-    frame::{rtu::*, MEI_TYPE_READ_DEVICE_IDENTIFICATION},
+    frame::{MEI_TYPE_READ_DEVICE_IDENTIFICATION, rtu::*},
     slave::SlaveId,
 };
 
-use super::{encode_request_pdu, request_pdu_size, RequestPdu};
+use super::{RequestPdu, encode_request_pdu, request_pdu_size};
 
 const MODBUS_CRC: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_MODBUS);
 
@@ -96,6 +96,11 @@ fn get_request_pdu_len(adu_buf: &[u8]) -> io::Result<Option<usize>> {
                     .get(6)
                     .map(|&byte_count| 6 + usize::from(byte_count)));
             }
+            0x14 | 0x15 => {
+                return Ok(adu_buf
+                    .get(2)
+                    .map(|&byte_count| 2 + usize::from(byte_count)));
+            }
             0x16 => 7,
             0x18 => 3,
             0x17 => {
@@ -126,7 +131,7 @@ fn get_response_pdu_len(adu_buf: &[u8]) -> io::Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         #[allow(clippy::match_same_arms)]
         let len = match fn_code {
-            0x01..=0x04 | 0x0C | 0x11 | 0x17 => {
+            0x01..=0x04 | 0x0C | 0x11 | 0x14 | 0x15 | 0x17 => {
                 return Ok(adu_buf
                     .get(2)
                     .map(|&byte_count| 2 + usize::from(byte_count)));
@@ -178,9 +183,13 @@ fn get_response_pdu_len(adu_buf: &[u8]) -> io::Result<Option<usize>> {
                 if adu_buf.len() >= 3 {
                     adu_buf.len() - 3
                 } else {
-                    return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
-                        format!("Incomplete ADU response {:#x?} for custom function code 0x{fn_code:0>2X}",
-                            adu_buf.to_vec())));
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!(
+                            "Incomplete ADU response {:#x?} for custom function code 0x{fn_code:0>2X}",
+                            adu_buf.to_vec()
+                        ),
+                    ));
                 }
             }
         };
@@ -600,7 +609,7 @@ mod tests {
 
     mod client {
 
-        use crate::{codec::ResponsePdu, Request, Response};
+        use crate::{Request, Response, codec::ResponsePdu};
 
         use super::*;
 
@@ -748,11 +757,14 @@ mod tests {
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
-            if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
-                assert_eq!(data.len(), 2);
-                assert_eq!(data, vec![0x8902, 0x42C7]);
-            } else {
-                panic!("unexpected response")
+            match pdu.into() {
+                Ok(Response::ReadHoldingRegisters(data)) => {
+                    assert_eq!(data.len(), 2);
+                    assert_eq!(data, vec![0x8902, 0x42C7]);
+                }
+                _ => {
+                    panic!("unexpected response")
+                }
             }
         }
 
@@ -779,11 +791,14 @@ mod tests {
             let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
             assert_eq!(buf.len(), 1);
             assert_eq!(hdr.slave_id, 0x01);
-            if let Ok(Response::ReadHoldingRegisters(data)) = pdu.into() {
-                assert_eq!(data.len(), 2);
-                assert_eq!(data, vec![0x8902, 0x42C7]);
-            } else {
-                panic!("unexpected response")
+            match pdu.into() {
+                Ok(Response::ReadHoldingRegisters(data)) => {
+                    assert_eq!(data.len(), 2);
+                    assert_eq!(data, vec![0x8902, 0x42C7]);
+                }
+                _ => {
+                    panic!("unexpected response")
+                }
             }
         }
 

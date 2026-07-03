@@ -1,12 +1,12 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::future;
 
 use tokio_modbus::{
+    ExceptionCode, Request, Response,
     client::{Context, Reader as _, Writer as _},
     server::Service,
-    ExceptionCode, Request, Response,
 };
 
 pub struct TestService {}

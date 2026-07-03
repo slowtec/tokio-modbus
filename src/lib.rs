@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 #![doc = include_str!("../README.md")]
@@ -48,7 +48,8 @@ mod frame;
 #[cfg(feature = "server")]
 pub use self::frame::SlaveRequest;
 pub use self::frame::{
-    Address, ExceptionCode, ExceptionResponse, FunctionCode, Quantity, Request, Response,
+    Address, ExceptionCode, ExceptionResponse, FunctionCode, Quantity, ReadFileRecordSubRequest,
+    ReadFileRecordSubResponse, Request, Response, WriteFileRecordSubRequest,
 };
 
 /// Specialized [`std::result::Result`] type for type-checked responses of the _Modbus_ client API.

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::io;
@@ -8,14 +8,13 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
 
 use crate::{
-    codec,
+    ExceptionResponse, ProtocolError, Request, Response, Result, codec,
     frame::{
-        tcp::{Header, RequestAdu, ResponseAdu, TransactionId, UnitId},
         RequestPdu, ResponsePdu,
+        tcp::{Header, RequestAdu, ResponseAdu, TransactionId, UnitId},
     },
     service::verify_response_header,
     slave::*,
-    ExceptionResponse, ProtocolError, Request, Response, Result,
 };
 
 use super::disconnect;
@@ -101,7 +100,9 @@ where
         framed.read_buffer_mut().clear();
         framed.send(req_adu).await?;
 
-        let res_adu = framed.next().await.ok_or_else(io::Error::last_os_error)??;
+        let res_adu = framed.next().await.ok_or_else(|| {
+            io::Error::new(io::ErrorKind::UnexpectedEof, "connection closed by remote")
+        })??;
         let ResponseAdu {
             hdr: res_hdr,
             pdu: res_pdu,

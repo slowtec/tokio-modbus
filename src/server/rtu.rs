@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Modbus RTU server skeleton
@@ -12,8 +12,8 @@ use tokio_util::codec::Framed;
 use crate::{
     codec::rtu::ServerCodec,
     frame::{
-        rtu::{RequestAdu, ResponseAdu},
         ExceptionResponse, OptionalResponsePdu, RequestPdu,
+        rtu::{RequestAdu, ResponseAdu},
     },
 };
 

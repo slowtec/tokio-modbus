@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::io::{Error, ErrorKind, Result};
@@ -99,11 +99,12 @@ impl Decoder for ClientCodec {
     type Error = Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
-        if let Some((hdr, pdu_data)) = self.decoder.decode(buf)? {
-            let pdu = ResponsePdu::try_from(pdu_data)?;
-            Ok(Some(ResponseAdu { hdr, pdu }))
-        } else {
-            Ok(None)
+        match self.decoder.decode(buf)? {
+            Some((hdr, pdu_data)) => {
+                let pdu = ResponsePdu::try_from(pdu_data)?;
+                Ok(Some(ResponseAdu { hdr, pdu }))
+            }
+            _ => Ok(None),
         }
     }
 }

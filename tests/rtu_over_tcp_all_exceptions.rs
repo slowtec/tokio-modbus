@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Execute this test only if `rtu-over-tcp-server` feature is selected.
@@ -12,8 +12,8 @@ use std::{net::SocketAddr, time::Duration};
 use exception::check_client_context;
 use tokio::net::TcpListener;
 use tokio_modbus::{
-    server::rtu_over_tcp::{accept_tcp_connection, Server},
     Slave,
+    server::rtu_over_tcp::{Server, accept_tcp_connection},
 };
 
 use crate::exception::TestService;

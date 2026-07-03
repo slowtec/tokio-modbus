@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Common types and traits
@@ -30,11 +30,12 @@ pub mod sync {
 /// Types
 ///////////////////////////////////////////////////////////////////
 pub use crate::{
+    ExceptionCode, ProtocolError, Request, Response, Slave, SlaveId,
     frame::{
         ConformityLevel, DeviceIdObject, DeviceIdObjects, MoreFollows, NextObjectId, ObjectId,
-        ReadCode, ReadDeviceIdentificationResponse,
+        ReadCode, ReadDeviceIdentificationResponse, ReadFileRecordSubRequest,
+        ReadFileRecordSubResponse, WriteFileRecordSubRequest,
     },
-    ExceptionCode, ProtocolError, Request, Response, Slave, SlaveId,
 };
 
 #[cfg(feature = "server")]

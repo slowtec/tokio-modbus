@@ -1,9 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2025 slowtec GmbH <post@slowtec.de>
+// SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::{io, time::Duration};
 
-use super::{block_on_with_timeout, Context};
+use super::{Context, block_on_with_timeout};
 
 use tokio_serial::{SerialPortBuilder, SerialStream};
 
