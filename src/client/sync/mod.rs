@@ -43,7 +43,7 @@ where
 
 /// A transport independent synchronous client trait.
 pub trait Client: SlaveContext {
-    fn call(&mut self, req: Request<'_>) -> Result<Response>;
+    fn call(&mut self, req: Request<'_>) -> Result<Option<Response>>;
 }
 
 /// A transport independent synchronous reader trait.
@@ -117,7 +117,7 @@ impl Context {
 }
 
 impl Client for Context {
-    fn call(&mut self, req: Request<'_>) -> Result<Response> {
+    fn call(&mut self, req: Request<'_>) -> Result<Option<Response>> {
         block_on_with_timeout(&self.runtime, self.timeout, self.async_ctx.call(req))
     }
 }

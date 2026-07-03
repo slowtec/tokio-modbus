@@ -6,7 +6,10 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use tokio_modbus::prelude::*;
 
-    let tty_path = "/dev/ttyUSB0";
+    let tty_path = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "/dev/ttyUSB0".into());
+
     let slave = Slave(0x17);
 
     let builder = tokio_serial::new(tty_path, 19200);

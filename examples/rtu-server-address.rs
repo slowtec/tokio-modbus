@@ -43,7 +43,10 @@ impl tokio_modbus::server::Service for Service {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let slave = Slave(12);
-    let builder = tokio_serial::new("/dev/ttyS10", 19200);
+    let tty_path = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "/dev/ttyS10".into());
+    let builder = tokio_serial::new(&tty_path, 19200);
     let server_serial = tokio_serial::SerialStream::open(&builder).unwrap();
 
     println!("Starting up server...");

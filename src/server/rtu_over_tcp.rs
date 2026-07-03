@@ -20,6 +20,7 @@ use crate::{
         ExceptionResponse, OptionalResponsePdu, RequestPdu,
         rtu::{RequestAdu, ResponseAdu},
     },
+    slave::Slave,
 };
 
 use super::{Service, Terminated};
@@ -158,6 +159,7 @@ where
         } = &request_adu;
         let hdr = *hdr;
         let fc = request.function_code();
+        let slave = Slave::from(hdr.slave_id);
         let OptionalResponsePdu(Some(response_pdu)) = service
             .call(request_adu.into())
             .await
@@ -172,15 +174,23 @@ where
             continue;
         };
 
-        framed
-            .send(ResponseAdu {
-                hdr,
-                pdu: response_pdu,
-            })
-            .await
-            .inspect_err(|err| {
-                log::debug!("Failed to send response for request {hdr:?} (function = {fc}): {err}");
-            })?;
+        // For RTU, broadcast requests (SlaveId=0) are processed but
+        // must not send back a response.
+        if slave.is_broadcast() {
+            log::trace!("Not sending response for broadcast request (function = {fc})");
+        } else {
+            framed
+                .send(ResponseAdu {
+                    hdr,
+                    pdu: response_pdu,
+                })
+                .await
+                .inspect_err(|err| {
+                    log::debug!(
+                        "Failed to send response for request {hdr:?} (function = {fc}): {err}"
+                    );
+                })?;
+        }
     }
 
     Ok(())
