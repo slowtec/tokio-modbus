@@ -1,42 +1,34 @@
 // SPDX-FileCopyrightText: Copyright (c) 2017-2026 slowtec GmbH <post@slowtec.de>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! RTU server example with slave address filtering and optional response
+//! RTU server example with transport-level slave address filtering
+//!
+//! Uses [`Server::with_slave_id`] to filter requests at the transport layer,
+//! so the service only receives requests addressed to this device.
+//! Requests for other slave IDs are silently ignored, as required by
+//! the Modbus RTU specification for devices on a shared RS-485 bus.
 
 use std::{future, thread, time::Duration};
 
 use tokio_modbus::{prelude::*, server::rtu::Server};
 
-struct Service {
-    slave: Slave,
-}
-
-impl Service {
-    fn handle(&self, req: SlaveRequest<'_>) -> Result<Option<Response>, ExceptionCode> {
-        let SlaveRequest { slave, request } = req;
-        if slave != self.slave.into() {
-            // Filtering: Ignore requests with mismatching slave IDs.
-            return Ok(None);
-        }
-        match request {
-            Request::ReadInputRegisters(_addr, cnt) => {
-                let mut registers = vec![0; cnt.into()];
-                registers[2] = 0x77;
-                Ok(Some(Response::ReadInputRegisters(registers)))
-            }
-            _ => Err(ExceptionCode::IllegalFunction),
-        }
-    }
-}
+struct Service;
 
 impl tokio_modbus::server::Service for Service {
     type Request = SlaveRequest<'static>;
-    type Response = Option<Response>;
+    type Response = Response;
     type Exception = ExceptionCode;
     type Future = future::Ready<Result<Self::Response, Self::Exception>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        future::ready(self.handle(req))
+        match req.request {
+            Request::ReadInputRegisters(_addr, cnt) => {
+                let mut registers = vec![0; cnt.into()];
+                registers[2] = 0x77;
+                future::ready(Ok(Response::ReadInputRegisters(registers)))
+            }
+            _ => future::ready(Err(ExceptionCode::IllegalFunction)),
+        }
     }
 }
 
@@ -49,8 +41,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting up server...");
     let _server = thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let server = Server::new(server_serial);
-        let service = Service { slave };
+        let server = Server::new(server_serial).with_slave_id(slave);
+        let service = Service;
         rt.block_on(async {
             if let Err(err) = server.serve_forever(service).await {
                 eprintln!("{err}");
