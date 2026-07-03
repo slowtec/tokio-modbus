@@ -5,6 +5,11 @@
 
 ## Unreleased
 
+- Server: Add transport-level slave ID filtering to the RTU server via the
+  `Server::with_slave_id()` builder method. Requests addressed to other slave
+  IDs are silently ignored, as required by the Modbus RTU specification
+  ([#378](https://github.com/slowtec/tokio-modbus/pull/378)).
+
 ## v0.17.0 (2025-10-22)
 
 - Breaking change (behavior): Guess response length for custom function codes
