@@ -43,8 +43,8 @@ async fn server_context(listener: TcpListener) -> anyhow::Result<()> {
     let on_connected = |stream, socket_addr| async move {
         accept_tcp_connection(stream, socket_addr, new_service)
     };
-    let on_process_error = |err| {
-        eprintln!("{err}");
+    let on_process_error = |socket_addr, err| {
+        eprintln!("{socket_addr} {err}");
     };
     server.serve(&on_connected, on_process_error).await?;
     Ok(())

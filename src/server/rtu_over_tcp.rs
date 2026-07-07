@@ -77,7 +77,7 @@ impl Server {
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
         F: Future<Output = io::Result<Option<(S, T)>>>,
-        OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
+        OnProcessError: FnOnce(SocketAddr, io::Error) + Clone + Send + 'static,
     {
         let cancel = CancellationToken::new();
         let _guard = cancel.drop_guard_ref();
@@ -99,7 +99,7 @@ impl Server {
             tokio::spawn(async move {
                 log::debug!("Processing requests from {socket_addr}");
                 if let Some(Err(err)) = cancel.run_until_cancelled(process(framed, service)).await {
-                    on_process_error(err);
+                    on_process_error(socket_addr, err);
                 }
             });
         }
@@ -122,7 +122,7 @@ impl Server {
         X: Future<Output = ()> + Sync + Send + 'static,
         OnConnected: Fn(TcpStream, SocketAddr) -> F,
         F: Future<Output = io::Result<Option<(S, T)>>>,
-        OnProcessError: FnOnce(io::Error) + Clone + Send + 'static,
+        OnProcessError: FnOnce(SocketAddr, io::Error) + Clone + Send + 'static,
     {
         let abort_signal = abort_signal.fuse();
         tokio::select! {
@@ -257,7 +257,7 @@ mod tests {
 
         // passes type-check is the goal here
         // added `mem::drop` to satisfy `must_use` compiler warnings
-        std::mem::drop(server.serve(&on_connected, |_err| {}));
+        std::mem::drop(server.serve(&on_connected, |_err, _addr| {}));
     }
 
     #[tokio::test]
