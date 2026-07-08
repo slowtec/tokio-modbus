@@ -300,6 +300,10 @@ where
 {
     const MAX_RETRIES: usize = 20;
 
+    while buf.starts_with(&[b'\0']) {
+        drop(buf.split_to(1));
+    }
+
     for _i in 0..MAX_RETRIES {
         let result = get_pdu_len(buf).and_then(|pdu_len| {
             let Some(pdu_len) = pdu_len else {
