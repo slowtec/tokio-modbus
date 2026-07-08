@@ -37,38 +37,21 @@ impl Default for FrameDecoder {
 }
 
 impl FrameDecoder {
-    pub(crate) fn decode(
-        &mut self,
-        buf: &mut BytesMut,
-        pdu_len: usize,
-    ) -> io::Result<Option<(SlaveId, Bytes)>> {
-        const CRC_BYTE_COUNT: usize = 2;
-
-        let adu_len = 1 + pdu_len;
-
-        if buf.len() < adu_len + CRC_BYTE_COUNT {
-            // Incomplete frame
-            return Ok(None);
+    fn track_skipped(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            if self.dropped_bytes.len() >= MAX_FRAME_LEN {
+                log::error!(
+                    "Dropped {} byte(s) without finding a valid frame: {:X?}",
+                    self.dropped_bytes.len(),
+                    self.dropped_bytes
+                );
+                self.dropped_bytes.clear();
+            }
+            self.dropped_bytes.push(b);
         }
+    }
 
-        let mut adu_buf = buf.split_to(adu_len);
-        let crc_buf = buf.split_to(CRC_BYTE_COUNT);
-
-        // Read trailing CRC and verify ADU
-        let crc_result =
-            read_crc(&mut io::Cursor::new(&crc_buf)).and_then(|crc| check_crc(&adu_buf, crc));
-
-        if let Err(err) = crc_result {
-            // CRC is invalid - restore the input buffer
-            let rem_buf = buf.split();
-            debug_assert!(buf.is_empty());
-            buf.unsplit(adu_buf);
-            buf.unsplit(crc_buf);
-            buf.unsplit(rem_buf);
-
-            return Err(err);
-        }
-
+    fn log_recovered(&mut self) {
         if !self.dropped_bytes.is_empty() {
             log::warn!(
                 "Successfully decoded frame after dropping {} byte(s): {:X?}",
@@ -77,30 +60,6 @@ impl FrameDecoder {
             );
             self.dropped_bytes.clear();
         }
-        let slave_id = adu_buf.split_to(1)[0];
-        let pdu_data = adu_buf.freeze();
-
-        Ok(Some((slave_id, pdu_data)))
-    }
-
-    pub(crate) fn recover_on_error(&mut self, buf: &mut BytesMut) {
-        // If decoding failed the buffer cannot be empty
-        debug_assert!(!buf.is_empty());
-        // Skip and record the first byte of the buffer
-        {
-            let first = buf.first().unwrap();
-            log::debug!("Dropped first byte: {first:X?}");
-            if self.dropped_bytes.len() >= MAX_FRAME_LEN {
-                log::error!(
-                    "Giving up to decode frame after dropping {} byte(s): {:X?}",
-                    self.dropped_bytes.len(),
-                    self.dropped_bytes
-                );
-                self.dropped_bytes.clear();
-            }
-            self.dropped_bytes.push(*first);
-        }
-        buf.advance(1);
     }
 }
 
@@ -127,7 +86,7 @@ pub(crate) struct ServerCodec {
 }
 
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
-fn get_request_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
+fn get_request_pdu_len(adu_buf: &[u8]) -> io::Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         let len = match fn_code {
             0x01..=0x06 => 5,
@@ -168,7 +127,7 @@ fn get_request_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
     }
 }
 
-fn get_response_pdu_len(adu_buf: &BytesMut) -> io::Result<Option<usize>> {
+fn get_response_pdu_len(adu_buf: &[u8]) -> io::Result<Option<usize>> {
     if let Some(fn_code) = adu_buf.get(1) {
         #[allow(clippy::match_same_arms)]
         let len = match fn_code {
@@ -289,6 +248,7 @@ impl Decoder for ResponseDecoder {
     }
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn decode<F>(
     pdu_type: &str,
     frame_decoder: &mut FrameDecoder,
@@ -296,35 +256,77 @@ fn decode<F>(
     buf: &mut BytesMut,
 ) -> io::Result<Option<(SlaveId, Bytes)>>
 where
-    F: Fn(&BytesMut) -> io::Result<Option<usize>>,
+    F: Fn(&[u8]) -> io::Result<Option<usize>>,
 {
-    const MAX_RETRIES: usize = 20;
+    const CRC_BYTES: usize = 2;
 
-    for _i in 0..MAX_RETRIES {
-        let result = get_pdu_len(buf).and_then(|pdu_len| {
-            let Some(pdu_len) = pdu_len else {
-                // Incomplete frame
-                return Ok(None);
-            };
+    let mut first_possible_start: Option<usize> = None;
 
-            frame_decoder.decode(buf, pdu_len)
-        });
+    for skip in 0..buf.len() {
+        let data = &buf[skip..];
 
-        if let Err(err) = result {
-            log::warn!("Failed to decode {pdu_type} frame: {err}");
-            frame_decoder.recover_on_error(buf);
+        let pdu_len = match get_pdu_len(data) {
+            Ok(None) => {
+                // Can't determine length yet — possibly incomplete
+                if first_possible_start.is_none() {
+                    first_possible_start = Some(skip);
+                }
+                continue;
+            }
+            Err(_) => {
+                // Invalid function code at this offset — confirmed garbage
+                continue;
+            }
+            Ok(Some(len)) => len,
+        };
+
+        let adu_len = 1 + pdu_len;
+        let frame_len = adu_len + CRC_BYTES;
+
+        if data.len() < frame_len {
+            // Not enough bytes for a complete frame at this offset
+            if first_possible_start.is_none() {
+                first_possible_start = Some(skip);
+            }
             continue;
         }
 
-        return result;
+        // Verify CRC on a read-only slice
+        let adu_data = &data[..adu_len];
+        let crc_data = &data[adu_len..frame_len];
+        let expected_crc =
+            read_crc(&mut io::Cursor::new(crc_data)).expect("CRC read from 2 bytes cannot fail");
+
+        if check_crc(adu_data, expected_crc).is_err() {
+            log::debug!("CRC mismatch for {pdu_type} frame at offset {skip}");
+            continue;
+        }
+
+        // Valid frame found — log any skipped bytes
+        if skip > 0 {
+            frame_decoder.track_skipped(&buf[..skip]);
+        }
+        frame_decoder.log_recovered();
+
+        // Consume the frame from the buffer
+        buf.advance(skip);
+        let mut adu_buf = buf.split_to(adu_len);
+        buf.advance(CRC_BYTES);
+
+        let slave_id = adu_buf.split_to(1)[0];
+        let pdu_data = adu_buf.freeze();
+
+        return Ok(Some((slave_id, pdu_data)));
     }
 
-    // Maximum number of retries exceeded.
-    log::error!("Giving up to decode frame after {MAX_RETRIES} retries");
-    Err(io::Error::new(
-        io::ErrorKind::InvalidData,
-        "Too many retries",
-    ))
+    // No valid frame found — discard confirmed garbage
+    let discard = first_possible_start.unwrap_or(buf.len());
+    if discard > 0 {
+        frame_decoder.track_skipped(&buf[..discard]);
+        buf.advance(discard);
+    }
+
+    Ok(None)
 }
 
 impl Decoder for ClientCodec {
@@ -853,6 +855,147 @@ mod tests {
                 buf.set_len(33);
             }
             assert!(codec.encode(adu, &mut buf).is_ok());
+        }
+
+        // Build a valid response frame: [slave_id, pdu..., crc_lo, crc_hi]
+        fn build_response_frame(slave_id: u8, pdu: &[u8]) -> Vec<u8> {
+            let mut adu = vec![slave_id];
+            adu.extend_from_slice(pdu);
+            let crc = calc_crc(&adu);
+            adu.push((crc & 0xFF) as u8);
+            adu.push((crc >> 8) as u8);
+            adu
+        }
+
+        #[test]
+        fn decode_fragmented_frame_arrival() {
+            // Simulate FramedRead feeding bytes incrementally
+            let frame = build_response_frame(0x01, &[0x03, 0x04, 0x89, 0x02, 0x42, 0xC7]);
+            let mut decoder = ResponseDecoder::default();
+            let mut buf = BytesMut::new();
+
+            // Feed first half — not enough for a complete frame
+            let mid = frame.len() / 2;
+            buf.extend_from_slice(&frame[..mid]);
+            let res = decoder.decode(&mut buf).unwrap();
+            assert!(res.is_none());
+            assert_eq!(buf.len(), mid, "partial frame bytes must be preserved");
+
+            // Feed remaining bytes — now the frame is complete
+            buf.extend_from_slice(&frame[mid..]);
+            let (slave_id, pdu_data) = decoder.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(slave_id, 0x01);
+            assert_eq!(&pdu_data[..], &[0x03, 0x04, 0x89, 0x02, 0x42, 0xC7]);
+            assert_eq!(buf.len(), 0);
+        }
+
+        #[test]
+        fn decode_two_back_to_back_frames() {
+            let frame1 = build_response_frame(0x01, &[0x03, 0x04, 0x89, 0x02, 0x42, 0xC7]);
+            let frame2 = build_response_frame(0x66, &[0x82, 0x03]);
+
+            let mut decoder = ResponseDecoder::default();
+            let mut buf = BytesMut::new();
+            buf.extend_from_slice(&frame1);
+            buf.extend_from_slice(&frame2);
+
+            // First frame
+            let (slave_id, pdu_data) = decoder.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(slave_id, 0x01);
+            assert_eq!(&pdu_data[..], &[0x03, 0x04, 0x89, 0x02, 0x42, 0xC7]);
+
+            // Second frame
+            let (slave_id, pdu_data) = decoder.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(slave_id, 0x66);
+            assert_eq!(&pdu_data[..], &[0x82, 0x03]);
+
+            assert_eq!(buf.len(), 0);
+        }
+
+        #[test]
+        fn decode_garbage_with_valid_fn_code_bad_crc() {
+            // Garbage that parses as a valid frame structure but has deliberately
+            // wrong CRC. Exercises the CRC-fail-then-continue path (not the
+            // invalid-fn-code path).
+            let garbage_adu = [0x01, 0x03, 0x02, 0x00, 0x00]; // fn=0x03, byte_count=2
+            let wrong_crc = calc_crc(&garbage_adu).wrapping_add(1);
+            let mut garbage = garbage_adu.to_vec();
+            garbage.push((wrong_crc & 0xFF) as u8);
+            garbage.push((wrong_crc >> 8) as u8);
+
+            let valid_frame = build_response_frame(0x02, &[0x82, 0x01]);
+
+            let mut decoder = ResponseDecoder::default();
+            let mut buf = BytesMut::new();
+            buf.extend_from_slice(&garbage);
+            buf.extend_from_slice(&valid_frame);
+
+            let (slave_id, pdu_data) = decoder.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(slave_id, 0x02);
+            assert_eq!(&pdu_data[..], &[0x82, 0x01]);
+        }
+
+        #[test]
+        fn decode_partial_frame_preserved_across_calls() {
+            let valid_frame = build_response_frame(0x01, &[0x03, 0x04, 0x89, 0x02, 0x42, 0xC7]);
+            let mut decoder = ResponseDecoder::default();
+            let mut buf = BytesMut::new();
+
+            // Garbage prefix then truncated valid frame
+            buf.extend_from_slice(&[0xFF, 0xFF, 0xFF]);
+            buf.extend_from_slice(&valid_frame[..3]);
+            let initial_len = buf.len();
+
+            let res = decoder.decode(&mut buf).unwrap();
+            assert!(res.is_none());
+            assert!(buf.len() < initial_len, "some garbage should be discarded");
+            assert!(!buf.is_empty(), "partial frame bytes should be preserved");
+
+            // Feed remaining frame bytes
+            buf.extend_from_slice(&valid_frame[3..]);
+            let (slave_id, pdu_data) = decoder.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(slave_id, 0x01);
+            assert_eq!(&pdu_data[..], &[0x03, 0x04, 0x89, 0x02, 0x42, 0xC7]);
+            assert_eq!(buf.len(), 0);
+        }
+
+        #[test]
+        fn decode_all_garbage_returns_ok_none() {
+            let mut decoder = ResponseDecoder::default();
+            let mut buf = BytesMut::from(&[0xFF; 10][..]);
+
+            let res = decoder.decode(&mut buf).unwrap();
+            assert!(res.is_none());
+            // Most garbage discarded; last byte may remain as potential frame start
+            assert!(buf.len() <= 1);
+        }
+
+        #[test]
+        fn decode_never_returns_err_with_excessive_garbage() {
+            // The old codec returned Err after 20 retries, killing FramedRead.
+            // The new codec must always return Ok(None).
+            let mut decoder = ResponseDecoder::default();
+            let mut buf = BytesMut::from(&[0xFF; 50][..]);
+
+            let res = decoder.decode(&mut buf);
+            assert!(res.is_ok(), "decode must never return Err");
+            assert!(res.unwrap().is_none());
+        }
+
+        #[test]
+        fn decode_valid_frame_buried_past_20_garbage_bytes() {
+            // The old codec gave up after 20 retries. Verify the new scanner
+            // finds a valid frame regardless of how much garbage precedes it.
+            let valid_frame = build_response_frame(0x01, &[0x03, 0x04, 0x89, 0x02, 0x42, 0xC7]);
+            let mut decoder = ResponseDecoder::default();
+            let mut buf = BytesMut::new();
+            buf.extend_from_slice(&[0xFF; 30]);
+            buf.extend_from_slice(&valid_frame);
+
+            let (slave_id, pdu_data) = decoder.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(slave_id, 0x01);
+            assert_eq!(&pdu_data[..], &[0x03, 0x04, 0x89, 0x02, 0x42, 0xC7]);
+            assert_eq!(buf.len(), 0);
         }
     }
 }
