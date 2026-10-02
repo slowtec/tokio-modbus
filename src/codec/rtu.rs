@@ -997,5 +997,113 @@ mod tests {
             assert_eq!(&pdu_data[..], &[0x03, 0x04, 0x89, 0x02, 0x42, 0xC7]);
             assert_eq!(buf.len(), 0);
         }
+
+        /// Longest frame a request length lookup can claim: function code
+        /// 0x17 with a 10 byte header and a 255 byte count.
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
+        const MAX_CLAIMED_REQUEST_FRAME_LEN: usize = 1 + 10 + 255 + 2;
+
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
+        fn noise(len: usize, seed: u32) -> Vec<u8> {
+            let mut state = seed;
+            (0..len)
+                .map(|_| {
+                    state ^= state << 13;
+                    state ^= state >> 17;
+                    state ^= state << 5;
+                    state.to_le_bytes()[0]
+                })
+                .collect()
+        }
+
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
+        fn decode_available(decoder: &mut RequestDecoder, buf: &mut BytesMut) -> Vec<(u8, Bytes)> {
+            std::iter::from_fn(|| decoder.decode(buf).unwrap()).collect()
+        }
+
+        #[test]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
+        fn decode_request_after_more_than_256_garbage_bytes() {
+            let pdu = [0x03, 0x00, 0x6B, 0x00, 0x03];
+            let mut decoder = RequestDecoder::default();
+            let mut buf = BytesMut::from(&noise(300, 0x1234_5678)[..]);
+            buf.extend_from_slice(&build_response_frame(0x11, &pdu));
+
+            let (slave_id, pdu_data) = decoder.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(slave_id, 0x11);
+            assert_eq!(&pdu_data[..], &pdu);
+            assert!(buf.is_empty());
+        }
+
+        #[test]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
+        fn decode_request_after_garbage_arriving_in_several_chunks() {
+            let pdu = [0x06, 0x00, 0x01, 0x00, 0x03];
+            let mut decoder = RequestDecoder::default();
+            let mut buf = BytesMut::new();
+
+            for seed in 1..=5 {
+                buf.extend_from_slice(&noise(100, seed));
+                assert!(decoder.decode(&mut buf).unwrap().is_none());
+                assert!(buf.len() < MAX_CLAIMED_REQUEST_FRAME_LEN);
+            }
+
+            buf.extend_from_slice(&build_response_frame(0x11, &pdu));
+            let (slave_id, pdu_data) = decoder.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(slave_id, 0x11);
+            assert_eq!(&pdu_data[..], &pdu);
+            assert!(buf.is_empty());
+        }
+
+        #[test]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
+        fn garbage_only_input_keeps_buffer_bounded() {
+            let mut decoder = RequestDecoder::default();
+            let mut buf = BytesMut::new();
+
+            for chunk in noise(4096, 0xDEAD_BEEF).chunks(64) {
+                buf.extend_from_slice(chunk);
+                assert!(decoder.decode(&mut buf).unwrap().is_none());
+                assert!(buf.len() < MAX_CLAIMED_REQUEST_FRAME_LEN);
+            }
+        }
+
+        #[test]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
+        fn decode_requests_from_shared_bus_traffic() {
+            let read_holding = [0x03, 0x00, 0x00, 0x00, 0x02];
+            let write_multiple = [0x10, 0x00, 0x01, 0x00, 0x02, 0x04, 0x00, 0x0A, 0x01, 0x02];
+            let read_input = [0x04, 0x00, 0x08, 0x00, 0x01];
+            let bus = [
+                noise(40, 7),
+                build_response_frame(0x02, &read_holding),
+                build_response_frame(0x02, &[0x03, 0x04, 0x00, 0x0A, 0x00, 0x0B]),
+                noise(17, 11),
+                build_response_frame(0x03, &write_multiple),
+                build_response_frame(0x03, &[0x10, 0x00, 0x01, 0x00, 0x02]),
+                build_response_frame(0x04, &[0x83, 0x02]),
+                noise(23, 13),
+                build_response_frame(0x11, &read_input),
+            ]
+            .concat();
+
+            let mut decoder = RequestDecoder::default();
+            let mut buf = BytesMut::new();
+            let mut decoded = Vec::new();
+            for chunk in bus.chunks(7) {
+                buf.extend_from_slice(chunk);
+                decoded.extend(decode_available(&mut decoder, &mut buf));
+                assert!(buf.len() < MAX_CLAIMED_REQUEST_FRAME_LEN);
+            }
+
+            let expected = [
+                (0x02, &read_holding[..]),
+                (0x03, &write_multiple[..]),
+                (0x11, &read_input[..]),
+            ];
+            let decoded: Vec<_> = decoded.iter().map(|(id, pdu)| (*id, &pdu[..])).collect();
+            assert_eq!(decoded, expected);
+            assert!(buf.is_empty());
+        }
     }
 }
