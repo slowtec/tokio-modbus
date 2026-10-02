@@ -6,6 +6,7 @@
 use std::{future::Future, io, path::Path};
 
 use futures_util::{FutureExt as _, SinkExt as _, StreamExt as _};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_serial::SerialStream;
 use tokio_util::codec::Framed;
 
@@ -72,10 +73,11 @@ impl Server {
 }
 
 /// frame wrapper around the underlying service's responses to forwarded requests
-async fn process<S>(mut framed: Framed<SerialStream, ServerCodec>, service: S) -> io::Result<()>
+async fn process<S, T>(mut framed: Framed<T, ServerCodec>, service: S) -> io::Result<()>
 where
     S: Service + Send + Sync + 'static,
     S::Request: From<RequestAdu<'static>> + Send,
+    T: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
         let Some(request_adu) = framed.next().await.transpose().inspect_err(|err| {
