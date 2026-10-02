@@ -120,3 +120,50 @@ where
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use futures::future;
+    use tokio::io::AsyncWriteExt as _;
+
+    use crate::{prelude::*, server::Service};
+
+    use super::*;
+
+    struct EchoAddressService;
+
+    impl Service for EchoAddressService {
+        type Request = Request<'static>;
+        type Response = Response;
+        type Exception = ExceptionCode;
+        type Future = future::Ready<Result<Self::Response, Self::Exception>>;
+
+        fn call(&self, req: Self::Request) -> Self::Future {
+            future::ready(match req {
+                Request::ReadHoldingRegisters(addr, _) => {
+                    Ok(Response::ReadHoldingRegisters(vec![addr]))
+                }
+                _ => Err(ExceptionCode::IllegalFunction),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn keep_serving_after_crc_valid_frame_with_undecodable_pdu() {
+        let invalid_write_single_coil_to_slave_2 = [0x02, 0x05, 0x00, 0x01, 0x00, 0x01, 0x5D, 0xF9];
+        let (mut bus, server_port) = tokio::io::duplex(1024);
+        let server = tokio::spawn(process(
+            Framed::new(server_port, ServerCodec::default()),
+            EchoAddressService,
+        ));
+
+        bus.write_all(&invalid_write_single_coil_to_slave_2)
+            .await
+            .unwrap();
+        let mut ctx = rtu::attach_slave(bus, Slave(1));
+        let registers = ctx.read_holding_registers(0x2A, 1).await.unwrap();
+
+        assert_eq!(registers, Ok(vec![0x2A]));
+        server.abort();
+    }
+}

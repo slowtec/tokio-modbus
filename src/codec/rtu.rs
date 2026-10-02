@@ -359,22 +359,19 @@ impl Decoder for ServerCodec {
     type Error = io::Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<RequestAdu<'static>>> {
-        let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? else {
-            return Ok(None);
-        };
-
-        let hdr = Header { slave_id };
-
-        // Decoding of the PDU is unlikely to fail due
-        // to transmission errors, because the frame's bytes
-        // have already been verified with the CRC.
-        super::RequestPdu::try_from(pdu_data)
-            .map(|pdu| Some(RequestAdu { hdr, pdu }))
-            .map_err(|err| {
-                // Unrecoverable error
-                log::error!("Failed to decode request PDU: {err}");
-                err
-            })
+        while let Some((slave_id, pdu_data)) = self.decoder.decode(buf)? {
+            let fn_code = pdu_data[0];
+            match super::RequestPdu::try_from(pdu_data) {
+                Ok(pdu) => {
+                    let hdr = Header { slave_id };
+                    return Ok(Some(RequestAdu { hdr, pdu }));
+                }
+                Err(err) => log::warn!(
+                    "Dropping request to slave {slave_id} (function = 0x{fn_code:0>2X}) with undecodable PDU: {err}"
+                ),
+            }
+        }
+        Ok(None)
     }
 }
 
@@ -1103,6 +1100,38 @@ mod tests {
             ];
             let decoded: Vec<_> = decoded.iter().map(|(id, pdu)| (*id, &pdu[..])).collect();
             assert_eq!(decoded, expected);
+            assert!(buf.is_empty());
+        }
+
+        #[test]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
+        fn decode_request_after_crc_valid_frame_with_undecodable_pdu() {
+            let invalid_write_single_coil = [0x05, 0x00, 0x01, 0x00, 0x01];
+            let read_holding = [0x03, 0x00, 0x6B, 0x00, 0x03];
+            let mut codec = ServerCodec::default();
+            let mut buf = BytesMut::from(
+                &[
+                    build_response_frame(0x02, &invalid_write_single_coil),
+                    build_response_frame(0x11, &read_holding),
+                ]
+                .concat()[..],
+            );
+
+            let RequestAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(hdr.slave_id, 0x11);
+            assert_eq!(pdu.0, Request::ReadHoldingRegisters(0x6B, 3));
+            assert!(buf.is_empty());
+        }
+
+        #[test]
+        #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
+        fn drop_lone_crc_valid_frame_with_undecodable_pdu() {
+            let invalid_write_single_coil = [0x05, 0x00, 0x01, 0x00, 0x01];
+            let mut codec = ServerCodec::default();
+            let mut buf =
+                BytesMut::from(&build_response_frame(0x02, &invalid_write_single_coil)[..]);
+
+            assert!(codec.decode(&mut buf).unwrap().is_none());
             assert!(buf.is_empty());
         }
     }
