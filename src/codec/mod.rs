@@ -303,7 +303,10 @@ fn decode_request_pdu_bytes(bytes: &Bytes) -> io::Result<Request<'static>> {
             let address = read_u16_be(rdr)?;
             let quantity = read_u16_be(rdr)?;
             let byte_count = rdr.read_u8()?;
-            if u16::from(byte_count) != quantity * 2 {
+            // `quantity` comes straight off the wire, so `quantity * 2` overflows a `u16` from
+            // 0x8000 up: that panics where overflow checks are on and silently wraps to 0
+            // otherwise, which lets a frame declaring `byte_count == 0` past this very check.
+            if u32::from(byte_count) != u32::from(quantity) * 2 {
                 return Err(io::Error::new(ErrorKind::InvalidData, "invalid quantity"));
             }
             let mut data = Vec::with_capacity(quantity.into());
@@ -326,7 +329,8 @@ fn decode_request_pdu_bytes(bytes: &Bytes) -> io::Result<Request<'static>> {
             let write_address = read_u16_be(rdr)?;
             let write_quantity = read_u16_be(rdr)?;
             let write_count = rdr.read_u8()?;
-            if u16::from(write_count) != write_quantity * 2 {
+            // Widened for the same reason as the write-multiple-registers check above.
+            if u32::from(write_count) != u32::from(write_quantity) * 2 {
                 return Err(io::Error::new(
                     ErrorKind::InvalidData,
                     "invalid write quantity",
@@ -1318,10 +1322,38 @@ mod tests {
         fn read_coils() {
             assert!(Request::try_from(Bytes::from(vec![0x01])).is_err());
             assert!(Request::try_from(Bytes::from(vec![0x01, 0x0, 0x0, 0x22])).is_err());
-
             let bytes = Bytes::from(vec![0x01, 0x00, 0x12, 0x0, 0x4]);
             let req = Request::try_from(bytes).unwrap();
             assert_eq!(req, Request::ReadCoils(0x12, 4));
+        }
+
+        /// A quantity at or above 0x8000 doubled a `u16`, which panics where overflow checks are
+        /// on and wraps to 0 otherwise, letting `byte_count == 0` pass the length check it was
+        /// meant to fail. Both are rejected now, at the boundary and above it.
+        #[test]
+        fn write_multiple_registers_quantity_does_not_overflow() {
+            for quantity in [0x8000_u16, 0xffff] {
+                let [hi, lo] = quantity.to_be_bytes();
+                // Function 0x10, address 0x0000, the quantity, then a byte count of 0.
+                let bytes = Bytes::from(vec![0x10, 0x00, 0x00, hi, lo, 0x00]);
+                // The message matters: without the widening this wraps to 0, the length check
+                // passes, and the read below fails with an end-of-input error instead, so
+                // asserting only `is_err()` would hold for the wrong reason.
+                let err = Request::try_from(bytes).unwrap_err().to_string();
+                assert!(err.contains("quantity"), "quantity {quantity:#06x} must fail the length check, got {err:?}");
+            }
+        }
+
+        /// The same doubling, on the write half of read/write multiple registers.
+        #[test]
+        fn read_write_multiple_registers_write_quantity_does_not_overflow() {
+            for quantity in [0x8000_u16, 0xffff] {
+                let [hi, lo] = quantity.to_be_bytes();
+                // Function 0x17, read address/quantity, write address, the write quantity, count 0.
+                let bytes = Bytes::from(vec![0x17, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, hi, lo, 0x00]);
+                let err = Request::try_from(bytes).unwrap_err().to_string();
+                assert!(err.contains("quantity"), "write quantity {quantity:#06x} must fail the length check, got {err:?}");
+            }
         }
 
         #[test]
