@@ -56,6 +56,22 @@ where
         log::debug!("Call {req:?}");
 
         let req_function_code = req.function_code();
+
+        // Servers never answer a broadcast, so we must not wait for a
+        // response. Only write requests may be broadcast.
+        let broadcast_response = if Slave(self.slave_id).is_broadcast() {
+            let Some(response) = req.broadcast_response() else {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!("function {req_function_code} cannot be broadcast"),
+                )
+                .into());
+            };
+            Some(response)
+        } else {
+            None
+        };
+
         let req_adu = self.next_request_adu(req);
         let req_hdr = req_adu.hdr;
 
@@ -63,6 +79,10 @@ where
 
         framed.read_buffer_mut().clear();
         framed.send(req_adu).await?;
+
+        if let Some(response) = broadcast_response {
+            return Ok(Ok(response));
+        }
 
         let res_adu = framed
             .next()
@@ -201,8 +221,7 @@ mod tests {
     #[tokio::test]
     async fn handle_broken_pipe() {
         let transport = MockTransport;
-        let mut client =
-            crate::service::rtu::Client::new(transport, crate::service::rtu::Slave::broadcast());
+        let mut client = crate::service::rtu::Client::new(transport, crate::service::rtu::Slave(1));
         let res = client
             .call(crate::service::rtu::Request::ReadCoils(0x00, 5))
             .await;
@@ -210,6 +229,33 @@ mod tests {
         let err = res.err().unwrap();
         assert!(
             matches!(err, Error::Transport(err) if err.kind() == std::io::ErrorKind::BrokenPipe)
+        );
+    }
+
+    #[tokio::test]
+    async fn broadcast_write_does_not_wait_for_response() {
+        use crate::service::rtu::{Request, Response, Slave};
+
+        // The transport has no data to read, so waiting for a response
+        // would fail with a broken pipe.
+        let mut client = crate::service::rtu::Client::new(MockTransport, Slave::broadcast());
+        let res = client
+            .call(Request::WriteSingleRegister(0x10, 0x1234))
+            .await;
+        assert!(matches!(
+            res,
+            Ok(Ok(Response::WriteSingleRegister(0x10, 0x1234)))
+        ));
+    }
+
+    #[tokio::test]
+    async fn broadcast_read_is_rejected() {
+        use crate::service::rtu::{Request, Slave};
+
+        let mut client = crate::service::rtu::Client::new(MockTransport, Slave::broadcast());
+        let res = client.call(Request::ReadCoils(0x00, 5)).await;
+        assert!(
+            matches!(res, Err(Error::Transport(err)) if err.kind() == std::io::ErrorKind::InvalidInput)
         );
     }
 }
