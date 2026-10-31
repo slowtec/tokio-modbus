@@ -20,6 +20,7 @@ use crate::{
         ExceptionResponse, OptionalResponsePdu, RequestPdu,
         rtu::{RequestAdu, ResponseAdu},
     },
+    slave::Slave,
 };
 
 use super::{Service, Terminated};
@@ -172,6 +173,12 @@ where
             continue;
         };
 
+        // Broadcast requests are processed, but never answered.
+        if Slave(hdr.slave_id).is_broadcast() {
+            log::trace!("Not responding to broadcast request (function = {fc})");
+            continue;
+        }
+
         framed
             .send(ResponseAdu {
                 hdr,
@@ -219,9 +226,20 @@ fn configure_tcp(_workers: usize, _tcp: &Socket) -> io::Result<()> {
 mod tests {
     use super::*;
 
-    use crate::{prelude::*, server::Service};
+    use crate::{
+        codec::rtu::ClientCodec,
+        frame::{ResponsePdu, rtu::Header},
+        prelude::*,
+        server::Service,
+    };
 
-    use std::sync::Arc;
+    use std::{
+        sync::{
+            Arc,
+            atomic::{AtomicU16, Ordering},
+        },
+        time::Duration,
+    };
 
     use futures::future;
 
@@ -286,5 +304,68 @@ mod tests {
         let rsp_adu = service.call(pdu).await.unwrap();
 
         assert_eq!(rsp_adu, service.response);
+    }
+
+    /// A service with a single holding register at address 0.
+    #[derive(Default)]
+    struct RegisterService(Arc<AtomicU16>);
+
+    impl Service for RegisterService {
+        type Request = Request<'static>;
+        type Response = Response;
+        type Exception = ExceptionCode;
+        type Future = future::Ready<Result<Self::Response, Self::Exception>>;
+
+        fn call(&self, req: Self::Request) -> Self::Future {
+            match req {
+                Request::WriteSingleRegister(0, word) => {
+                    self.0.store(word, Ordering::Relaxed);
+                    future::ready(Ok(Response::WriteSingleRegister(0, word)))
+                }
+                Request::ReadHoldingRegisters(0, 1) => {
+                    future::ready(Ok(Response::ReadHoldingRegisters(vec![
+                        self.0.load(Ordering::Relaxed),
+                    ])))
+                }
+                _ => future::ready(Err(ExceptionCode::IllegalFunction)),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn processes_broadcast_without_responding() {
+        let (client_io, server_io) = tokio::io::duplex(256);
+        let server_framed = Framed::new(server_io, ServerCodec::default());
+        let mut framed = Framed::new(client_io, ClientCodec::default());
+
+        tokio::select! {
+            _ = process(server_framed, RegisterService::default()) => unreachable!(),
+            () = async {
+                framed
+                    .send(RequestAdu {
+                        hdr: Header { slave_id: 0 },
+                        pdu: Request::WriteSingleRegister(0, 0x99).into(),
+                    })
+                    .await
+                    .unwrap();
+                let result = tokio::time::timeout(Duration::from_millis(200), framed.next()).await;
+                assert!(result.is_err(), "Expected no response to a broadcast");
+
+                // The broadcast write must have been processed
+                framed
+                    .send(RequestAdu {
+                        hdr: Header { slave_id: 1 },
+                        pdu: Request::ReadHoldingRegisters(0, 1).into(),
+                    })
+                    .await
+                    .unwrap();
+                let ResponseAdu {
+                    hdr,
+                    pdu: ResponsePdu(result),
+                } = framed.next().await.unwrap().unwrap();
+                assert_eq!(hdr.slave_id, 1);
+                assert_eq!(result.unwrap(), Response::ReadHoldingRegisters(vec![0x99]));
+            } => (),
+        }
     }
 }
