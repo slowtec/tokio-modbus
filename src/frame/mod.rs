@@ -365,6 +365,44 @@ impl Request<'_> {
             Custom(code, _) => FunctionCode::Custom(*code),
         }
     }
+
+    /// The response to substitute for a broadcast request.
+    ///
+    /// Servers never answer broadcast requests. For write requests the
+    /// response a server would have sent can be derived from the request.
+    /// Requests that read data cannot be broadcast and return `None`.
+    ///
+    /// Custom requests are passed through with an empty response.
+    #[cfg(feature = "rtu")]
+    pub(crate) fn broadcast_response(&self) -> Option<Response> {
+        use Request::*;
+
+        let response = match self {
+            WriteSingleCoil(addr, coil) => Response::WriteSingleCoil(*addr, *coil),
+            WriteMultipleCoils(addr, coils) => {
+                Response::WriteMultipleCoils(*addr, coils.len().try_into().ok()?)
+            }
+            WriteSingleRegister(addr, word) => Response::WriteSingleRegister(*addr, *word),
+            WriteMultipleRegisters(addr, words) => {
+                Response::WriteMultipleRegisters(*addr, words.len().try_into().ok()?)
+            }
+            MaskWriteRegister(addr, and_mask, or_mask) => {
+                Response::MaskWriteRegister(*addr, *and_mask, *or_mask)
+            }
+            WriteFileRecord(sub_reqs) => Response::WriteFileRecord(sub_reqs.to_vec()),
+            Custom(code, _) => Response::Custom(*code, Bytes::new()),
+            ReadCoils(_, _)
+            | ReadDiscreteInputs(_, _)
+            | ReadInputRegisters(_, _)
+            | ReadHoldingRegisters(_, _)
+            | ReportServerId
+            | ReadWriteMultipleRegisters(_, _, _, _)
+            | ReadFileRecord(_)
+            | ReadFifoQueue(_)
+            | ReadDeviceIdentification(_, _) => return None,
+        };
+        Some(response)
+    }
 }
 
 /// A Modbus request with slave included
