@@ -776,6 +776,24 @@ impl TryFrom<Bytes> for ResponsePdu {
     }
 }
 
+/// Decode a response PDU received by a client.
+///
+/// Responses with the function code of a custom request are not decoded
+/// and returned as [`Response::Custom`], even if the function code is
+/// a standard one.
+#[cfg(any(feature = "rtu", feature = "tcp"))]
+fn decode_client_response_pdu(
+    bytes: Bytes,
+    custom_function_code: Option<u8>,
+) -> io::Result<ResponsePdu> {
+    match bytes.first() {
+        Some(&fn_code) if Some(fn_code) == custom_function_code => {
+            Ok(Response::Custom(fn_code, bytes.slice(1..)).into())
+        }
+        _ => ResponsePdu::try_from(bytes),
+    }
+}
+
 #[cfg(any(test, feature = "rtu", feature = "tcp"))]
 fn bool_to_coil(state: bool) -> u16 {
     if state { 0xFF00 } else { 0x0000 }

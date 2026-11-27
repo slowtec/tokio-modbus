@@ -118,6 +118,8 @@ pub(crate) struct ResponseDecoder {
 #[derive(Debug, Default)]
 pub(crate) struct ClientCodec {
     pub(crate) decoder: ResponseDecoder,
+    /// Function code of a pending custom request.
+    pub(crate) custom_function_code: Option<u8>,
 }
 
 #[cfg(any(feature = "rtu-over-tcp-server", feature = "rtu-server"))]
@@ -341,7 +343,7 @@ impl Decoder for ClientCodec {
         // Decoding of the PDU is unlikely to fail due
         // to transmission errors, because the frame's bytes
         // have already been verified with the CRC.
-        super::ResponsePdu::try_from(pdu_data)
+        super::decode_client_response_pdu(pdu_data, self.custom_function_code)
             .map(|pdu| Some(ResponseAdu { hdr, pdu }))
             .map_err(|err| {
                 // Unrecoverable error
@@ -820,6 +822,26 @@ mod tests {
             } else {
                 panic!("unexpected response")
             }
+        }
+
+        #[test]
+        fn decode_custom_response_with_standard_function_code() {
+            let mut codec = ClientCodec {
+                custom_function_code: Some(0x17),
+                ..Default::default()
+            };
+            // Odd byte count, which is invalid for a standard 0x17 response.
+            let mut buf = BytesMut::from(&[0x23, 0x17, 0x03, 0xAA, 0xBB, 0xCC][..]);
+            let crc = calc_crc(&buf);
+            write_crc(&mut buf, crc);
+
+            let ResponseAdu { hdr, pdu } = codec.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(buf.len(), 0);
+            assert_eq!(hdr.slave_id, 0x23);
+            assert_eq!(
+                pdu,
+                Response::Custom(0x17, Bytes::from_static(&[0x03, 0xAA, 0xBB, 0xCC])).into()
+            );
         }
 
         #[test]
