@@ -23,12 +23,15 @@ pub(crate) struct AduDecoder;
 #[derive(Debug)]
 pub(crate) struct ClientCodec {
     pub(crate) decoder: AduDecoder,
+    /// Function code of a pending custom request.
+    pub(crate) custom_function_code: Option<u8>,
 }
 
 impl ClientCodec {
     pub(crate) const fn new() -> Self {
         Self {
             decoder: AduDecoder,
+            custom_function_code: None,
         }
     }
 }
@@ -101,7 +104,7 @@ impl Decoder for ClientCodec {
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<ResponseAdu>> {
         match self.decoder.decode(buf)? {
             Some((hdr, pdu_data)) => {
-                let pdu = ResponsePdu::try_from(pdu_data)?;
+                let pdu = decode_client_response_pdu(pdu_data, self.custom_function_code)?;
                 Ok(Some(ResponseAdu { hdr, pdu }))
             }
             _ => Ok(None),
@@ -236,6 +239,35 @@ mod tests {
             } else {
                 panic!("unexpected response")
             }
+        }
+
+        #[test]
+        fn decode_custom_response_with_standard_function_code() {
+            let mut codec = ClientCodec::new();
+            codec.custom_function_code = Some(0x17);
+            let mut buf = BytesMut::from(
+                &[
+                    TRANSACTION_ID_HI,
+                    TRANSACTION_ID_LO,
+                    PROTOCOL_ID_HI,
+                    PROTOCOL_ID_LO,
+                    0x00, // length high HI
+                    0x06, // length low LO
+                    UNIT_ID,
+                    0x17, // function code
+                    0x03, // odd byte count, invalid for a standard 0x17 response
+                    0xAA,
+                    0xBB,
+                    0xCC,
+                ][..],
+            );
+
+            let ResponseAdu { pdu, .. } = codec.decode(&mut buf).unwrap().unwrap();
+            assert_eq!(buf.len(), 0);
+            assert_eq!(
+                pdu,
+                Response::Custom(0x17, Bytes::from_static(&[0x03, 0xAA, 0xBB, 0xCC])).into()
+            );
         }
 
         #[test]

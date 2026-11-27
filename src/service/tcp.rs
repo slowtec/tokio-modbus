@@ -8,7 +8,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::Framed;
 
 use crate::{
-    ExceptionResponse, ProtocolError, Request, Response, Result, codec,
+    ExceptionResponse, FunctionCode, ProtocolError, Request, Response, Result, codec,
     frame::{
         RequestPdu, ResponsePdu,
         tcp::{Header, RequestAdu, ResponseAdu, TransactionId, UnitId},
@@ -97,6 +97,12 @@ where
 
         let framed = self.framed()?;
 
+        // Responses to custom requests are not decoded.
+        framed.codec_mut().custom_function_code = match req_function_code {
+            FunctionCode::Custom(code) => Some(code),
+            _ => None,
+        };
+
         framed.read_buffer_mut().clear();
         framed.send(req_adu).await?;
 
@@ -119,7 +125,7 @@ where
             Ok(response) => response.function_code(),
             Err(ExceptionResponse { function, .. }) => *function,
         };
-        if req_function_code != rsp_function_code {
+        if req_function_code.value() != rsp_function_code.value() {
             return Err(ProtocolError::FunctionCodeMismatch {
                 request: req_function_code,
                 result,
