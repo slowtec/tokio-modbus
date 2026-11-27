@@ -10,8 +10,8 @@
   IDs are silently ignored, as required by the Modbus RTU specification
   ([#378](https://github.com/slowtec/tokio-modbus/pull/378)).
 - Client: Responses to `Request::Custom` are returned as `Response::Custom`
-  without decoding, even if the function code is a standard one (e.g. 0x17
-  with a non-standard payload).
+  without decoding, even if the function code is a standard one (e.g. 0x17 with
+  a non-standard payload).
 - Client: Fix `FunctionCodeMismatch` instead of the exception for an exception
   response to a `Request::Custom` with a standard function code.
 
